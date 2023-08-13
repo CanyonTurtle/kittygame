@@ -9,12 +9,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
-name = "bobbin-bits"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "84a856508d80144eabeae3392de76f269e5fd2983226e4757219f8ce87c5e572"
-
-[[package]]
 name = "buddy-alloc"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -24,7 +18,6 @@ checksum = "3240a4cb09cf0da6a51641bd40ce90e96ea6065e3a1adc46434029254bcc2d09"
 name = "cart"
 version = "0.1.0"
 dependencies = [
- "bobbin-bits",
  "buddy-alloc",
  "num",
 ]
