@@ -1,16 +1,27 @@
-use buddy_alloc::{BuddyAllocParam, FastAllocParam, NonThreadsafeAlloc};
 
-// These values can be tuned
-const FAST_HEAP_SIZE: usize = 1 * 1024; // 1 KB
-const HEAP_SIZE: usize = 30 * 1024; // 48 KB
-const LEAF_SIZE: usize = 1024;
+extern crate alloc;
 
-static mut FAST_HEAP: [u8; FAST_HEAP_SIZE] = [0u8; FAST_HEAP_SIZE];
-static mut HEAP: [u8; HEAP_SIZE] = [0u8; HEAP_SIZE];
+use alloc::alloc::{GlobalAlloc, Layout};
+
+struct HeaplessGlobalAllocator<const N: usize> {
+    buffer: heapless::Vec<u8, N>,
+}
+
+unsafe impl<const N: usize> GlobalAlloc for HeaplessGlobalAllocator<N> {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        if layout.size() <= N {
+            0x100 as *mut u8
+        } else {
+            core::ptr::null_mut()
+        }
+    }
+
+    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {
+        // Heapless doesn't support deallocation, so we do nothing here
+    }
+}
 
 #[global_allocator]
-static ALLOC: NonThreadsafeAlloc = unsafe {
-    let fast_param = FastAllocParam::new(FAST_HEAP.as_ptr(), FAST_HEAP_SIZE);
-    let buddy_param = BuddyAllocParam::new(HEAP.as_ptr(), HEAP_SIZE, LEAF_SIZE);
-    NonThreadsafeAlloc::new(fast_param, buddy_param)
+static GLOBAL_ALLOCATOR: HeaplessGlobalAllocator<40000> = HeaplessGlobalAllocator {
+    buffer: heapless::Vec::new(),
 };

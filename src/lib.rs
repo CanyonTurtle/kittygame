@@ -2,27 +2,30 @@
 //
 // custom tilemap code? or hand write? custom tilemap code is preferrable.
 
-#[cfg(feature = "buddy-alloc")]
+#![no_std]
+
 mod alloc;
 mod spritesheet;
 mod wasm4;
 use num;
-use std::cell::RefCell;
 use wasm4::*;
 
+use heapless::Vec;
 
 
 const MAP_CHUNK_N_ROWS: usize = 32;
 const MAP_CHUNK_N_COLS: usize = 32;
-const MAP_N_CHUNKS: i32 = 13;
-const N_NPCS: i32 = 14;
+const MAP_N_CHUNKS: i32 = 4;
+const MAP_N_CHUNKS_USIZE: usize = 4;
+const N_NPCS: i32 = 1;
+const N_NPCS_USIZE: usize = 1;
 
 const GROUND_TILE_OFFSET: usize = 1;
 
 const TILE_WIDTH_PX: usize = 5;
 const TILE_HEIGHT_PX: usize = 5;
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 enum KittyStates {
     Idle,
     Moving1,
@@ -47,22 +50,22 @@ impl Character {
     }
 }
 
-#[derive(Clone, Copy)]
-
+#[derive(Clone, Copy, Debug)]
 struct Camera {
     current_viewing_x_offset: f32,
     current_viewing_y_offset: f32,
 }
 
-
+#[derive(Debug)]
 struct MapChunk {
     tiles: [[u8; MAP_CHUNK_N_COLS]; MAP_CHUNK_N_ROWS],
     chunk_i: i32,
     chunk_j: i32,
 }
 
+#[derive(Debug)]
 struct GameMap {
-    chunks: Vec<MapChunk>
+    chunks: Vec<MapChunk, MAP_N_CHUNKS_USIZE>
 
 }
 
@@ -78,7 +81,7 @@ fn drawmap(game_state: &GameState) {
                 match map_tile_i {
                     0 => {},
                     tile_idx => {
-                        let tile_i: usize = *tile_idx as usize - 1; // *tile_idx as usize;
+                        let tile_i: usize = 1; // *tile_idx as usize - 1; // *tile_idx as usize;
                         // trace(format!("Tile {tile_i}"));
                         let chunk_x_offset: i32 = (TILE_WIDTH_PX * MAP_CHUNK_N_COLS) as i32 * chunk.chunk_j;
                         let chunk_y_offset: i32 = (TILE_HEIGHT_PX * MAP_CHUNK_N_ROWS) as i32 * chunk.chunk_i;
@@ -106,6 +109,7 @@ fn drawmap(game_state: &GameState) {
     }
 }
 
+#[derive(Debug)]
 struct Character {
     x_pos: f32,
     y_pos: f32,
@@ -136,12 +140,13 @@ impl Rng {
     }
 }
 
+#[derive(Debug)]
 struct GameState<'a> {
     player_1: Character,
-    npcs: Vec<Character>,
+    npcs: Vec<Character, N_NPCS_USIZE>,
     spritesheet: &'a [u8],
     spritesheet_stride: usize,
-    background_tiles: Vec<spritesheet::Sprite>,
+    background_tiles: Vec<spritesheet::Sprite, 9>,
     map: GameMap,
     camera: Camera,
     rng: Rng,
@@ -151,7 +156,7 @@ struct GameState<'a> {
 
 fn generate_map(rng: &mut Rng) -> GameMap {
 
-    let mut chunks: Vec<MapChunk> = (0..MAP_N_CHUNKS).map(|i| MapChunk {
+    let mut chunks: Vec<MapChunk, MAP_N_CHUNKS_USIZE> = (0..MAP_N_CHUNKS).map(|i| MapChunk {
         tiles: [[0; MAP_CHUNK_N_COLS]; MAP_CHUNK_N_ROWS],
         chunk_i: 0,
         chunk_j: i
@@ -172,7 +177,7 @@ fn generate_map(rng: &mut Rng) -> GameMap {
                 if rand_num >= 9 {
                     rand_num = 0;
                 }
-                tiles[row][col] = rand_num;
+                tiles[row][col] = 255;
             }
         }
         
@@ -192,11 +197,23 @@ fn generate_map(rng: &mut Rng) -> GameMap {
     map
 }
 
+
 impl GameState<'static> {
     fn new() -> GameState<'static> {
         let mut rng = Rng::new();
+
+        let mut background_tiles: Vec<spritesheet::Sprite, 9> = Vec::new();
+        background_tiles.push(spritesheet::Sprite::from_preset(spritesheet::PresetSprites::SolidWhite)).unwrap();
+        background_tiles.push(spritesheet::Sprite::from_preset(spritesheet::PresetSprites::SeethroughWhite)).unwrap();
+        background_tiles.push(spritesheet::Sprite::from_preset(spritesheet::PresetSprites::TopleftSolidCorner)).unwrap();
+        background_tiles.push(spritesheet::Sprite::from_preset(spritesheet::PresetSprites::ToprightSolidCorner)).unwrap();
+        background_tiles.push(spritesheet::Sprite::from_preset(spritesheet::PresetSprites::BottomleftSolidCorner)).unwrap();
+        background_tiles.push(spritesheet::Sprite::from_preset(spritesheet::PresetSprites::BottomrightSolidCorner)).unwrap();
+        background_tiles.push(spritesheet::Sprite::from_preset(spritesheet::PresetSprites::ColumnTop)).unwrap();
+        background_tiles.push(spritesheet::Sprite::from_preset(spritesheet::PresetSprites::ColumnMiddle)).unwrap();
+        background_tiles.push(spritesheet::Sprite::from_preset(spritesheet::PresetSprites::ColumnBottom)).unwrap();
         GameState {
-            player_1: Character::new(40, spritesheet::PresetSprites::Kitty1),
+            player_1: Character::new(40, spritesheet::PresetSprites::Kitty3),
             npcs: (0..N_NPCS).map(|mut x| {
                 x %= 6;
                 let preset = match x {
@@ -209,7 +226,7 @@ impl GameState<'static> {
                     _ => spritesheet::PresetSprites::Pig
                 };
                 Character::new((x * 2000) % 300 , preset)
-            }).collect::<Vec<Character>>(),
+            }).collect::<Vec<Character, N_NPCS_USIZE>>(),
             // npcs: vec![
             //     Character::new(500, spritesheet::PresetSprites::Kitty2),
             //     Character::new(400, spritesheet::PresetSprites::Kitty3),
@@ -219,17 +236,7 @@ impl GameState<'static> {
             // ],
             spritesheet: &spritesheet::KITTY_SS,
             spritesheet_stride: spritesheet::KITTY_SS_STRIDE,
-            background_tiles: vec![
-                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::SolidWhite),
-                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::SeethroughWhite),
-                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::TopleftSolidCorner),
-                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::ToprightSolidCorner),
-                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::BottomleftSolidCorner),
-                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::BottomrightSolidCorner),
-                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::ColumnTop),
-                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::ColumnMiddle),
-                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::ColumnBottom),
-            ],
+            background_tiles,
             map: generate_map(&mut rng),
             camera: Camera { current_viewing_x_offset: 0.0, current_viewing_y_offset: 0.0 },
             rng
@@ -237,7 +244,7 @@ impl GameState<'static> {
     }
 }
 
-thread_local!(static GAME_STATE_HOLDER: RefCell<GameState<'static>> = RefCell::new(GameState::new()));
+static mut GAME_STATE_HOLDER: Vec<GameState<'static>, 1> = Vec::new();
 
 fn update_pos(character: &mut Character, input: u8) {
     
@@ -295,9 +302,12 @@ fn drawcharacter(spritesheet: &[u8], spritesheet_stride: &usize, camera: &Camera
 }
 
 #[no_mangle]
-fn update() {
-    GAME_STATE_HOLDER.with(|game_cell| {
-        let mut game_state = game_cell.borrow_mut();
+unsafe fn update() {
+    if GAME_STATE_HOLDER.len() == 0 {
+        GAME_STATE_HOLDER.push(GameState::new()).unwrap();
+    }
+    else {
+        let mut game_state = GAME_STATE_HOLDER.get_mut(0).unwrap();
 
         unsafe { *DRAW_COLORS = 0x1112 }
         text("WELCOME TO KITTY GAME.          :D       xD                           WHAT IS POPPIN ITS YOUR BOY, THE KITTY GAME", 200 - game_state.camera.current_viewing_x_offset as i32, 130);
@@ -313,22 +323,22 @@ fn update() {
 
         game_state.camera.current_viewing_x_offset = num::clamp(game_state.player_1.x_pos - 80.0, 0.0, MAP_N_CHUNKS as f32 * TILE_WIDTH_PX as f32 * MAP_CHUNK_N_COLS as f32);
 
-        let mut inputs: Vec<u8> = vec![];
+        let mut inputs: Vec<u8, N_NPCS_USIZE> = Vec::new();
 
         for _ in 0..game_state.npcs.len() {
             let rngg = &mut game_state.rng;
             let rand_val = (rngg.next() % 255) as u8;
             if rand_val < 20 {
-                inputs.push(0x10);
+                inputs.push(0x10).unwrap();
             }
             else if rand_val < 40 {
-                inputs.push(0x20);
+                inputs.push(0x20).unwrap();
             }
             else if rand_val < 42 {
-                inputs.push(BUTTON_1);
+                inputs.push(BUTTON_1).unwrap();
             }
             else {
-                inputs.push(0x0);
+                inputs.push(0x0).unwrap();
             }
             
         }
@@ -341,18 +351,5 @@ fn update() {
         }
         drawcharacter(&game_state.spritesheet, &game_state.spritesheet_stride, &game_state.camera, &game_state.player_1);
         drawmap(&game_state);
-
-        
-        // blit_sub(
-        //     &game_state.spritesheet,
-        //     0 as i32,
-        //     150 as i32,
-        //     game_state.background_tiles[0].frames[0].positioning.width as u32,
-        //     game_state.background_tiles[0].frames[0].positioning.height as u32,
-        //     game_state.background_tiles[0].frames[0].positioning.start_x as u32,
-        //     game_state.background_tiles[0].frames[0].positioning.start_y as u32,
-        //     game_state.spritesheet_stride as u32,
-        //     spritesheet::KITTY_SS_FLAGS | if bob.facing_right { 0 } else { BLIT_FLIP_X },
-        // );
-    });
+    }
 }
