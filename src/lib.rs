@@ -163,24 +163,26 @@ fn generate_map(rng: &mut Rng) -> GameMap {
         }
     }
     for chunk in &mut chunks {
-        const WIGGLE_ROOM: i32 = 3;
+        const WIGGLE_ROOM: i32 = 1;
         let tiles = &mut chunk.tiles;
         for row in 0..MAP_CHUNK_N_ROWS - GROUND_TILE_OFFSET - WIGGLE_ROOM as usize - 1 {
             for col in WIGGLE_ROOM as usize..MAP_CHUNK_N_COLS - WIGGLE_ROOM as usize {
                 let mut rand_num = rng.next() as u8;
-                rand_num /= 2;
                 if rand_num >= 9 {
                     rand_num = 0;
+                } else {
+                    rand_num += 5;
                 }
+                
                 tiles[row][col] = rand_num;
             }
         }
         
     }
     for row in 0..MAP_CHUNK_N_ROWS - GROUND_TILE_OFFSET {
-        chunks[0].tiles[row][0] = 1;
+        chunks[0].tiles[row][0] = 2;
         let l = chunks.len() - 1;
-        chunks[l].tiles[row][MAP_CHUNK_N_ROWS - 1] = 1;
+        chunks[l].tiles[row][MAP_CHUNK_N_ROWS - 1] = 3;
     }
 
 
@@ -196,7 +198,7 @@ impl GameState<'static> {
     fn new() -> GameState<'static> {
         let mut rng = Rng::new();
         GameState {
-            player_1: Character::new(40, spritesheet::PresetSprites::Kitty1),
+            player_1: Character::new(40, spritesheet::PresetSprites::MainCat),
             npcs: (0..N_NPCS).map(|mut x| {
                 x %= 6;
                 let preset = match x {
@@ -220,6 +222,10 @@ impl GameState<'static> {
             spritesheet: &spritesheet::KITTY_SS,
             spritesheet_stride: spritesheet::KITTY_SS_STRIDE,
             background_tiles: vec![
+                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::LineTop),
+                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::LineLeft),
+                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::LineRight),
+                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::LineBottom),
                 spritesheet::Sprite::from_preset(spritesheet::PresetSprites::SolidWhite),
                 spritesheet::Sprite::from_preset(spritesheet::PresetSprites::SeethroughWhite),
                 spritesheet::Sprite::from_preset(spritesheet::PresetSprites::TopleftSolidCorner),
@@ -242,7 +248,7 @@ thread_local!(static GAME_STATE_HOLDER: RefCell<GameState<'static>> = RefCell::n
 fn update_pos(character: &mut Character, input: u8) {
     
     let btn_accel = 0.6;
-    let hop_v: f32 = -3.0;
+    let hop_v: f32 = -4.0;
     let h_decay = 0.8;
     if input & BUTTON_LEFT != 0 {
         character.x_vel -= btn_accel;
@@ -269,7 +275,7 @@ fn update_pos(character: &mut Character, input: u8) {
     character.x_pos += character.x_vel;
     character.y_pos += character.y_vel;
 
-    let gravity = 0.2;
+    let gravity = 0.3;
     character.y_vel += gravity;
 
     character.x_pos = num::clamp(character.x_pos, 5.0, (TILE_WIDTH_PX * MAP_N_CHUNKS as usize * MAP_CHUNK_N_COLS - 5 - character.sprite.frames[character.current_sprite_i as usize].positioning.width) as f32);
