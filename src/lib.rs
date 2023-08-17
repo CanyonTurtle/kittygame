@@ -14,7 +14,7 @@ use wasm4::*;
 
 const MAP_CHUNK_N_ROWS: usize = 32;
 const MAP_CHUNK_N_COLS: usize = 32;
-const MAP_N_CHUNKS: i32 = 31;
+const MAP_N_CHUNKS: i32 = 15;
 const N_NPCS: i32 = 14;
 
 const GROUND_TILE_OFFSET: usize = 1;
