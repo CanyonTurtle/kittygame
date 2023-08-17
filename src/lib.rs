@@ -14,7 +14,7 @@ use wasm4::*;
 
 const MAP_CHUNK_N_ROWS: usize = 32;
 const MAP_CHUNK_N_COLS: usize = 32;
-const MAP_N_CHUNKS: i32 = 13;
+const MAP_N_CHUNKS: i32 = 31;
 const N_NPCS: i32 = 14;
 
 const GROUND_TILE_OFFSET: usize = 1;
@@ -163,10 +163,10 @@ fn generate_map(rng: &mut Rng) -> GameMap {
         }
     }
     for chunk in &mut chunks {
-
+        const WIGGLE_ROOM: i32 = 3;
         let tiles = &mut chunk.tiles;
-        for row in 0..MAP_CHUNK_N_ROWS - GROUND_TILE_OFFSET - 5 {
-            for col in 4..MAP_CHUNK_N_COLS - 4 {
+        for row in 0..MAP_CHUNK_N_ROWS - GROUND_TILE_OFFSET - WIGGLE_ROOM as usize - 1 {
+            for col in WIGGLE_ROOM as usize..MAP_CHUNK_N_COLS - WIGGLE_ROOM as usize {
                 let mut rand_num = rng.next() as u8;
                 rand_num /= 2;
                 if rand_num >= 9 {
