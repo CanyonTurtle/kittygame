@@ -10,20 +10,22 @@ use num;
 use std::cell::RefCell;
 use wasm4::*;
 
-const BUILDING_SUGGESTED_MIN_WIDTH: usize = 5; // 3;
-const BUILDING_SUGGESTED_MAX_WIDTH: usize = 10; // 14;
-const BUILDING_SUGGESTED_MIN_HEIGHT: usize = 3; // 3;
-const BUILDING_SUGGESTED_MAX_HEIGHT: usize = 15; // 12;
+// BUILDING PROFILE #1: baseline
+const BUILDING_SUGGESTED_MIN_WIDTH: usize = 8; // 3;
+const BUILDING_SUGGESTED_MAX_WIDTH: usize = 11; // 14;
+const BUILDING_SUGGESTED_MIN_HEIGHT: usize = 2; // 3;
+const BUILDING_SUGGESTED_MAX_HEIGHT: usize = 6; // 12;
 
-const N_BUILDINGS_PER_CHUNK: usize = 50;
-
+const N_BUILDINGS_PER_CHUNK: usize = 70;
+const USING_DOORS: bool = false;
 const MAP_CHUNK_N_ROWS: usize = 32;
 const MAP_CHUNK_N_COLS: usize = 32;
 const MAP_N_CHUNKS: i32 = 10;
+
+
 const N_NPCS: i32 = 14;
-
-const GROUND_TILE_OFFSET: usize = 1;
-
+const GROUND_TILE_OFFSET: usize = 1; 
+  
 const TILE_WIDTH_PX: usize = 5;
 const TILE_HEIGHT_PX: usize = 5;
 
@@ -208,7 +210,7 @@ fn regenerate_map(game_state: &mut GameState) {
  
                 const POSSIBLE_BUILDING_MATERIALS: [u8; 1] = [6];
                 const CORRUPT_MATERIALS: [u8; 7] = [7, 8, 9, 10, 11, 12, 13];
-                const CORRUPT_CHANCE: f32 = 0.35;
+                const CORRUPT_CHANCE: f32 = 0.2;
                 
                 fn get_material(normal: u8, corrupt: u8, chance: f32, rng: &mut Rng) -> u8 {
                     if (rng.next() as u8 % 255) as f32 > 255.0 * chance {
@@ -265,7 +267,7 @@ fn regenerate_map(game_state: &mut GameState) {
         
                     // door
                     
-                    if row == building_chunk_loc_y + building_height || row < building_chunk_loc_y + building_height - DOOR_HEIGHT {
+                    if !USING_DOORS || row == building_chunk_loc_y + building_height || row < building_chunk_loc_y + building_height - DOOR_HEIGHT {
                         // right
                         let corrupt_material: u8 = CORRUPT_MATERIALS[rng.next() as usize % CORRUPT_MATERIALS.len()]; 
                         let material = get_material(building_material, corrupt_material, CORRUPT_CHANCE, rng);
