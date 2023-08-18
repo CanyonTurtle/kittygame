@@ -10,11 +10,16 @@ use num;
 use std::cell::RefCell;
 use wasm4::*;
 
+const BUILDING_SUGGESTED_MIN_WIDTH: usize = 5; // 3;
+const BUILDING_SUGGESTED_MAX_WIDTH: usize = 10; // 14;
+const BUILDING_SUGGESTED_MIN_HEIGHT: usize = 3; // 3;
+const BUILDING_SUGGESTED_MAX_HEIGHT: usize = 15; // 12;
 
+const N_BUILDINGS_PER_CHUNK: usize = 50;
 
 const MAP_CHUNK_N_ROWS: usize = 32;
 const MAP_CHUNK_N_COLS: usize = 32;
-const MAP_N_CHUNKS: i32 = 15;
+const MAP_N_CHUNKS: i32 = 10;
 const N_NPCS: i32 = 14;
 
 const GROUND_TILE_OFFSET: usize = 1;
@@ -136,6 +141,11 @@ impl Rng {
     }
 }
 
+enum GameMode {
+    StartScreen,
+    NormalPlay
+}
+
 struct GameState<'a> {
     player_1: Character,
     npcs: Vec<Character>,
@@ -145,53 +155,175 @@ struct GameState<'a> {
     map: GameMap,
     camera: Camera,
     rng: Rng,
+    game_mode: GameMode,
 }
 
-
-
-fn generate_map(rng: &mut Rng) -> GameMap {
-
+fn create_map(rng: &mut Rng) -> GameMap {
     let mut chunks: Vec<MapChunk> = (0..MAP_N_CHUNKS).map(|i| MapChunk {
         tiles: [[0; MAP_CHUNK_N_COLS]; MAP_CHUNK_N_ROWS],
         chunk_i: 0,
         chunk_j: i
     }).collect();
-    for chunk in &mut chunks {
-        let tiles = &mut chunk.tiles;
-        for col in 0..MAP_CHUNK_N_COLS {
-            tiles[MAP_CHUNK_N_ROWS - GROUND_TILE_OFFSET][col] = 1;
-        }
-    }
-    for chunk in &mut chunks {
-        const WIGGLE_ROOM: i32 = 1;
-        let tiles = &mut chunk.tiles;
-        for row in 0..MAP_CHUNK_N_ROWS - GROUND_TILE_OFFSET - WIGGLE_ROOM as usize - 1 {
-            for col in WIGGLE_ROOM as usize..MAP_CHUNK_N_COLS - WIGGLE_ROOM as usize {
-                let mut rand_num = rng.next() as u8;
-                if rand_num >= 9 {
-                    rand_num = 0;
-                } else {
-                    rand_num += 5;
-                }
-                
-                tiles[row][col] = rand_num;
-            }
-        }
-        
-    }
-    for row in 0..MAP_CHUNK_N_ROWS - GROUND_TILE_OFFSET {
-        chunks[0].tiles[row][0] = 2;
-        let l = chunks.len() - 1;
-        chunks[l].tiles[row][MAP_CHUNK_N_ROWS - 1] = 3;
-    }
-
 
     let map = GameMap { chunks: chunks};
 
-    
-    
-    
+
     map
+}
+
+fn regenerate_map(game_state: &mut GameState) {
+
+    let chunks = &mut game_state.map.chunks;
+    let rng = &mut game_state.rng;
+    for chunk in chunks {
+
+        chunk.tiles = [[0 as u8; MAP_CHUNK_N_COLS]; MAP_CHUNK_N_ROWS];
+
+        let tiles = &mut chunk.tiles;
+        // for col in 0..MAP_CHUNK_N_COLS {
+        //     tiles[MAP_CHUNK_N_ROWS - GROUND_TILE_OFFSET][col] = 1;
+        // }
+        
+        
+
+        
+
+        fn spawn_rectangular_structures(tiles: &mut [[u8; MAP_CHUNK_N_COLS]; MAP_CHUNK_N_ROWS], rng: &mut Rng) {
+            let mut inside_start_xs: [u8; N_BUILDINGS_PER_CHUNK] = [0; N_BUILDINGS_PER_CHUNK];
+            let mut inside_start_ys: [u8; N_BUILDINGS_PER_CHUNK] = [0; N_BUILDINGS_PER_CHUNK];
+            let mut inside_end_xs: [u8; N_BUILDINGS_PER_CHUNK] = [0; N_BUILDINGS_PER_CHUNK];
+            let mut inside_end_ys: [u8; N_BUILDINGS_PER_CHUNK] = [0; N_BUILDINGS_PER_CHUNK];
+
+            let are_doors_on_right: bool = (rng.next() as u8) < 127;
+
+            for i in 0..N_BUILDINGS_PER_CHUNK {
+
+
+
+                let building_min_width: usize = num::clamp(BUILDING_SUGGESTED_MIN_WIDTH, 1, MAP_CHUNK_N_COLS);
+                let building_max_width: usize = num::clamp(BUILDING_SUGGESTED_MAX_WIDTH, building_min_width, MAP_CHUNK_N_COLS);
+
+                let building_min_height: usize = num::clamp(BUILDING_SUGGESTED_MIN_HEIGHT, 1, MAP_CHUNK_N_ROWS);
+                let building_max_height: usize = num::clamp(BUILDING_SUGGESTED_MAX_HEIGHT, building_min_height, MAP_CHUNK_N_ROWS);
+ 
+                const POSSIBLE_BUILDING_MATERIALS: [u8; 1] = [6];
+                const CORRUPT_MATERIALS: [u8; 7] = [7, 8, 9, 10, 11, 12, 13];
+                const CORRUPT_CHANCE: f32 = 0.35;
+                
+                fn get_material(normal: u8, corrupt: u8, chance: f32, rng: &mut Rng) -> u8 {
+                    if (rng.next() as u8 % 255) as f32 > 255.0 * chance {
+                        return normal;
+                    }
+                    corrupt
+                }
+        
+                // spawn structure
+                let building_width: usize = building_min_width + rng.next() as usize % (building_max_width - building_min_width);
+                let building_height: usize = building_min_height + rng.next() as usize % (building_max_height - building_min_height);
+        
+        
+                let building_chunk_loc_x: usize = 1 + rng.next() as usize % (MAP_CHUNK_N_COLS - building_width - 1) ;
+                let building_chunk_loc_y: usize = 1 + rng.next() as usize % (MAP_CHUNK_N_ROWS - building_height - 1);
+        
+                inside_start_xs[i] = building_chunk_loc_x as u8 + 1;
+                inside_start_ys[i] = building_chunk_loc_y as u8 + 1;
+                inside_end_xs[i] = building_chunk_loc_x as u8 + building_width as u8;
+                inside_end_ys[i] = building_chunk_loc_y as u8 + building_height as u8;
+
+
+                let building_material: u8 = POSSIBLE_BUILDING_MATERIALS[rng.next() as usize % POSSIBLE_BUILDING_MATERIALS.len()];
+                
+                const DOOR_HEIGHT: usize = 3;
+        
+                for col in building_chunk_loc_x..building_chunk_loc_x+building_width {
+                    let corrupt_material: u8 = CORRUPT_MATERIALS[rng.next() as usize % CORRUPT_MATERIALS.len()]; 
+                    let material = get_material(building_material, corrupt_material, CORRUPT_CHANCE, rng);
+                    // top
+                    tiles[building_chunk_loc_y][col] = material;
+        
+                    let material2 = get_material(building_material, corrupt_material, CORRUPT_CHANCE, rng);
+                    // bottom
+                    tiles[building_chunk_loc_y + building_height][col] = material2;
+                }
+        
+                // door
+                let door_x: usize;
+                let no_door_x: usize;
+        
+                if are_doors_on_right {
+                    door_x = building_chunk_loc_x;
+                    no_door_x = building_chunk_loc_x + building_width;
+                } else {
+                    door_x = building_chunk_loc_x + building_width;
+                    no_door_x = building_chunk_loc_x;
+                }
+                for row in building_chunk_loc_y..=building_chunk_loc_y+building_height  {
+                    // left
+                    
+        
+                    
+        
+                    // door
+                    
+                    if row == building_chunk_loc_y + building_height || row < building_chunk_loc_y + building_height - DOOR_HEIGHT {
+                        // right
+                        let corrupt_material: u8 = CORRUPT_MATERIALS[rng.next() as usize % CORRUPT_MATERIALS.len()]; 
+                        let material = get_material(building_material, corrupt_material, CORRUPT_CHANCE, rng);
+                        tiles[row][door_x] = material;
+                    }
+                    let corrupt_material: u8 = CORRUPT_MATERIALS[rng.next() as usize % CORRUPT_MATERIALS.len()]; 
+                    let material2 = get_material(building_material, corrupt_material, CORRUPT_CHANCE, rng);
+                    tiles[row][no_door_x] = material2;
+                }
+
+                for i in 0..N_BUILDINGS_PER_CHUNK {
+                    for row in inside_start_ys[i]..inside_end_ys[i] {
+                        for col in inside_start_xs[i]..inside_end_xs[i] {
+                            tiles[row as usize][col as usize] = 0;
+                        }
+                    }
+                }
+            }
+            
+        }
+
+
+        spawn_rectangular_structures(tiles, rng);
+        
+    }
+
+    // for chunk in &mut chunks {
+    //     let tiles = &mut chunk.tiles;
+    //     for col in 0..MAP_CHUNK_N_COLS {
+    //         tiles[MAP_CHUNK_N_ROWS - GROUND_TILE_OFFSET][col] = 1;
+    //     }
+    // }
+    // for chunk in &mut chunks {
+    //     const WIGGLE_ROOM: i32 = 1;
+    //     let tiles = &mut chunk.tiles;
+    //     for row in 0..MAP_CHUNK_N_ROWS - GROUND_TILE_OFFSET - WIGGLE_ROOM as usize - 1 {
+    //         for col in WIGGLE_ROOM as usize..MAP_CHUNK_N_COLS - WIGGLE_ROOM as usize {
+    //             let mut rand_num = rng.next() as u8;
+    //             rand_num %= 9;
+    //             if rand_num >= 9 {
+    //                 rand_num = 0;
+    //             } else {
+    //                 rand_num += 5;
+    //             }
+                
+    //             tiles[row][col] = rand_num;
+    //         }
+    //     }
+        
+    // }
+    // for row in 0..MAP_CHUNK_N_ROWS - GROUND_TILE_OFFSET {
+    //     chunks[0].tiles[row][0] = 2;
+    //     let l = chunks.len() - 1;
+    //     chunks[l].tiles[row][MAP_CHUNK_N_ROWS - 1] = 3;
+    // }
+
+
+    
 }
 
 impl GameState<'static> {
@@ -236,9 +368,10 @@ impl GameState<'static> {
                 spritesheet::Sprite::from_preset(spritesheet::PresetSprites::ColumnMiddle),
                 spritesheet::Sprite::from_preset(spritesheet::PresetSprites::ColumnBottom),
             ],
-            map: generate_map(&mut rng),
+            map: create_map(&mut rng),
             camera: Camera { current_viewing_x_offset: 0.0, current_viewing_y_offset: 0.0 },
-            rng
+            rng,
+            game_mode: GameMode::StartScreen
         }
     }
 }
@@ -265,7 +398,7 @@ fn update_pos(character: &mut Character, input: u8) {
         character.state = KittyStates::Idle;
         character.current_sprite_i = 0;
     }
-    if input & BUTTON_1 != 0 || input & BUTTON_2 != 0 {
+    if input & BUTTON_1 != 0 {
         character.y_vel = hop_v;
         character.state = KittyStates::Jump;
         character.current_sprite_i = 3;
@@ -300,65 +433,92 @@ fn drawcharacter(spritesheet: &[u8], spritesheet_stride: &usize, camera: &Camera
     );
 }
 
+static mut PREVIOUS_GAMEPAD: u8 = 0;
+
 #[no_mangle]
 fn update() {
     GAME_STATE_HOLDER.with(|game_cell| {
         let mut game_state = game_cell.borrow_mut();
-
-        unsafe { *DRAW_COLORS = 0x1112 }
-        text("WELCOME TO KITTY GAME.          :D       xD                           WHAT IS POPPIN ITS YOUR BOY, THE KITTY GAME", 200 - game_state.camera.current_viewing_x_offset as i32, 130);
-        
-
-        unsafe {
-            *PALETTE = spritesheet::KITTY_SS_PALLETE;
-        }
-        unsafe { *DRAW_COLORS = spritesheet::KITTY_SS_DRAW_COLORS }
-
         let gamepad = unsafe { *GAMEPAD1 };
-        update_pos(&mut game_state.player_1, gamepad);
-
-        game_state.camera.current_viewing_x_offset = num::clamp(game_state.player_1.x_pos - 80.0, 0.0, MAP_N_CHUNKS as f32 * TILE_WIDTH_PX as f32 * MAP_CHUNK_N_COLS as f32);
-
-        let mut inputs: Vec<u8> = vec![];
-
-        for _ in 0..game_state.npcs.len() {
-            let rngg = &mut game_state.rng;
-            let rand_val = (rngg.next() % 255) as u8;
-            if rand_val < 20 {
-                inputs.push(0x10);
-            }
-            else if rand_val < 40 {
-                inputs.push(0x20);
-            }
-            else if rand_val < 42 {
-                inputs.push(BUTTON_1);
-            }
-            else {
-                inputs.push(0x0);
-            }
-            
-        }
-
-        for i in 0..game_state.npcs.len() {
-            update_pos(&mut game_state.npcs[i], inputs[i]);
-        }
-        for npc in &game_state.npcs {
-            drawcharacter(&game_state.spritesheet, &game_state.spritesheet_stride, &game_state.camera, &npc);
-        }
-        drawcharacter(&game_state.spritesheet, &game_state.spritesheet_stride, &game_state.camera, &game_state.player_1);
-        drawmap(&game_state);
-
+        let previous = unsafe {PREVIOUS_GAMEPAD};
+        let pressed_this_frame = gamepad & (gamepad ^ previous);
+        unsafe {PREVIOUS_GAMEPAD = gamepad};
+        match game_state.game_mode {
+            GameMode::NormalPlay => {
+                
         
-        // blit_sub(
-        //     &game_state.spritesheet,
-        //     0 as i32,
-        //     150 as i32,
-        //     game_state.background_tiles[0].frames[0].positioning.width as u32,
-        //     game_state.background_tiles[0].frames[0].positioning.height as u32,
-        //     game_state.background_tiles[0].frames[0].positioning.start_x as u32,
-        //     game_state.background_tiles[0].frames[0].positioning.start_y as u32,
-        //     game_state.spritesheet_stride as u32,
-        //     spritesheet::KITTY_SS_FLAGS | if bob.facing_right { 0 } else { BLIT_FLIP_X },
-        // );
+                
+                update_pos(&mut game_state.player_1, gamepad);
+        
+                game_state.camera.current_viewing_x_offset = num::clamp(game_state.player_1.x_pos - 80.0, 0.0, MAP_N_CHUNKS as f32 * TILE_WIDTH_PX as f32 * MAP_CHUNK_N_COLS as f32);
+                // unsafe { *DRAW_COLORS = 0x1112 }
+                // text("WELCOME TO KITTY GAME.          :D       xD                           WHAT IS POPPIN ITS YOUR BOY, THE KITTY GAME", 200 - game_state.camera.current_viewing_x_offset as i32, 130);
+                
+                // unsafe { *DRAW_COLORS = spritesheet::KITTY_SS_DRAW_COLORS }
+                let mut inputs: Vec<u8> = vec![];
+        
+                for _ in 0..game_state.npcs.len() {
+                    let rngg = &mut game_state.rng;
+                    let rand_val = (rngg.next() % 255) as u8;
+                    if rand_val < 20 {
+                        inputs.push(0x10);
+                    }
+                    else if rand_val < 40 {
+                        inputs.push(0x20);
+                    }
+                    else if rand_val < 42 {
+                        inputs.push(BUTTON_1);
+                    }
+                    else {
+                        inputs.push(0x0);
+                    }
+                    
+                }
+        
+                for i in 0..game_state.npcs.len() {
+                    update_pos(&mut game_state.npcs[i], inputs[i]);
+                }
+                for npc in &game_state.npcs {
+                    drawcharacter(&game_state.spritesheet, &game_state.spritesheet_stride, &game_state.camera, &npc);
+                }
+                drawcharacter(&game_state.spritesheet, &game_state.spritesheet_stride, &game_state.camera, &game_state.player_1);
+                drawmap(&game_state);
+                
+                if pressed_this_frame & BUTTON_2 != 0 {
+                    regenerate_map(&mut game_state);
+                }
+                
+                // blit_sub(
+                //     &game_state.spritesheet,
+                //     0 as i32,
+                //     150 as i32,
+                //     game_state.background_tiles[0].frames[0].positioning.width as u32,
+                //     game_state.background_tiles[0].frames[0].positioning.height as u32,
+                //     game_state.background_tiles[0].frames[0].positioning.start_x as u32,
+                //     game_state.background_tiles[0].frames[0].positioning.start_y as u32,
+                //     game_state.spritesheet_stride as u32,
+                //     spritesheet::KITTY_SS_FLAGS | if bob.facing_right { 0 } else { BLIT_FLIP_X },
+                // );
+            },
+            GameMode::StartScreen => {
+                unsafe { *DRAW_COLORS = 0x1112 }
+                text("Any key: start", 20, 20);
+                unsafe {
+                    *PALETTE = spritesheet::KITTY_SS_PALLETE;
+                }
+                unsafe { *DRAW_COLORS = spritesheet::KITTY_SS_DRAW_COLORS }
+                game_state.rng.next();
+                if gamepad != 0 {
+                    game_state.game_mode = GameMode::NormalPlay;
+                    drop(&mut game_state.map.chunks);
+                    text("Spawning map...", 20, 50);
+                    regenerate_map(&mut game_state);
+                }
+            }
+        }
+        
+        
+
+
     });
 }
