@@ -334,7 +334,7 @@ impl GameState<'static> {
         GameState {
             player_1: Character::new(40, spritesheet::PresetSprites::MainCat),
             npcs: (0..N_NPCS).map(|mut x| {
-                x %= 6;
+                x %= 7;
                 let preset = match x {
                     0 => spritesheet::PresetSprites::Kitty1,
                     1 => spritesheet::PresetSprites::Kitty2,
@@ -342,6 +342,7 @@ impl GameState<'static> {
                     3 => spritesheet::PresetSprites::Kitty4,
                     4 => spritesheet::PresetSprites::Lizard,
                     5 => spritesheet::PresetSprites::Pig,
+                    6 => spritesheet::PresetSprites::BirdIsntReal,
                     _ => spritesheet::PresetSprites::Pig
                 };
                 Character::new((x * 2000) % 300 , preset)
