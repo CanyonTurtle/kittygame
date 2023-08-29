@@ -16,18 +16,25 @@ const BUILDING_SUGGESTED_MAX_WIDTH: usize = 11; // 14;
 const BUILDING_SUGGESTED_MIN_HEIGHT: usize = 2; // 3;
 const BUILDING_SUGGESTED_MAX_HEIGHT: usize = 6; // 12;
 
-const N_BUILDINGS_PER_CHUNK: usize = 70;
+const N_BUILDINGS_PER_CHUNK: usize = 100;
 const USING_DOORS: bool = false;
-const MAP_CHUNK_N_ROWS: usize = 32;
-const MAP_CHUNK_N_COLS: usize = 32;
-const MAP_N_CHUNKS: i32 = 10;
+const MAP_CHUNK_MIN_N_ROWS: usize = 16;
+const MAP_CHUNK_MAX_N_ROWS: usize = 32;
+const MAP_CHUNK_MIN_N_COLS: usize = 16;
+const MAP_CHUNK_MAX_N_COLS: usize = 32;
+const MAP_CHUNK_MAX_N_TILES: usize = 800;
+const MAP_N_CHUNKS: i32 = 5;
 
 
 const N_NPCS: i32 = 14;
-const GROUND_TILE_OFFSET: usize = 1; 
   
 const TILE_WIDTH_PX: usize = 5;
 const TILE_HEIGHT_PX: usize = 5;
+
+const X_LEFT_BOUND: i32 = -2000;
+const X_RIGHT_BOUND: i32 = 2000;
+const Y_LOWER_BOUND: i32 = -500;
+const Y_UPPER_BOUND: i32 = 500;
 
 #[derive(PartialEq, Eq, Hash)]
 enum KittyStates {
@@ -63,9 +70,11 @@ struct Camera {
 
 
 struct MapChunk {
-    tiles: [[u8; MAP_CHUNK_N_COLS]; MAP_CHUNK_N_ROWS],
+    tiles: Vec<Vec<u8>>,
     chunk_i: i32,
     chunk_j: i32,
+    chunk_width: i32,
+    chunk_height: i32,
 }
 
 struct GameMap {
@@ -78,7 +87,7 @@ fn drawmap(game_state: &GameState) {
     let camera = &game_state.camera;
 
     for chunk in &map.chunks {
-        let tiles = chunk.tiles;
+        let tiles = &chunk.tiles;
         for row in 0..tiles.len() {
             for col in 0..tiles[row].len() {
                 let map_tile_i = &tiles[row][col];
@@ -87,8 +96,8 @@ fn drawmap(game_state: &GameState) {
                     tile_idx => {
                         let tile_i: usize = *tile_idx as usize - 1; // *tile_idx as usize;
                         // trace(format!("Tile {tile_i}"));
-                        let chunk_x_offset: i32 = (TILE_WIDTH_PX * MAP_CHUNK_N_COLS) as i32 * chunk.chunk_j;
-                        let chunk_y_offset: i32 = (TILE_HEIGHT_PX * MAP_CHUNK_N_ROWS) as i32 * chunk.chunk_i;
+                        let chunk_x_offset: i32 = (TILE_WIDTH_PX) as i32 * chunk.chunk_j;
+                        let chunk_y_offset: i32 = (TILE_HEIGHT_PX) as i32 * chunk.chunk_i;
                         let x_loc = (chunk_x_offset + col as i32 * TILE_HEIGHT_PX as i32) - camera.current_viewing_x_offset as i32;
                         let y_loc = (chunk_y_offset + row as i32 * TILE_WIDTH_PX as i32) - camera.current_viewing_y_offset as i32;
 
@@ -160,11 +169,13 @@ struct GameState<'a> {
     game_mode: GameMode,
 }
 
-fn create_map(rng: &mut Rng) -> GameMap {
-    let mut chunks: Vec<MapChunk> = (0..MAP_N_CHUNKS).map(|i| MapChunk {
-        tiles: [[0; MAP_CHUNK_N_COLS]; MAP_CHUNK_N_ROWS],
+fn create_map() -> GameMap {
+    let chunks: Vec<MapChunk> = (0..MAP_N_CHUNKS).map(|i| MapChunk {
+        tiles: vec![vec![0]],
         chunk_i: 0,
-        chunk_j: i
+        chunk_j: i * 1 as i32,
+        chunk_width: 32 as i32,
+        chunk_height: 32 as i32
     }).collect();
 
     let map = GameMap { chunks: chunks};
@@ -177,9 +188,84 @@ fn regenerate_map(game_state: &mut GameState) {
 
     let chunks = &mut game_state.map.chunks;
     let rng = &mut game_state.rng;
-    for chunk in chunks {
 
-        chunk.tiles = [[0 as u8; MAP_CHUNK_N_COLS]; MAP_CHUNK_N_ROWS];
+    let mut current_chunk_locations = vec![(chunks[0].chunk_i, chunks[0].chunk_j, chunks[0].chunk_width, chunks[0].chunk_height)];
+
+    // place the chunks randomly.
+    for _ in 1..chunks.len() {
+        // attempt to place a new chunk
+        // if in viable location, place this chunk
+        loop {
+            trace("placing chunk");
+            // choose a new viable chunk size
+            let mut chunk_wid: usize;
+            let mut chunk_hei: usize;
+            loop {
+                chunk_wid = MAP_CHUNK_MIN_N_COLS + rng.next() as usize % (MAP_CHUNK_MAX_N_COLS - MAP_CHUNK_MIN_N_COLS);
+                chunk_hei = MAP_CHUNK_MAX_N_ROWS + rng.next() as usize % (MAP_CHUNK_MAX_N_ROWS - MAP_CHUNK_MIN_N_ROWS);
+                trace(format!("{chunk_wid} {chunk_hei}"));
+                if chunk_hei * chunk_wid <= MAP_CHUNK_MAX_N_TILES {
+                    break
+                }
+            }
+
+
+
+            let random_chunk_from_list_i = (rng.next() % current_chunk_locations.len() as u64) as usize;
+            let horizontal_edge = rng.next() % 2 == 1;
+            let positive_side = rng.next() % 2 == 1;
+            let rand_chunk = &current_chunk_locations[random_chunk_from_list_i];
+            let new_chunk_location: (i32, i32, i32, i32);
+            if positive_side {
+                if horizontal_edge {
+                    new_chunk_location = (rand_chunk.0 - chunk_hei as i32, rand_chunk.1, rand_chunk.2, chunk_hei as i32);
+                } else {
+                    new_chunk_location = (rand_chunk.0, rand_chunk.1 + chunk_wid as i32, chunk_wid as i32, rand_chunk.3);
+                }
+            } else {
+                if horizontal_edge {
+                    new_chunk_location = (rand_chunk.0 + chunk_hei as i32, rand_chunk.1, rand_chunk.2, chunk_hei as i32);
+                } else {
+                    new_chunk_location = (rand_chunk.0, rand_chunk.1 - chunk_wid as i32, chunk_wid as i32, rand_chunk.3 );
+                }
+            }
+            let mut is_viable_spot = true;
+            for other_chunk in &current_chunk_locations {
+                // if it collides with existing chunk, disallow
+                if new_chunk_location.0 + new_chunk_location.3 > other_chunk.0 {
+                    if new_chunk_location.0 < other_chunk.0 + other_chunk.3 {
+                        if new_chunk_location.1 + new_chunk_location.2 > other_chunk.1 {
+                            if new_chunk_location.1 < other_chunk.1 + other_chunk.2 {
+                                is_viable_spot = false;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if is_viable_spot {
+                trace(format!("pushing chunk {new_chunk_location:?}"));
+                current_chunk_locations.push(new_chunk_location);
+                break;
+            }
+        }
+    }
+
+    for (i, chunk) in chunks.iter_mut().enumerate() {
+        chunk.chunk_i = current_chunk_locations[i].0;
+        chunk.chunk_j = current_chunk_locations[i].1;
+        chunk.chunk_width = current_chunk_locations[i].2;
+        chunk.chunk_height = current_chunk_locations[i].3;
+        chunk.tiles = Vec::new();
+        for _ in 0..chunk.chunk_height {
+            let mut chunk_row: Vec<u8> = Vec::new();
+            for _ in 0..chunk.chunk_width {
+                chunk_row.push(0);
+            }
+            chunk.tiles.push(chunk_row);
+        }
+
+
 
         let tiles = &mut chunk.tiles;
         // for col in 0..MAP_CHUNK_N_COLS {
@@ -190,7 +276,8 @@ fn regenerate_map(game_state: &mut GameState) {
 
         
 
-        fn spawn_rectangular_structures(tiles: &mut [[u8; MAP_CHUNK_N_COLS]; MAP_CHUNK_N_ROWS], rng: &mut Rng) {
+        fn spawn_rectangular_structures(chunk_width: usize, chunk_height: usize, tiles: &mut Vec<Vec<u8>>, rng: &mut Rng) {
+            trace(format!("spawning structure with {chunk_width} {chunk_height}"));
             let mut inside_start_xs: [u8; N_BUILDINGS_PER_CHUNK] = [0; N_BUILDINGS_PER_CHUNK];
             let mut inside_start_ys: [u8; N_BUILDINGS_PER_CHUNK] = [0; N_BUILDINGS_PER_CHUNK];
             let mut inside_end_xs: [u8; N_BUILDINGS_PER_CHUNK] = [0; N_BUILDINGS_PER_CHUNK];
@@ -200,14 +287,16 @@ fn regenerate_map(game_state: &mut GameState) {
 
             for i in 0..N_BUILDINGS_PER_CHUNK {
 
+                trace("starting spawn structure");
 
 
-                let building_min_width: usize = num::clamp(BUILDING_SUGGESTED_MIN_WIDTH, 1, MAP_CHUNK_N_COLS);
-                let building_max_width: usize = num::clamp(BUILDING_SUGGESTED_MAX_WIDTH, building_min_width, MAP_CHUNK_N_COLS);
+                let building_min_width: usize = num::clamp(BUILDING_SUGGESTED_MIN_WIDTH, 1, chunk_width);
+                let building_max_width: usize = num::clamp(BUILDING_SUGGESTED_MAX_WIDTH, building_min_width, chunk_width);
 
-                let building_min_height: usize = num::clamp(BUILDING_SUGGESTED_MIN_HEIGHT, 1, MAP_CHUNK_N_ROWS);
-                let building_max_height: usize = num::clamp(BUILDING_SUGGESTED_MAX_HEIGHT, building_min_height, MAP_CHUNK_N_ROWS);
+                let building_min_height: usize = num::clamp(BUILDING_SUGGESTED_MIN_HEIGHT, 1, chunk_height);
+                let building_max_height: usize = num::clamp(BUILDING_SUGGESTED_MAX_HEIGHT, building_min_height, chunk_height);
  
+                trace("established mins and maxes");
                 const POSSIBLE_BUILDING_MATERIALS: [u8; 1] = [6];
                 const CORRUPT_MATERIALS: [u8; 7] = [7, 8, 9, 10, 11, 12, 13];
                 const CORRUPT_CHANCE: f32 = 0.2;
@@ -223,9 +312,10 @@ fn regenerate_map(game_state: &mut GameState) {
                 let building_width: usize = building_min_width + rng.next() as usize % (building_max_width - building_min_width);
                 let building_height: usize = building_min_height + rng.next() as usize % (building_max_height - building_min_height);
         
-        
-                let building_chunk_loc_x: usize = 1 + rng.next() as usize % (MAP_CHUNK_N_COLS - building_width - 1) ;
-                let building_chunk_loc_y: usize = 1 + rng.next() as usize % (MAP_CHUNK_N_ROWS - building_height - 1);
+                trace("got building dims");
+
+                let building_chunk_loc_x: usize = 1 + rng.next() as usize % (chunk_width - building_width - 1) ;
+                let building_chunk_loc_y: usize = 1 + rng.next() as usize % (chunk_height - building_height - 1);
         
                 inside_start_xs[i] = building_chunk_loc_x as u8 + 1;
                 inside_start_ys[i] = building_chunk_loc_y as u8 + 1;
@@ -235,19 +325,24 @@ fn regenerate_map(game_state: &mut GameState) {
 
                 let building_material: u8 = POSSIBLE_BUILDING_MATERIALS[rng.next() as usize % POSSIBLE_BUILDING_MATERIALS.len()];
                 
-                const DOOR_HEIGHT: usize = 3;
+                const DOOR_HEIGHT: usize = 0;
         
+                trace("beginning spawn top/bottom");
+
                 for col in building_chunk_loc_x..building_chunk_loc_x+building_width {
+                    trace(format!("{col} {building_chunk_loc_x} {building_width} {building_chunk_loc_y}"));
                     let corrupt_material: u8 = CORRUPT_MATERIALS[rng.next() as usize % CORRUPT_MATERIALS.len()]; 
                     let material = get_material(building_material, corrupt_material, CORRUPT_CHANCE, rng);
+                    trace("used rng");
                     // top
                     tiles[building_chunk_loc_y][col] = material;
-        
+                    trace("set tile 1");
                     let material2 = get_material(building_material, corrupt_material, CORRUPT_CHANCE, rng);
                     // bottom
                     tiles[building_chunk_loc_y + building_height][col] = material2;
                 }
         
+                trace("finished spawning top bottom");
                 // door
                 let door_x: usize;
                 let no_door_x: usize;
@@ -277,6 +372,7 @@ fn regenerate_map(game_state: &mut GameState) {
                     let material2 = get_material(building_material, corrupt_material, CORRUPT_CHANCE, rng);
                     tiles[row][no_door_x] = material2;
                 }
+                trace("finished door");
 
                 for i in 0..N_BUILDINGS_PER_CHUNK {
                     for row in inside_start_ys[i]..inside_end_ys[i] {
@@ -285,12 +381,13 @@ fn regenerate_map(game_state: &mut GameState) {
                         }
                     }
                 }
+                trace("finished deleting building insides");
             }
-            
+            trace("Finished spawning structure");
         }
 
 
-        spawn_rectangular_structures(tiles, rng);
+        spawn_rectangular_structures(chunk.chunk_width as usize, chunk.chunk_height as usize, tiles, rng);
         
     }
 
@@ -330,7 +427,7 @@ fn regenerate_map(game_state: &mut GameState) {
 
 impl GameState<'static> {
     fn new() -> GameState<'static> {
-        let mut rng = Rng::new();
+        let rng = Rng::new();
         GameState {
             player_1: Character::new(40, spritesheet::PresetSprites::MainCat),
             npcs: (0..N_NPCS).map(|mut x| {
@@ -371,7 +468,7 @@ impl GameState<'static> {
                 spritesheet::Sprite::from_preset(spritesheet::PresetSprites::ColumnMiddle),
                 spritesheet::Sprite::from_preset(spritesheet::PresetSprites::ColumnBottom),
             ],
-            map: create_map(&mut rng),
+            map: create_map(),
             camera: Camera { current_viewing_x_offset: 0.0, current_viewing_y_offset: 0.0 },
             rng,
             game_mode: GameMode::StartScreen
@@ -414,8 +511,8 @@ fn update_pos(character: &mut Character, input: u8) {
     let gravity = 0.3;
     character.y_vel += gravity;
 
-    character.x_pos = num::clamp(character.x_pos, 5.0, (TILE_WIDTH_PX * MAP_N_CHUNKS as usize * MAP_CHUNK_N_COLS - 5 - character.sprite.frames[character.current_sprite_i as usize].positioning.width) as f32);
-    character.y_pos = num::clamp(character.y_pos, 0.0, 160.0 - TILE_HEIGHT_PX as f32 * GROUND_TILE_OFFSET as f32 - (character.sprite.frames[character.current_sprite_i as usize].positioning.height as f32));
+    character.x_pos = num::clamp(character.x_pos, X_LEFT_BOUND as f32, X_RIGHT_BOUND as f32);
+    character.y_pos = num::clamp(character.y_pos, Y_LOWER_BOUND as f32, Y_UPPER_BOUND as f32);
     character.x_vel = num::clamp(character.x_vel, -character.x_vel_cap, character.x_vel_cap);
     character.y_vel = num::clamp(character.y_vel, -character.y_vel_cap, character.y_vel_cap);
     character.count += 1;
@@ -453,7 +550,8 @@ fn update() {
                 
                 update_pos(&mut game_state.player_1, gamepad);
         
-                game_state.camera.current_viewing_x_offset = num::clamp(game_state.player_1.x_pos - 80.0, 0.0, MAP_N_CHUNKS as f32 * TILE_WIDTH_PX as f32 * MAP_CHUNK_N_COLS as f32);
+                game_state.camera.current_viewing_x_offset = num::clamp(game_state.player_1.x_pos - 80.0, X_LEFT_BOUND as f32, X_RIGHT_BOUND as f32);
+                game_state.camera.current_viewing_y_offset = num::clamp(game_state.player_1.y_pos - 80.0, Y_LOWER_BOUND as f32, Y_UPPER_BOUND as f32);
                 // unsafe { *DRAW_COLORS = 0x1112 }
                 // text("WELCOME TO KITTY GAME.          :D       xD                           WHAT IS POPPIN ITS YOUR BOY, THE KITTY GAME", 200 - game_state.camera.current_viewing_x_offset as i32, 130);
                 
