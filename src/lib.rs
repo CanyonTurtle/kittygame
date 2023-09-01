@@ -19,11 +19,11 @@ use wasm4::*;
 // const N_BUILDINGS_PER_CHUNK: usize = 30;
 // const USING_DOORS: bool = true;
 const MAP_CHUNK_MIN_SIDE_LEN: usize = 5;
-const MAP_CHUNK_MAX_SIDE_LEN: usize = 30;
+const MAP_CHUNK_MAX_SIDE_LEN: usize = 50;
 
-const MAP_CHUNK_MAX_N_TILES: usize = 800;
+const MAP_CHUNK_MAX_N_TILES: usize = 2000;
 
-const TOTAL_TILES_IN_MAP: usize = 80000;
+const TOTAL_TILES_IN_MAP: usize = 60000;
 
 const N_NPCS: i32 = 14;
   
