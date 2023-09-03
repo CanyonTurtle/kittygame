@@ -109,10 +109,7 @@ fn regenerate_map(game_state: &mut GameState) {
         }
     }
 
-    for npc in game_state.npcs.borrow_mut().iter_mut() {
-        npc.x_pos = 10.0;
-        npc.y_pos = 10.0;
-    }
+    let npcs = &mut game_state.npcs.borrow_mut();
 
 
 
@@ -195,10 +192,16 @@ fn regenerate_map(game_state: &mut GameState) {
         }
     }
 
-    for current_chunk_location in current_chunk_locations {
+    for (i, current_chunk_location) in current_chunk_locations.into_iter().enumerate() {
         let mut chunk = MapChunk::init();
         
         chunk.bound = current_chunk_location;
+
+        // spawn an npc here if needed
+        if i < npcs.len() {
+            npcs[i].x_pos = chunk.bound.x as f32 * TILE_WIDTH_PX as f32 + 10.0;
+            npcs[i].y_pos = chunk.bound.y as f32 * TILE_HEIGHT_PX as f32 + 10.0;
+        }
 
         // chunk.tiles.clear();
         // for _ in 0..chunk.bound.height {
