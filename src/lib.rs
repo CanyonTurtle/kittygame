@@ -220,8 +220,8 @@ fn drawmap(game_state: &GameState) {
                         // trace(format!("Tile {tile_i}"));
                         let chunk_x_offset: i32 = (TILE_WIDTH_PX) as i32 * chunk.x;
                         let chunk_y_offset: i32 = (TILE_HEIGHT_PX) as i32 * chunk.y;
-                        let x_loc = (chunk_x_offset + col as i32 * TILE_HEIGHT_PX as i32) - camera.current_viewing_x_offset as i32;
-                        let y_loc = (chunk_y_offset + row as i32 * TILE_WIDTH_PX as i32) - camera.current_viewing_y_offset as i32;
+                        let x_loc = (chunk_x_offset + col as i32 * TILE_HEIGHT_PX as i32) - camera.borrow().current_viewing_x_offset as i32;
+                        let y_loc = (chunk_y_offset + row as i32 * TILE_WIDTH_PX as i32) - camera.borrow().current_viewing_y_offset as i32;
 
                         if x_loc >= 0 && x_loc < 160 && y_loc > 0 && y_loc < 160 {
                             blit_sub(
@@ -279,15 +279,25 @@ enum GameMode {
     NormalPlay
 }
 
+enum OptionallyEnabledPlayer {
+    Enabled(Character),
+    Disabled
+}
+
+enum MovingEntity<'a> {
+    OptionalPlayer(&'a mut OptionallyEnabledPlayer),
+    NPC(&'a mut Character)
+}
+
 struct GameState<'a> {
-    player_1: Character,
-    npcs: Vec<Character>,
+    players: RefCell<[OptionallyEnabledPlayer; 4]>,
+    npcs: RefCell<Vec<Character>>,
     spritesheet: &'a [u8],
     spritesheet_stride: usize,
     background_tiles: Vec<spritesheet::Sprite>,
     map: GameMap,
-    camera: Camera,
-    rng: Rng,
+    camera: RefCell<Camera>,
+    rng: RefCell<Rng>,
     game_mode: GameMode,
 }
 
@@ -336,8 +346,8 @@ fn regenerate_map(game_state: &mut GameState) {
             let mut chunk_wid: usize;
             let mut chunk_hei: usize;
             loop {
-                chunk_wid = MAP_CHUNK_MIN_SIDE_LEN + (rng.next() as usize % (MAP_CHUNK_MAX_SIDE_LEN - MAP_CHUNK_MIN_SIDE_LEN));
-                chunk_hei = MAP_CHUNK_MIN_SIDE_LEN + (rng.next() as usize % (MAP_CHUNK_MAX_SIDE_LEN - MAP_CHUNK_MIN_SIDE_LEN));
+                chunk_wid = MAP_CHUNK_MIN_SIDE_LEN + (rng.borrow_mut().next() as usize % (MAP_CHUNK_MAX_SIDE_LEN - MAP_CHUNK_MIN_SIDE_LEN));
+                chunk_hei = MAP_CHUNK_MIN_SIDE_LEN + (rng.borrow_mut().next() as usize % (MAP_CHUNK_MAX_SIDE_LEN - MAP_CHUNK_MIN_SIDE_LEN));
                 // trace(format!("{chunk_wid} {chunk_hei}"));
                 if chunk_hei * chunk_wid <= MAP_CHUNK_MAX_N_TILES {
                     if map.try_fit_chunk_into(chunk_wid, chunk_hei) {
@@ -352,7 +362,7 @@ fn regenerate_map(game_state: &mut GameState) {
                 }
             }
 
-            
+            let rng = &mut rng.borrow_mut();
 
             let r_offs_1: i32 = rng.next() as i32 % MAP_CHUNK_MIN_SIDE_LEN as i32 - (MAP_CHUNK_MIN_SIDE_LEN as f32 / 2.0) as i32;
 
@@ -438,16 +448,17 @@ fn regenerate_map(game_state: &mut GameState) {
             corrupt
         }
 
+        let rng_ref = &mut rng.borrow_mut();
 
         for row in 0..chunk.chunk_height as usize {
-            let corrupt_material: u8 = CORRUPT_MATERIALS[rng.next() as usize % CORRUPT_MATERIALS.len()];
-            let material = get_material(CHUNK_BORDER_MATERIAL, corrupt_material, CORRUPT_CHANCE, rng);
+            let corrupt_material: u8 = CORRUPT_MATERIALS[rng_ref.next() as usize % CORRUPT_MATERIALS.len()];
+            let material = get_material(CHUNK_BORDER_MATERIAL, corrupt_material, CORRUPT_CHANCE, rng_ref);
             chunk.set_tile(0, row, material);
             chunk.set_tile(chunk.chunk_width as usize - 1, row, material);
         }
         for col in 0..chunk.chunk_width as usize {
-            let corrupt_material: u8 = CORRUPT_MATERIALS[rng.next() as usize % CORRUPT_MATERIALS.len()];
-            let material = get_material(CHUNK_BORDER_MATERIAL, corrupt_material, CORRUPT_CHANCE, rng);
+            let corrupt_material: u8 = CORRUPT_MATERIALS[rng_ref.next() as usize % CORRUPT_MATERIALS.len()];
+            let material = get_material(CHUNK_BORDER_MATERIAL, corrupt_material, CORRUPT_CHANCE, rng_ref);
             chunk.set_tile(col, 0, material);
             chunk.set_tile(col, chunk.chunk_height as usize - 1, material);
         }
@@ -616,10 +627,18 @@ fn regenerate_map(game_state: &mut GameState) {
 
 impl GameState<'static> {
     fn new() -> GameState<'static> {
+
+        let characters = [
+            OptionallyEnabledPlayer::Enabled((Character::new(0, spritesheet::PresetSprites::MainCat))),
+            OptionallyEnabledPlayer::Enabled((Character::new(10, spritesheet::PresetSprites::MainCat))),
+            OptionallyEnabledPlayer::Enabled((Character::new(20, spritesheet::PresetSprites::MainCat))),
+            OptionallyEnabledPlayer::Enabled((Character::new(30, spritesheet::PresetSprites::MainCat))),
+        ];
+
         let rng = Rng::new();
         GameState {
-            player_1: Character::new(40, spritesheet::PresetSprites::MainCat),
-            npcs: (0..N_NPCS).map(|mut x| {
+            players: RefCell::new(characters),
+            npcs: RefCell::new((0..N_NPCS).map(|mut x| {
                 x %= 7;
                 let preset = match x {
                     0 => spritesheet::PresetSprites::Kitty1,
@@ -632,7 +651,7 @@ impl GameState<'static> {
                     _ => spritesheet::PresetSprites::Pig
                 };
                 Character::new((x * 2000) % 300 , preset)
-            }).collect::<Vec<Character>>(),
+            }).collect::<Vec<Character>>()),
             // npcs: vec![
             //     Character::new(500, spritesheet::PresetSprites::Kitty2),
             //     Character::new(400, spritesheet::PresetSprites::Kitty3),
@@ -658,8 +677,8 @@ impl GameState<'static> {
                 spritesheet::Sprite::from_preset(spritesheet::PresetSprites::ColumnBottom),
             ],
             map: create_map(),
-            camera: Camera { current_viewing_x_offset: 0.0, current_viewing_y_offset: 0.0 },
-            rng,
+            camera: RefCell::new(Camera { current_viewing_x_offset: 0.0, current_viewing_y_offset: 0.0 }),
+            rng: RefCell::new(rng),
             game_mode: GameMode::StartScreen
         }
     }
@@ -667,8 +686,7 @@ impl GameState<'static> {
 
 thread_local!(static GAME_STATE_HOLDER: RefCell<GameState<'static>> = RefCell::new(GameState::new()));
 
-fn update_pos(character: &mut Character, input: u8) {
-    
+fn update_char(character: &mut Character, input: u8){
     let btn_accel = 0.6;
     let hop_v: f32 = -4.0;
     let h_decay = 0.8;
@@ -707,48 +725,130 @@ fn update_pos(character: &mut Character, input: u8) {
     character.count += 1;
 }
 
-fn drawcharacter(spritesheet: &[u8], spritesheet_stride: &usize, camera: &Camera, character: &Character) {
-    let i = character.current_sprite_i as usize;
+fn update_pos(character: MovingEntity, input: u8) {
+    
+    match character {
+        MovingEntity::OptionalPlayer(optionally_enabled_player) => {
+            match optionally_enabled_player {
+                OptionallyEnabledPlayer::Enabled(character) => {
+                    update_char(character, input);
+                }
+                OptionallyEnabledPlayer::Disabled => {
+                    return
+                }
+            }
+        }
+        MovingEntity::NPC(npc) => {
+            update_char(npc, input);
+        }
+    }
+    
+}
+
+fn drawcharacter(spritesheet: &[u8], spritesheet_stride: &usize, camera: &Camera, character: MovingEntity) {
+
+    let the_char: &mut Character;
+
+    match character {
+        MovingEntity::OptionalPlayer(optionally_enabled_player) => {
+            match optionally_enabled_player {
+                OptionallyEnabledPlayer::Enabled(character) => {
+                    the_char = character;
+                }
+                OptionallyEnabledPlayer::Disabled => {
+                    return
+                }
+            }
+        }
+        MovingEntity::NPC(npc) => {
+            the_char = npc;
+        }
+    }
+
+    let i = the_char.current_sprite_i as usize;
     blit_sub(
         &spritesheet,
-        character.x_pos as i32 - camera.current_viewing_x_offset as i32,
-        character.y_pos as i32 - camera.current_viewing_y_offset as i32,
-        character.sprite.frames[i].positioning.width as u32,
-        character.sprite.frames[i].positioning.height as u32,
-        character.sprite.frames[i].positioning.start_x as u32,
-        character.sprite.frames[i].positioning.start_y as u32,
+        the_char.x_pos as i32 - camera.current_viewing_x_offset as i32,
+        the_char.y_pos as i32 - camera.current_viewing_y_offset as i32,
+        the_char.sprite.frames[i].positioning.width as u32,
+        the_char.sprite.frames[i].positioning.height as u32,
+        the_char.sprite.frames[i].positioning.start_x as u32,
+        the_char.sprite.frames[i].positioning.start_y as u32,
         *spritesheet_stride as u32,
-        spritesheet::KITTY_SS_FLAGS | if character.facing_right { 0 } else { BLIT_FLIP_X },
+        spritesheet::KITTY_SS_FLAGS | if the_char.facing_right { 0 } else { BLIT_FLIP_X },
     );
 }
 
-static mut PREVIOUS_GAMEPAD: u8 = 0;
-
+static mut PREVIOUS_GAMEPAD: [u8; 4] = [0, 0, 0, 0];
 #[no_mangle]
 fn update() {
     GAME_STATE_HOLDER.with(|game_cell| {
         let mut game_state = game_cell.borrow_mut();
-        let gamepad = unsafe { *GAMEPAD1 };
-        let previous = unsafe {PREVIOUS_GAMEPAD};
-        let pressed_this_frame = gamepad & (gamepad ^ previous);
-        unsafe {PREVIOUS_GAMEPAD = gamepad};
+        let gamepads: [u8; 4] = unsafe { [*GAMEPAD1, *GAMEPAD2, *GAMEPAD3, *GAMEPAD4] };
+        let mut previouses = unsafe {PREVIOUS_GAMEPAD};
+        let mut btns_pressed_this_frame: [u8; 4] = [0; 4];
+
+
+        for i in 0..gamepads.len() {
+            let gamepad = gamepads[i];
+            let previous = previouses[i];
+            let pressed_this_frame = gamepad & (gamepad ^ previous);
+            btns_pressed_this_frame[i] = pressed_this_frame;
+            previouses.copy_from_slice(&gamepads[..]);
+        }
+        
+
+        
+        
         match game_state.game_mode {
             GameMode::NormalPlay => {
                 
         
                 
-                update_pos(&mut game_state.player_1, gamepad);
-        
-                game_state.camera.current_viewing_x_offset = num::clamp(game_state.player_1.x_pos - 80.0, X_LEFT_BOUND as f32, X_RIGHT_BOUND as f32);
-                game_state.camera.current_viewing_y_offset = num::clamp(game_state.player_1.y_pos - 80.0, Y_LOWER_BOUND as f32, Y_UPPER_BOUND as f32);
+                
+
+                let mut player_idx: u8 = 0b0;
+
+                unsafe {
+                    // If netplay is active
+                    if *NETPLAY & 0b100 != 0 {
+                        player_idx = *NETPLAY & 0b011;
+                        // Render the game from player_idx's perspective
+                        
+                        }
+                    else {
+       
+                    }
+                }
+                match &mut game_state.players.borrow_mut()[player_idx as usize]{
+                    OptionallyEnabledPlayer::Disabled => {
+
+                    },
+                    OptionallyEnabledPlayer::Enabled(player) => {
+                        game_state.camera.borrow_mut().current_viewing_x_offset = num::clamp(player.x_pos - 80.0, X_LEFT_BOUND as f32, X_RIGHT_BOUND as f32);
+                        game_state.camera.borrow_mut().current_viewing_y_offset = num::clamp(player.y_pos - 80.0, Y_LOWER_BOUND as f32, Y_UPPER_BOUND as f32);
+                        
+                    }
+                }
+                {
+                    let mut optional_players = game_state.players.borrow_mut();
+
+                    for (i, optional_player) in &mut optional_players.iter_mut().enumerate() {
+                        update_pos(MovingEntity::OptionalPlayer(optional_player), gamepads[i]);
+                        drawcharacter(&game_state.spritesheet, &game_state.spritesheet_stride, &game_state.camera.borrow(), MovingEntity::OptionalPlayer(optional_player));
+                    } 
+                }
+            
+
+                
                 // unsafe { *DRAW_COLORS = 0x1112 }
                 // text("WELCOME TO KITTY GAME.          :D       xD                           WHAT IS POPPIN ITS YOUR BOY, THE KITTY GAME", 200 - game_state.camera.current_viewing_x_offset as i32, 130);
                 
                 // unsafe { *DRAW_COLORS = spritesheet::KITTY_SS_DRAW_COLORS }
                 let mut inputs: Vec<u8> = vec![];
         
-                for _ in 0..game_state.npcs.len() {
-                    let rngg = &mut game_state.rng;
+                for _ in 0..game_state.npcs.borrow().len() {
+                    let rngg = &mut game_state.rng.borrow_mut();
                     let rand_val = (rngg.next() % 255) as u8;
                     if rand_val < 20 {
                         inputs.push(0x10);
@@ -765,16 +865,16 @@ fn update() {
                     
                 }
         
-                for i in 0..game_state.npcs.len() {
-                    update_pos(&mut game_state.npcs[i], inputs[i]);
+                for (i, npc) in game_state.npcs.borrow_mut().iter_mut().enumerate() {
+                    update_pos(MovingEntity::NPC(npc), inputs[i]);
                 }
-                for npc in &game_state.npcs {
-                    drawcharacter(&game_state.spritesheet, &game_state.spritesheet_stride, &game_state.camera, &npc);
+                for npc in game_state.npcs.borrow_mut().iter_mut() {
+                    drawcharacter(&game_state.spritesheet, &game_state.spritesheet_stride, &game_state.camera.borrow(), MovingEntity::NPC(npc));
                 }
-                drawcharacter(&game_state.spritesheet, &game_state.spritesheet_stride, &game_state.camera, &game_state.player_1);
+                
                 drawmap(&game_state);
                 
-                if pressed_this_frame & BUTTON_2 != 0 {
+                if btns_pressed_this_frame[0] & BUTTON_2 != 0 {
                     regenerate_map(&mut game_state);
                 }
                 
@@ -797,8 +897,8 @@ fn update() {
                     *PALETTE = spritesheet::KITTY_SS_PALLETE;
                 }
                 unsafe { *DRAW_COLORS = spritesheet::KITTY_SS_DRAW_COLORS }
-                game_state.rng.next();
-                if gamepad != 0 {
+                game_state.rng.borrow_mut().next();
+                if gamepads[0] != 0 {
                     game_state.game_mode = GameMode::NormalPlay;
                     // drop(game_state.map.chunks);
                     text("Spawning map...", 20, 50);
