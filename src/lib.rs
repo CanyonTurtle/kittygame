@@ -1,7 +1,7 @@
 // ideas
 //
 // custom tilemap code? or hand write? custom tilemap code is preferrable.
-
+#![allow(unused)]
 #[cfg(feature = "buddy-alloc")]
 mod alloc;
 mod spritesheet;
@@ -21,11 +21,11 @@ use wasm4::*;
 const MAP_CHUNK_MIN_SIDE_LEN: usize = 5;
 const MAP_CHUNK_MAX_SIDE_LEN: usize = 50;
 
-const MAP_CHUNK_MAX_N_TILES: usize = 2000;
+const MAP_CHUNK_MAX_N_TILES: usize = 800;
 
-const TOTAL_TILES_IN_MAP: usize = 60000;
+const TOTAL_TILES_IN_MAP: usize = 35000;
 
-const N_NPCS: i32 = 14;
+const N_NPCS: i32 = 10;
   
 const TILE_WIDTH_PX: usize = 5;
 const TILE_HEIGHT_PX: usize = 5;
@@ -47,8 +47,8 @@ enum KittyStates {
 impl Character {
     fn new(x_pos: i32, sprite_type: spritesheet::PresetSprites) -> Character {
         Character {
-            x_pos: x_pos as f32,
-            y_pos: 0.0,
+            x_pos: 10 as f32,
+            y_pos: 10.0,
             x_vel: 0.0,
             y_vel: 0.0,
             x_vel_cap: 2.0,
@@ -69,13 +69,16 @@ struct Camera {
     current_viewing_y_offset: f32,
 }
 
+struct TileAlignedBoundingBox {
+    x: i32,
+    y: i32,
+    width: usize,
+    height: usize
+}
 
 struct MapChunk {
     tiles: Vec<u8>,
-    y: i32,
-    x: i32,
-    chunk_width: i32,
-    chunk_height: i32,
+    bound: TileAlignedBoundingBox
 }
 
 impl MapChunk {
@@ -83,35 +86,37 @@ impl MapChunk {
     fn init() -> Self {
         let chunk = MapChunk {
             tiles: vec![],
-            y: 1,
-            x: 1,
-            chunk_width: 1,
-            chunk_height: 1,
+            bound: TileAlignedBoundingBox {
+                y: 1,
+                x: 1,
+                width: 1,
+                height: 1,
+            }
         };
 
         chunk
     }
 
     fn clamp_coords(self: &Self, x: usize, y: usize) -> (usize, usize) {
-        let clamped_x = num::clamp(x, 0, self.chunk_width as usize - 1);
-        let clamped_y = num::clamp(y, 0, self.chunk_height as usize - 1);
+        let clamped_x = num::clamp(x, 0, self.bound.width as usize - 1);
+        let clamped_y = num::clamp(y, 0, self.bound.height as usize - 1);
         (clamped_x, clamped_y)
     }
     fn set_tile(self: &mut Self, x: usize, y: usize, val: u8) {
         let clamped_coords = self.clamp_coords(x, y);
 
-        self.tiles[clamped_coords.1 * self.chunk_width as usize + clamped_coords.0] = val;
+        self.tiles[clamped_coords.1 * self.bound.width as usize + clamped_coords.0] = val;
     }
 
     fn get_tile(self: &Self, x: usize, y: usize) -> u8 {
         let clamped_coords = self.clamp_coords(x, y);
-        self.tiles[clamped_coords.1 * self.chunk_width as usize + clamped_coords.0]
+        self.tiles[clamped_coords.1 * self.bound.width as usize + clamped_coords.0]
     }
 
     fn reset_chunk(self: &mut Self) {
         self.tiles.clear();
-        for _ in 0..self.chunk_height {
-            for _ in 0..self.chunk_width {
+        for _ in 0..self.bound.height {
+            for _ in 0..self.bound.width {
                 self.tiles.push(0);
             }
         }
@@ -143,20 +148,20 @@ impl GameMap {
             ) {
                 // check to see if the other chunk touches the top of the new chunk
                 if 
-                    other_chunk.y + other_chunk.chunk_height == chunk.y &&
-                    other_chunk.x + other_chunk.chunk_width > chunk.x &&
-                    other_chunk.x < chunk.x + chunk.chunk_width
+                    other_chunk.bound.y + other_chunk.bound.height as i32 == chunk.bound.y &&
+                    other_chunk.bound.x + other_chunk.bound.width as i32 > chunk.bound.x &&
+                    other_chunk.bound.x < chunk.bound.x + chunk.bound.width as i32
                 {
-                    let min_x = core::cmp::max(chunk.x, other_chunk.x);
-                    let max_x = core::cmp::min(chunk.x + chunk.chunk_width, other_chunk.x + other_chunk.chunk_width);
+                    let min_x = core::cmp::max(chunk.bound.x, other_chunk.bound.x);
+                    let max_x = core::cmp::min(chunk.bound.x + chunk.bound.width as i32, other_chunk.bound.x + other_chunk.bound.width as i32);
                     for absolute_coord_x in min_x + 1..max_x - 1 {
-                        let rel_chunk_x = absolute_coord_x - chunk.x;
-                        if rel_chunk_x > 0 && rel_chunk_x < chunk.chunk_width - 1 {
+                        let rel_chunk_x = absolute_coord_x - chunk.bound.x;
+                        if rel_chunk_x > 0 && rel_chunk_x < chunk.bound.width as i32 - 1 {
                             chunk.set_tile(rel_chunk_x as usize, 0 as usize, 0);
                         }
-                        let rel_other_chunk_x = absolute_coord_x - other_chunk.x;
-                        if rel_other_chunk_x > 0 && rel_other_chunk_x < other_chunk.chunk_width - 1 {
-                            other_chunk.set_tile(rel_other_chunk_x as usize, other_chunk.chunk_height as usize - 1, 0)
+                        let rel_other_chunk_x = absolute_coord_x - other_chunk.bound.x;
+                        if rel_other_chunk_x > 0 && rel_other_chunk_x < other_chunk.bound.width as i32 - 1 {
+                            other_chunk.set_tile(rel_other_chunk_x as usize, other_chunk.bound.height as usize - 1, 0)
                         }
                     }
                 }
@@ -168,20 +173,20 @@ impl GameMap {
             ) {
                 // check to see if the other chunk touches the left of the new chunk
                 if 
-                    other_chunk.x + other_chunk.chunk_width == chunk.x &&
-                    other_chunk.y + other_chunk.chunk_height > chunk.y &&
-                    other_chunk.y < chunk.y + chunk.chunk_height
+                    other_chunk.bound.x + other_chunk.bound.width as i32 == chunk.bound.x &&
+                    other_chunk.bound.y + other_chunk.bound.height as i32 > chunk.bound.y &&
+                    other_chunk.bound.y < chunk.bound.y + chunk.bound.height as i32
                 {
-                    let min_y = core::cmp::max(chunk.y, other_chunk.y);
-                    let max_y = core::cmp::min(chunk.y + chunk.chunk_height, other_chunk.y + other_chunk.chunk_height);
+                    let min_y = core::cmp::max(chunk.bound.y, other_chunk.bound.y);
+                    let max_y = core::cmp::min(chunk.bound.y + chunk.bound.height as i32, other_chunk.bound.y + other_chunk.bound.height as i32);
                     for absolute_coord_y in min_y + 1..max_y - 1 {
-                        let rel_chunk_y = absolute_coord_y - chunk.y;
-                        if rel_chunk_y > 0 && rel_chunk_y < chunk.chunk_height - 1 {
+                        let rel_chunk_y = absolute_coord_y - chunk.bound.y;
+                        if rel_chunk_y > 0 && rel_chunk_y < chunk.bound.height as i32 - 1 {
                             chunk.set_tile(0, rel_chunk_y as usize, 0);
                         }
-                        let rel_other_chunk_y = absolute_coord_y - other_chunk.y;
-                        if rel_other_chunk_y > 0 && rel_other_chunk_y < other_chunk.chunk_height - 1 {
-                            other_chunk.set_tile(other_chunk.chunk_width as usize - 1, rel_other_chunk_y as usize, 0)
+                        let rel_other_chunk_y = absolute_coord_y - other_chunk.bound.y;
+                        if rel_other_chunk_y > 0 && rel_other_chunk_y < other_chunk.bound.height as i32 - 1 {
+                            other_chunk.set_tile(other_chunk.bound.width as usize - 1, rel_other_chunk_y as usize, 0)
                         }
                     }
                 }
@@ -210,16 +215,16 @@ fn drawmap(game_state: &GameState) {
     let camera = &game_state.camera;
 
     for chunk in &map.chunks {
-        for row in 0..chunk.chunk_height {
-            for col in 0..chunk.chunk_width {
+        for row in 0..chunk.bound.height {
+            for col in 0..chunk.bound.width {
                 let map_tile_i = chunk.get_tile(col as usize, row as usize);
                 match map_tile_i {
                     0 => {},
                     tile_idx => {
                         let tile_i: usize = tile_idx as usize - 1; // *tile_idx as usize;
                         // trace(format!("Tile {tile_i}"));
-                        let chunk_x_offset: i32 = (TILE_WIDTH_PX) as i32 * chunk.x;
-                        let chunk_y_offset: i32 = (TILE_HEIGHT_PX) as i32 * chunk.y;
+                        let chunk_x_offset: i32 = (TILE_WIDTH_PX) as i32 * chunk.bound.x;
+                        let chunk_y_offset: i32 = (TILE_HEIGHT_PX) as i32 * chunk.bound.y;
                         let x_loc = (chunk_x_offset + col as i32 * TILE_HEIGHT_PX as i32) - camera.borrow().current_viewing_x_offset as i32;
                         let y_loc = (chunk_y_offset + row as i32 * TILE_WIDTH_PX as i32) - camera.borrow().current_viewing_y_offset as i32;
 
@@ -279,6 +284,7 @@ enum GameMode {
     NormalPlay
 }
 
+
 enum OptionallyEnabledPlayer {
     Enabled(Character),
     Disabled
@@ -320,20 +326,13 @@ fn regenerate_map(game_state: &mut GameState) {
     map.chunks.clear();
     let rng = &mut game_state.rng;
 
-    struct ViableLocation {
-        x: i32,
-        y: i32,
-        width: usize,
-        height: usize
-    }
-
-    impl ViableLocation {
+    impl TileAlignedBoundingBox {
         fn init(x: i32, y: i32, w: usize, h: usize) -> Self {
-            return ViableLocation { x:x, y: y, width: w, height: h }
+            return TileAlignedBoundingBox { x:x, y: y, width: w, height: h }
         }
     }
 
-    let mut current_chunk_locations: Vec<ViableLocation> = vec![ViableLocation::init(0, 0, 32, 32)];
+    let mut current_chunk_locations: Vec<TileAlignedBoundingBox> = vec![TileAlignedBoundingBox::init(0, 0, 32, 32)];
 
     // place the chunks randomly.
     'generate_chunks: loop {
@@ -369,8 +368,8 @@ fn regenerate_map(game_state: &mut GameState) {
             let random_chunk_from_list_i = (rng.next() % current_chunk_locations.len() as u64) as usize;
             let vertical_stack = rng.next() % 2 == 1;
             let positive_stack = rng.next() % 2 == 1;
-            let rand_chunk = &current_chunk_locations[random_chunk_from_list_i];
-            let new_chunk_location: ViableLocation;
+            let rand_bound = &current_chunk_locations[random_chunk_from_list_i];
+            let new_chunk_location: TileAlignedBoundingBox;
 
             // const VARIATION_FROM_CHUNK_DIMS: usize = 0;
 
@@ -379,24 +378,24 @@ fn regenerate_map(game_state: &mut GameState) {
 
             if vertical_stack {
                 if positive_stack {
-                    new_chunk_location = ViableLocation::init(rand_chunk.x + r_offs_1, rand_chunk.y + rand_chunk.height as i32, chunk_wid, chunk_hei);
+                    new_chunk_location = TileAlignedBoundingBox::init(rand_bound.x + r_offs_1, rand_bound.y + rand_bound.height as i32, chunk_wid, chunk_hei);
                 } else {
-                    new_chunk_location = ViableLocation::init(rand_chunk.x + r_offs_1, rand_chunk.y - chunk_hei as i32, chunk_wid, chunk_hei);
+                    new_chunk_location = TileAlignedBoundingBox::init(rand_bound.x + r_offs_1, rand_bound.y - chunk_hei as i32, chunk_wid, chunk_hei);
                 }
             } else {
                 if positive_stack {
-                    new_chunk_location = ViableLocation::init(rand_chunk.x + rand_chunk.width as i32, rand_chunk.y + r_offs_1, chunk_wid, chunk_hei);
+                    new_chunk_location = TileAlignedBoundingBox::init(rand_bound.x + rand_bound.width as i32, rand_bound.y + r_offs_1, chunk_wid, chunk_hei);
                 } else {
-                    new_chunk_location = ViableLocation::init(rand_chunk.x - chunk_wid as i32, rand_chunk.y + r_offs_1, chunk_wid, chunk_hei);
+                    new_chunk_location = TileAlignedBoundingBox::init(rand_bound.x - chunk_wid as i32, rand_bound.y + r_offs_1, chunk_wid, chunk_hei);
                 }
             }
             let mut is_viable_spot = true;
-            for other_chunk in &current_chunk_locations {
+            for other_bound in &current_chunk_locations {
                 // if it collides with existing chunk, disallow
-                if new_chunk_location.y + new_chunk_location.height as i32 > other_chunk.y {
-                    if new_chunk_location.y < other_chunk.y + other_chunk.height as i32 {
-                        if new_chunk_location.x + new_chunk_location.width as i32 > other_chunk.x {
-                            if new_chunk_location.x < other_chunk.x + other_chunk.width as i32 {
+                if new_chunk_location.y + new_chunk_location.height as i32 > other_bound.y {
+                    if new_chunk_location.y < other_bound.y + other_bound.height as i32 {
+                        if new_chunk_location.x + new_chunk_location.width as i32 > other_bound.x {
+                            if new_chunk_location.x < other_bound.x + other_bound.width as i32 {
                                 is_viable_spot = false;
                             }
                         }
@@ -415,14 +414,12 @@ fn regenerate_map(game_state: &mut GameState) {
     for current_chunk_location in current_chunk_locations {
         let mut chunk = MapChunk::init();
         
-        chunk.y = current_chunk_location.y;
-        chunk.x = current_chunk_location.x;
-        chunk.chunk_width = current_chunk_location.width as i32;
-        chunk.chunk_height = current_chunk_location.height as i32;
+        chunk.bound = current_chunk_location;
+
         // chunk.tiles.clear();
-        // for _ in 0..chunk.chunk_height {
+        // for _ in 0..chunk.bound.height {
         //     let mut chunk_row: Vec<u8> = Vec::new();
-        //     for _ in 0..chunk.chunk_width {
+        //     for _ in 0..chunk.bound.width {
         //         chunk_row.push(0);
         //     }
         //     chunk.tiles.push(chunk_row);
@@ -437,7 +434,7 @@ fn regenerate_map(game_state: &mut GameState) {
 
         const CHUNK_BORDER_MATERIAL: u8 = 6;
 
-        const POSSIBLE_BUILDING_MATERIALS: [u8; 1] = [6];
+        // const POSSIBLE_BUILDING_MATERIALS: [u8; 1] = [6];
         const CORRUPT_MATERIALS: [u8; 7] = [7, 8, 9, 10, 11, 12, 13];
         const CORRUPT_CHANCE: f32 = 0.2;
         
@@ -450,17 +447,17 @@ fn regenerate_map(game_state: &mut GameState) {
 
         let rng_ref = &mut rng.borrow_mut();
 
-        for row in 0..chunk.chunk_height as usize {
+        for row in 0..chunk.bound.height as usize {
             let corrupt_material: u8 = CORRUPT_MATERIALS[rng_ref.next() as usize % CORRUPT_MATERIALS.len()];
             let material = get_material(CHUNK_BORDER_MATERIAL, corrupt_material, CORRUPT_CHANCE, rng_ref);
             chunk.set_tile(0, row, material);
-            chunk.set_tile(chunk.chunk_width as usize - 1, row, material);
+            chunk.set_tile(chunk.bound.width as usize - 1, row, material);
         }
-        for col in 0..chunk.chunk_width as usize {
+        for col in 0..chunk.bound.width as usize {
             let corrupt_material: u8 = CORRUPT_MATERIALS[rng_ref.next() as usize % CORRUPT_MATERIALS.len()];
             let material = get_material(CHUNK_BORDER_MATERIAL, corrupt_material, CORRUPT_CHANCE, rng_ref);
             chunk.set_tile(col, 0, material);
-            chunk.set_tile(col, chunk.chunk_height as usize - 1, material);
+            chunk.set_tile(col, chunk.bound.height as usize - 1, material);
         }
         
 
@@ -478,11 +475,11 @@ fn regenerate_map(game_state: &mut GameState) {
         //         // trace("starting spawn structure");
 
 
-        //         let building_min_width: usize = num::clamp(BUILDING_SUGGESTED_MIN_WIDTH, 1, chunk.chunk_width as usize);
-        //         let building_max_width: usize = num::clamp(BUILDING_SUGGESTED_MAX_WIDTH, building_min_width, chunk.chunk_width as usize);
+        //         let building_min_width: usize = num::clamp(BUILDING_SUGGESTED_MIN_WIDTH, 1, chunk.bound.width as usize);
+        //         let building_max_width: usize = num::clamp(BUILDING_SUGGESTED_MAX_WIDTH, building_min_width, chunk.bound.width as usize);
 
-        //         let building_min_height: usize = num::clamp(BUILDING_SUGGESTED_MIN_HEIGHT, 1, chunk.chunk_height as usize);
-        //         let building_max_height: usize = num::clamp(BUILDING_SUGGESTED_MAX_HEIGHT, building_min_height, chunk.chunk_height as usize);
+        //         let building_min_height: usize = num::clamp(BUILDING_SUGGESTED_MIN_HEIGHT, 1, chunk.bound.height as usize);
+        //         let building_max_height: usize = num::clamp(BUILDING_SUGGESTED_MAX_HEIGHT, building_min_height, chunk.bound.height as usize);
  
         //         // trace("established mins and maxes");
         //         const POSSIBLE_BUILDING_MATERIALS: [u8; 1] = [6];
@@ -506,8 +503,8 @@ fn regenerate_map(game_state: &mut GameState) {
         //         // trace(format!("Building height: {building_height}, chunk_height: {chunk_height} "));
 
 
-        //         let building_chunk_loc_x: usize = (rng.next() as u64 % (core::cmp::max(chunk.chunk_width as i64 - building_width as i64, 1)) as u64) as usize;
-        //         let building_chunk_loc_y: usize = (rng.next() as u64 % (core::cmp::max(chunk.chunk_height as i64 - building_height as i64, 1)) as u64) as usize;
+        //         let building_chunk_loc_x: usize = (rng.next() as u64 % (core::cmp::max(chunk.bound.width as i64 - building_width as i64, 1)) as u64) as usize;
+        //         let building_chunk_loc_y: usize = (rng.next() as u64 % (core::cmp::max(chunk.bound.height as i64 - building_height as i64, 1)) as u64) as usize;
         
         //         // trace("got modded loc");
         //         inside_start_xs[i] = building_chunk_loc_x as u8 + 1;
@@ -629,10 +626,10 @@ impl GameState<'static> {
     fn new() -> GameState<'static> {
 
         let characters = [
-            OptionallyEnabledPlayer::Enabled((Character::new(0, spritesheet::PresetSprites::MainCat))),
-            OptionallyEnabledPlayer::Enabled((Character::new(10, spritesheet::PresetSprites::MainCat))),
-            OptionallyEnabledPlayer::Enabled((Character::new(20, spritesheet::PresetSprites::MainCat))),
-            OptionallyEnabledPlayer::Enabled((Character::new(30, spritesheet::PresetSprites::MainCat))),
+            OptionallyEnabledPlayer::Enabled(Character::new(0, spritesheet::PresetSprites::MainCat)),
+            OptionallyEnabledPlayer::Enabled(Character::new(10, spritesheet::PresetSprites::MainCat)),
+            OptionallyEnabledPlayer::Enabled(Character::new(20, spritesheet::PresetSprites::MainCat)),
+            OptionallyEnabledPlayer::Enabled(Character::new(30, spritesheet::PresetSprites::MainCat)),
         ];
 
         let rng = Rng::new();
@@ -686,7 +683,26 @@ impl GameState<'static> {
 
 thread_local!(static GAME_STATE_HOLDER: RefCell<GameState<'static>> = RefCell::new(GameState::new()));
 
-fn update_char(character: &mut Character, input: u8){
+fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
+    
+    let character: &mut Character;
+
+    match moving_entity {
+        MovingEntity::OptionalPlayer(optionally_enabled_player) => {
+            match optionally_enabled_player {
+                OptionallyEnabledPlayer::Enabled(ch) => {
+                    character = ch;
+                }
+                OptionallyEnabledPlayer::Disabled => {
+                    return
+                }
+            }
+        }
+        MovingEntity::NPC(npc) => {
+            character = npc;
+        }
+    }
+    
     let btn_accel = 0.6;
     let hop_v: f32 = -4.0;
     let h_decay = 0.8;
@@ -712,37 +728,87 @@ fn update_char(character: &mut Character, input: u8){
     } else if input & BUTTON_DOWN != 0 {
     }
 
-    character.x_pos += character.x_vel;
-    character.y_pos += character.y_vel;
 
     let gravity = 0.3;
     character.y_vel += gravity;
+    character.x_vel = num::clamp(character.x_vel, -character.x_vel_cap, character.x_vel_cap);
+    character.y_vel = num::clamp(character.y_vel, -character.y_vel_cap, character.y_vel_cap);
+
+
+    // now, we need to check if moving in the current direction would collide with anything.
+    // Since before moving we can assume we are in a valid location, as long as this collision
+    // logic places us in another valid location, we'll be okay.
+
+    // VERTICAL COLLISION
+    // take the y velocity, and clamp it by any colliding blocks.
+
+    let actual_x_vel_this_frame: f32 = character.x_vel;
+    let actual_y_vel_this_frame: f32 = character.y_vel;
+
+    // look at each chunk, and see if the player is inside it
+    for (i, chunk) in map.chunks.iter().enumerate() {
+        fn check_point_inside_tile_aligned_bound(x: i32, y: i32, bound: &TileAlignedBoundingBox) -> bool {
+            let bound_absolute_left_x: i32 = bound.x * TILE_WIDTH_PX as i32;
+            let bound_absolute_right_x: i32 = bound_absolute_left_x + bound.width as i32 * TILE_WIDTH_PX as i32;
+            let bound_absolute_lower_y: i32 = bound.y * TILE_HEIGHT_PX as i32;
+            let bound_absolute_upper_y: i32 = bound_absolute_lower_y + bound.height as i32 * TILE_HEIGHT_PX as i32;
+
+            if x >= bound_absolute_left_x {
+                if x < bound_absolute_right_x {
+                    if y >= bound_absolute_lower_y {
+                        if y < bound_absolute_upper_y {
+                            return true
+                        }
+                    }
+                }
+            }
+            false
+        }
+        struct AbsoluteBoundingBox {
+            x: i32,
+            y: i32,
+            width: usize,
+            height: usize
+        }
+        fn check_absolue_bound_partially_inside_tile_aligned_bound(absolute_bound: &AbsoluteBoundingBox, tile_aligned_bound: &TileAlignedBoundingBox) -> bool {
+            let lowerleft = (absolute_bound.x, absolute_bound.y);
+            let lowerright = (absolute_bound.x + absolute_bound.width as i32, absolute_bound.y);
+            let upperleft = (absolute_bound.x, absolute_bound.y + absolute_bound.height as i32);
+            let upperright = (absolute_bound.x + absolute_bound.width as i32, absolute_bound.y + absolute_bound.height as i32);
+            if !check_point_inside_tile_aligned_bound(lowerleft.0, lowerleft.1, tile_aligned_bound) {
+                if !check_point_inside_tile_aligned_bound(lowerright.0, lowerright.1, tile_aligned_bound) {
+                    if !check_point_inside_tile_aligned_bound(upperleft.0, upperleft.1, tile_aligned_bound) {
+                        if !check_point_inside_tile_aligned_bound(upperright.0, upperright.1, tile_aligned_bound) {
+                            return false
+                        }
+                    }
+                } 
+            }
+            true
+        }
+
+        let char_positioning = character.sprite.frames[character.current_sprite_i as usize].positioning;
+        let char_bound = AbsoluteBoundingBox {
+            x: character.x_pos as i32,
+            y: character.y_pos as i32,
+            width: char_positioning.width,
+            height: char_positioning.height,
+        };
+
+        if check_absolue_bound_partially_inside_tile_aligned_bound(&char_bound, &chunk.bound) {
+            text(format!["Player in ch {i}"], 10, 10);
+        }
+        
+    }
+
+    character.x_pos += actual_x_vel_this_frame;
+    character.y_pos += actual_y_vel_this_frame;
 
     character.x_pos = num::clamp(character.x_pos, X_LEFT_BOUND as f32, X_RIGHT_BOUND as f32);
     character.y_pos = num::clamp(character.y_pos, Y_LOWER_BOUND as f32, Y_UPPER_BOUND as f32);
-    character.x_vel = num::clamp(character.x_vel, -character.x_vel_cap, character.x_vel_cap);
-    character.y_vel = num::clamp(character.y_vel, -character.y_vel_cap, character.y_vel_cap);
-    character.count += 1;
-}
 
-fn update_pos(character: MovingEntity, input: u8) {
-    
-    match character {
-        MovingEntity::OptionalPlayer(optionally_enabled_player) => {
-            match optionally_enabled_player {
-                OptionallyEnabledPlayer::Enabled(character) => {
-                    update_char(character, input);
-                }
-                OptionallyEnabledPlayer::Disabled => {
-                    return
-                }
-            }
-        }
-        MovingEntity::NPC(npc) => {
-            update_char(npc, input);
-        }
-    }
-    
+    character.count += 1;
+
 }
 
 fn drawcharacter(spritesheet: &[u8], spritesheet_stride: &usize, camera: &Camera, character: MovingEntity) {
@@ -768,8 +834,8 @@ fn drawcharacter(spritesheet: &[u8], spritesheet_stride: &usize, camera: &Camera
     let i = the_char.current_sprite_i as usize;
     blit_sub(
         &spritesheet,
-        the_char.x_pos as i32 - camera.current_viewing_x_offset as i32,
-        the_char.y_pos as i32 - camera.current_viewing_y_offset as i32,
+        (the_char.x_pos - camera.current_viewing_x_offset) as i32,
+        (the_char.y_pos - camera.current_viewing_y_offset) as i32,
         the_char.sprite.frames[i].positioning.width as u32,
         the_char.sprite.frames[i].positioning.height as u32,
         the_char.sprite.frames[i].positioning.start_x as u32,
@@ -785,16 +851,15 @@ fn update() {
     GAME_STATE_HOLDER.with(|game_cell| {
         let mut game_state = game_cell.borrow_mut();
         let gamepads: [u8; 4] = unsafe { [*GAMEPAD1, *GAMEPAD2, *GAMEPAD3, *GAMEPAD4] };
-        let mut previouses = unsafe {PREVIOUS_GAMEPAD};
         let mut btns_pressed_this_frame: [u8; 4] = [0; 4];
 
 
         for i in 0..gamepads.len() {
             let gamepad = gamepads[i];
-            let previous = previouses[i];
+            let previous = unsafe {PREVIOUS_GAMEPAD[i]};
             let pressed_this_frame = gamepad & (gamepad ^ previous);
             btns_pressed_this_frame[i] = pressed_this_frame;
-            previouses.copy_from_slice(&gamepads[..]);
+            unsafe {PREVIOUS_GAMEPAD.copy_from_slice(&gamepads[..])};
         }
         
 
@@ -834,7 +899,7 @@ fn update() {
                     let mut optional_players = game_state.players.borrow_mut();
 
                     for (i, optional_player) in &mut optional_players.iter_mut().enumerate() {
-                        update_pos(MovingEntity::OptionalPlayer(optional_player), gamepads[i]);
+                        update_pos(&game_state.map, MovingEntity::OptionalPlayer(optional_player), gamepads[i]);
                         drawcharacter(&game_state.spritesheet, &game_state.spritesheet_stride, &game_state.camera.borrow(), MovingEntity::OptionalPlayer(optional_player));
                     } 
                 }
@@ -866,11 +931,10 @@ fn update() {
                 }
         
                 for (i, npc) in game_state.npcs.borrow_mut().iter_mut().enumerate() {
-                    update_pos(MovingEntity::NPC(npc), inputs[i]);
-                }
-                for npc in game_state.npcs.borrow_mut().iter_mut() {
+                    update_pos(&game_state.map, MovingEntity::NPC(npc), inputs[i]);
                     drawcharacter(&game_state.spritesheet, &game_state.spritesheet_stride, &game_state.camera.borrow(), MovingEntity::NPC(npc));
                 }
+
                 
                 drawmap(&game_state);
                 
