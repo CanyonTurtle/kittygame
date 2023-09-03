@@ -18,12 +18,12 @@ use wasm4::*;
 
 // const N_BUILDINGS_PER_CHUNK: usize = 30;
 // const USING_DOORS: bool = true;
-const MAP_CHUNK_MIN_SIDE_LEN: usize = 5;
+const MAP_CHUNK_MIN_SIDE_LEN: usize = 7;
 const MAP_CHUNK_MAX_SIDE_LEN: usize = 50;
 
 const MAP_CHUNK_MAX_N_TILES: usize = 800;
 
-const TOTAL_TILES_IN_MAP: usize = 35000;
+const TOTAL_TILES_IN_MAP: usize = 30000;
 
 const N_NPCS: i32 = 10;
   
@@ -81,6 +81,10 @@ struct MapChunk {
     bound: TileAlignedBoundingBox
 }
 
+enum OutOfChunkBound {
+    OUT
+}
+
 impl MapChunk {
 
     fn init() -> Self {
@@ -111,6 +115,29 @@ impl MapChunk {
     fn get_tile(self: &Self, x: usize, y: usize) -> u8 {
         let clamped_coords = self.clamp_coords(x, y);
         self.tiles[clamped_coords.1 * self.bound.width as usize + clamped_coords.0]
+    }
+
+    fn is_tile_idx_inside_tile_aligned_bound(self: &Self, x: i32, y: i32) -> bool {
+        if x >= 0 {
+            if x < self.bound.width as i32 {
+                if y >= 0 {
+                    if y < self.bound.height as i32 {
+                        return true
+                    }
+                }
+            }
+        }
+        false
+    }
+
+    fn get_tile_abs(self: &Self, abs_x: i32, abs_y: i32) -> Result<u8, OutOfChunkBound> {
+        let rel_x = ((abs_x - self.bound.x * TILE_WIDTH_PX as i32) as f32 / TILE_WIDTH_PX as f32) as i32;
+        let rel_y = ((abs_y - self.bound.y * TILE_HEIGHT_PX as i32) as f32 / TILE_HEIGHT_PX as f32) as i32;
+
+        if self.is_tile_idx_inside_tile_aligned_bound(rel_x, rel_y) {
+            return Result::Ok(self.get_tile(rel_x as usize, rel_y as usize));
+        }
+        return Result::Err(OutOfChunkBound::OUT);
     }
 
     fn reset_chunk(self: &mut Self) {
@@ -325,6 +352,23 @@ fn regenerate_map(game_state: &mut GameState) {
     map.num_tiles = 0;
     map.chunks.clear();
     let rng = &mut game_state.rng;
+
+    for optional_player in game_state.players.borrow_mut().iter_mut() {
+        match optional_player {
+            OptionallyEnabledPlayer::Enabled(p) => {
+                p.x_pos = 10.0;
+                p.y_pos = 10.0;
+            }
+            OptionallyEnabledPlayer::Disabled => {
+
+            }
+        }
+    }
+
+    for npc in game_state.npcs.borrow_mut().iter_mut() {
+        npc.x_pos = 10.0;
+        npc.y_pos = 10.0;
+    }
 
     impl TileAlignedBoundingBox {
         fn init(x: i32, y: i32, w: usize, h: usize) -> Self {
@@ -683,6 +727,130 @@ impl GameState<'static> {
 
 thread_local!(static GAME_STATE_HOLDER: RefCell<GameState<'static>> = RefCell::new(GameState::new()));
 
+fn check_absolute_point_inside_tile_aligned_bound(x: i32, y: i32, bound: &TileAlignedBoundingBox) -> bool {
+    let bound_absolute_left_x: i32 = bound.x * TILE_WIDTH_PX as i32;
+    let bound_absolute_right_x: i32 = bound_absolute_left_x + bound.width as i32 * TILE_WIDTH_PX as i32;
+    let bound_absolute_lower_y: i32 = bound.y * TILE_HEIGHT_PX as i32;
+    let bound_absolute_upper_y: i32 = bound_absolute_lower_y + bound.height as i32 * TILE_HEIGHT_PX as i32;
+
+    if x > bound_absolute_left_x {
+        if x < bound_absolute_right_x {
+            if y > bound_absolute_lower_y {
+                if y < bound_absolute_upper_y {
+                    return true
+                }
+            }
+        }
+    }
+    false
+}
+
+struct AbsoluteBoundingBox {
+    x: i32,
+    y: i32,
+    width: usize,
+    height: usize
+}
+fn check_absolue_bound_partially_inside_tile_aligned_bound(absolute_bound: &AbsoluteBoundingBox, tile_aligned_bound: &TileAlignedBoundingBox) -> bool {
+    let lowerleft = (absolute_bound.x, absolute_bound.y);
+    let lowerright = (absolute_bound.x + absolute_bound.width as i32, absolute_bound.y);
+    let upperleft = (absolute_bound.x, absolute_bound.y + absolute_bound.height as i32);
+    let upperright = (absolute_bound.x + absolute_bound.width as i32, absolute_bound.y + absolute_bound.height as i32);
+    if !check_absolute_point_inside_tile_aligned_bound(lowerleft.0, lowerleft.1, tile_aligned_bound) {
+        if !check_absolute_point_inside_tile_aligned_bound(lowerright.0, lowerright.1, tile_aligned_bound) {
+            if !check_absolute_point_inside_tile_aligned_bound(upperleft.0, upperleft.1, tile_aligned_bound) {
+                if !check_absolute_point_inside_tile_aligned_bound(upperright.0, upperright.1, tile_aligned_bound) {
+                    return false
+                }
+            }
+        } 
+    }
+    true
+}
+
+fn raycast_axis_aligned(horizontal: bool, positive: bool, dist_per_iter: f32, abs_start_pt: (i32, i32), ray_len: f32, chunk: &MapChunk) -> f32 {
+    let ray_x_dist_per_iter;
+    let ray_y_dist_per_iter;
+    
+    let mut vertical_ray: f32 = 0.0;
+    let mut horizontal_ray: f32 = 0.0;
+
+    let mut ret_val = ray_len;
+
+    let start_pt;
+    
+    if horizontal {
+        start_pt = (abs_start_pt.0, abs_start_pt.1 - 1);
+        if positive {
+            ray_x_dist_per_iter = dist_per_iter;
+            ray_y_dist_per_iter = 0.0;
+        } else {
+            ray_x_dist_per_iter = -dist_per_iter;
+            ray_y_dist_per_iter = 0.0;
+        }
+    }
+    
+    else {
+        start_pt = (abs_start_pt.0, abs_start_pt.1);
+        if positive {
+            ray_x_dist_per_iter = 0.0;
+            ray_y_dist_per_iter = dist_per_iter;
+        } else {
+            ray_x_dist_per_iter = 0.0;
+            ray_y_dist_per_iter = -dist_per_iter;
+        }
+    }
+
+    
+
+    let mut should_clamp_x = false;
+    let mut should_clamp_y = false;
+
+    
+
+    // travel along, see if it's colliding with things
+    loop {
+        if horizontal {
+            if horizontal_ray.abs() > ray_len.abs() {
+                break
+            }
+        } else {
+            if vertical_ray.abs() > ray_len.abs() {
+                break
+            }
+        }
+        
+        // make sure this ray even is in the chunk in the first place
+        match chunk.get_tile_abs(start_pt.0 + horizontal_ray as i32, start_pt.1 + vertical_ray as i32) {
+            Ok(tile) => {
+                if tile != 0 {
+                    // text(format!["hit tile {lowerleft_vertical_ray}"], 10, 50);
+                    if horizontal {
+                        should_clamp_x = true;
+                    } else {
+                        should_clamp_y = true;
+                    }
+                    
+                    break
+                }
+            }
+            Err(e) => {
+                break
+            }
+        }
+        vertical_ray += ray_y_dist_per_iter;
+        horizontal_ray += ray_x_dist_per_iter;
+
+    }
+    if should_clamp_x {
+        ret_val = vertical_ray;
+    } else if should_clamp_y {
+        ret_val = horizontal_ray;
+    }
+
+    ret_val
+}
+
 fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
     
     let character: &mut Character;
@@ -739,53 +907,15 @@ fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
     // Since before moving we can assume we are in a valid location, as long as this collision
     // logic places us in another valid location, we'll be okay.
 
-    // VERTICAL COLLISION
-    // take the y velocity, and clamp it by any colliding blocks.
+   
 
-    let actual_x_vel_this_frame: f32 = character.x_vel;
-    let actual_y_vel_this_frame: f32 = character.y_vel;
-
+    let mut actual_x_vel_this_frame: f32 = character.x_vel;
+    let mut actual_y_vel_this_frame: f32 = character.y_vel;
+    // trace("will check--------------------");
     // look at each chunk, and see if the player is inside it
     for (i, chunk) in map.chunks.iter().enumerate() {
-        fn check_point_inside_tile_aligned_bound(x: i32, y: i32, bound: &TileAlignedBoundingBox) -> bool {
-            let bound_absolute_left_x: i32 = bound.x * TILE_WIDTH_PX as i32;
-            let bound_absolute_right_x: i32 = bound_absolute_left_x + bound.width as i32 * TILE_WIDTH_PX as i32;
-            let bound_absolute_lower_y: i32 = bound.y * TILE_HEIGHT_PX as i32;
-            let bound_absolute_upper_y: i32 = bound_absolute_lower_y + bound.height as i32 * TILE_HEIGHT_PX as i32;
-
-            if x >= bound_absolute_left_x {
-                if x < bound_absolute_right_x {
-                    if y >= bound_absolute_lower_y {
-                        if y < bound_absolute_upper_y {
-                            return true
-                        }
-                    }
-                }
-            }
-            false
-        }
-        struct AbsoluteBoundingBox {
-            x: i32,
-            y: i32,
-            width: usize,
-            height: usize
-        }
-        fn check_absolue_bound_partially_inside_tile_aligned_bound(absolute_bound: &AbsoluteBoundingBox, tile_aligned_bound: &TileAlignedBoundingBox) -> bool {
-            let lowerleft = (absolute_bound.x, absolute_bound.y);
-            let lowerright = (absolute_bound.x + absolute_bound.width as i32, absolute_bound.y);
-            let upperleft = (absolute_bound.x, absolute_bound.y + absolute_bound.height as i32);
-            let upperright = (absolute_bound.x + absolute_bound.width as i32, absolute_bound.y + absolute_bound.height as i32);
-            if !check_point_inside_tile_aligned_bound(lowerleft.0, lowerleft.1, tile_aligned_bound) {
-                if !check_point_inside_tile_aligned_bound(lowerright.0, lowerright.1, tile_aligned_bound) {
-                    if !check_point_inside_tile_aligned_bound(upperleft.0, upperleft.1, tile_aligned_bound) {
-                        if !check_point_inside_tile_aligned_bound(upperright.0, upperright.1, tile_aligned_bound) {
-                            return false
-                        }
-                    }
-                } 
-            }
-            true
-        }
+        
+        // trace("checking chn");
 
         let char_positioning = character.sprite.frames[character.current_sprite_i as usize].positioning;
         let char_bound = AbsoluteBoundingBox {
@@ -795,14 +925,55 @@ fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
             height: char_positioning.height,
         };
 
+
+        
+
+        // if the sprite is inside this chunk, we now need to check to see if moving along our velocity
         if check_absolue_bound_partially_inside_tile_aligned_bound(&char_bound, &chunk.bound) {
-            text(format!["Player in ch {i}"], 10, 10);
+            // text(format!["Player in ch {i}"], 10, 10);
+
+            // VERTICAL COLLISION
+            // take the y velocity, and start at the edge of the player's bounding box, and project the line outward, to check for collisions.
+
+
+            // text(format!["moving up"], 10, 20);
+            // CHECK TOP LEFT CORNER
+            // create the decreasing vertical vector, and incrementally travel until it is touching something
+
+
+            
+
+            const RAYCAST_DIST_PER_ITER: f32 = 1.0;
+
+            let lowerleft_checker_location = (char_bound.x, char_bound.y);
+            let lowerright_checker_location = (char_bound.x + char_bound.width as i32, char_bound.y);
+            let upperleft_checker_location = (char_bound.x, char_bound.y + char_bound.height as i32);
+            let upperright_checker_location = (char_bound.x + char_bound.width as i32, char_bound.y + char_bound.height as i32);
+            if character.y_vel < 0.0 {
+                character.y_vel = raycast_axis_aligned(false, false, RAYCAST_DIST_PER_ITER, lowerleft_checker_location, character.y_vel, chunk);
+                character.y_vel = raycast_axis_aligned(false, false, RAYCAST_DIST_PER_ITER, lowerright_checker_location, character.y_vel, chunk);
+            }
+            else if character.y_vel > 0.0 {
+                character.y_vel = raycast_axis_aligned(false, true, RAYCAST_DIST_PER_ITER, upperleft_checker_location, character.y_vel, chunk);
+                character.y_vel = raycast_axis_aligned(false, true, RAYCAST_DIST_PER_ITER, upperright_checker_location, character.y_vel, chunk);
+            }
+
+            if character.x_vel < 0.0 {
+                character.x_vel = raycast_axis_aligned(true, false, RAYCAST_DIST_PER_ITER, lowerleft_checker_location, character.x_vel, chunk);
+                character.x_vel = raycast_axis_aligned(true, false, RAYCAST_DIST_PER_ITER, upperleft_checker_location, character.x_vel, chunk);
+            }
+            else if character.x_vel > 0.0 {
+                character.x_vel = raycast_axis_aligned(true, true, RAYCAST_DIST_PER_ITER, lowerright_checker_location, character.x_vel, chunk);
+                character.x_vel = raycast_axis_aligned(true, true, RAYCAST_DIST_PER_ITER, upperright_checker_location, character.x_vel, chunk);
+            }   
+            
+            
         }
         
     }
 
-    character.x_pos += actual_x_vel_this_frame;
-    character.y_pos += actual_y_vel_this_frame;
+    character.x_pos += character.x_vel;
+    character.y_pos += character.y_vel;
 
     character.x_pos = num::clamp(character.x_pos, X_LEFT_BOUND as f32, X_RIGHT_BOUND as f32);
     character.y_pos = num::clamp(character.y_pos, Y_LOWER_BOUND as f32, Y_UPPER_BOUND as f32);
@@ -868,7 +1039,11 @@ fn update() {
         match game_state.game_mode {
             GameMode::NormalPlay => {
                 
-        
+                
+                unsafe {
+                    *PALETTE = spritesheet::KITTY_SS_PALLETE;
+                }
+                unsafe { *DRAW_COLORS = spritesheet::KITTY_SS_DRAW_COLORS }
                 
                 
 
@@ -953,6 +1128,11 @@ fn update() {
                 //     game_state.spritesheet_stride as u32,
                 //     spritesheet::KITTY_SS_FLAGS | if bob.facing_right { 0 } else { BLIT_FLIP_X },
                 // );
+
+                unsafe { *DRAW_COLORS = 0x1112 }
+                text("< > to move, x=jump", 0, 0);
+                text("z=reset", 104, 8);
+
             },
             GameMode::StartScreen => {
                 unsafe { *DRAW_COLORS = 0x1112 }
