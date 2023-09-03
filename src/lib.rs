@@ -1,241 +1,33 @@
+//! Kitty game!
+//!
+//! [`kittygame`]: https://canyonturtle.github.io/kittygame/
+
+
 // ideas
 //
 // custom tilemap code? or hand write? custom tilemap code is preferrable.
-#![allow(unused)]
+
 #[cfg(feature = "buddy-alloc")]
 mod alloc;
 mod spritesheet;
 mod wasm4;
+use game::{game_constants::{TILE_WIDTH_PX, TILE_HEIGHT_PX, MAP_CHUNK_MIN_SIDE_LEN, MAP_CHUNK_MAX_SIDE_LEN, MAP_CHUNK_MAX_N_TILES, X_LEFT_BOUND, X_RIGHT_BOUND, Y_LOWER_BOUND, Y_UPPER_BOUND, GameMode}, game_state::GameState, mapchunk::{MapChunk, TileAlignedBoundingBox}, entities::{MovingEntity, Character, KittyStates}, camera::Camera};
 use num;
+mod game;
+use game::game_map::GameMap;
 use std::cell::RefCell;
 use wasm4::*;
 
-// BUILDING PROFILE #1: baseline
-// const BUILDING_SUGGESTED_MIN_WIDTH: usize = 8; // 3;
-// const BUILDING_SUGGESTED_MAX_WIDTH: usize = 11; // 14;
-// const BUILDING_SUGGESTED_MIN_HEIGHT: usize = 2; // 3;
-// const BUILDING_SUGGESTED_MAX_HEIGHT: usize = 6; // 12;
+use crate::game::{entities::OptionallyEnabledPlayer, rng::Rng};
 
-// const N_BUILDINGS_PER_CHUNK: usize = 30;
-// const USING_DOORS: bool = true;
-const MAP_CHUNK_MIN_SIDE_LEN: usize = 7;
-const MAP_CHUNK_MAX_SIDE_LEN: usize = 50;
 
-const MAP_CHUNK_MAX_N_TILES: usize = 800;
-
-const TOTAL_TILES_IN_MAP: usize = 30000;
-
-const N_NPCS: i32 = 10;
-  
-const TILE_WIDTH_PX: usize = 5;
-const TILE_HEIGHT_PX: usize = 5;
-
-const X_LEFT_BOUND: i32 = -2000;
-const X_RIGHT_BOUND: i32 = 2000;
-const Y_LOWER_BOUND: i32 = -1000;
-const Y_UPPER_BOUND: i32 = 1000;
 
 // const MIN_BUILDING_DIM: i32 = 4;
 
-#[derive(PartialEq, Eq, Hash)]
-enum KittyStates {
-    Idle,
-    Moving1,
-    Moving2,
-    Jump,
-}
-impl Character {
-    fn new(x_pos: i32, sprite_type: spritesheet::PresetSprites) -> Character {
-        Character {
-            x_pos: 10 as f32,
-            y_pos: 10.0,
-            x_vel: 0.0,
-            y_vel: 0.0,
-            x_vel_cap: 2.0,
-            y_vel_cap: 7.0,
-            count: 0,
-            facing_right: true,
-            state: KittyStates::Idle,
-            current_sprite_i: 0,
-            sprite: spritesheet::Sprite::from_preset(sprite_type),
-        }
-    }
-}
 
-#[derive(Clone, Copy)]
 
-struct Camera {
-    current_viewing_x_offset: f32,
-    current_viewing_y_offset: f32,
-}
 
-struct TileAlignedBoundingBox {
-    x: i32,
-    y: i32,
-    width: usize,
-    height: usize
-}
 
-struct MapChunk {
-    tiles: Vec<u8>,
-    bound: TileAlignedBoundingBox
-}
-
-enum OutOfChunkBound {
-    OUT
-}
-
-impl MapChunk {
-
-    fn init() -> Self {
-        let chunk = MapChunk {
-            tiles: vec![],
-            bound: TileAlignedBoundingBox {
-                y: 1,
-                x: 1,
-                width: 1,
-                height: 1,
-            }
-        };
-
-        chunk
-    }
-
-    fn clamp_coords(self: &Self, x: usize, y: usize) -> (usize, usize) {
-        let clamped_x = num::clamp(x, 0, self.bound.width as usize - 1);
-        let clamped_y = num::clamp(y, 0, self.bound.height as usize - 1);
-        (clamped_x, clamped_y)
-    }
-    fn set_tile(self: &mut Self, x: usize, y: usize, val: u8) {
-        let clamped_coords = self.clamp_coords(x, y);
-
-        self.tiles[clamped_coords.1 * self.bound.width as usize + clamped_coords.0] = val;
-    }
-
-    fn get_tile(self: &Self, x: usize, y: usize) -> u8 {
-        let clamped_coords = self.clamp_coords(x, y);
-        self.tiles[clamped_coords.1 * self.bound.width as usize + clamped_coords.0]
-    }
-
-    fn is_tile_idx_inside_tile_aligned_bound(self: &Self, x: i32, y: i32) -> bool {
-        if x >= 0 {
-            if x < self.bound.width as i32 {
-                if y >= 0 {
-                    if y < self.bound.height as i32 {
-                        return true
-                    }
-                }
-            }
-        }
-        false
-    }
-
-    fn get_tile_abs(self: &Self, abs_x: i32, abs_y: i32) -> Result<u8, OutOfChunkBound> {
-        let rel_x = ((abs_x - self.bound.x * TILE_WIDTH_PX as i32) as f32 / TILE_WIDTH_PX as f32) as i32;
-        let rel_y = ((abs_y - self.bound.y * TILE_HEIGHT_PX as i32) as f32 / TILE_HEIGHT_PX as f32) as i32;
-
-        if self.is_tile_idx_inside_tile_aligned_bound(rel_x, rel_y) {
-            return Result::Ok(self.get_tile(rel_x as usize, rel_y as usize));
-        }
-        return Result::Err(OutOfChunkBound::OUT);
-    }
-
-    fn reset_chunk(self: &mut Self) {
-        self.tiles.clear();
-        for _ in 0..self.bound.height {
-            for _ in 0..self.bound.width {
-                self.tiles.push(0);
-            }
-        }
-    }
-}
-
-struct GameMap {
-    chunks: Vec<MapChunk>,
-    num_tiles: usize
-}
-
-impl GameMap {
-    fn try_fit_chunk_into(self: &mut Self, width: usize, height: usize) -> bool {
-        let new_tile_size = width * height;
-        let new_prospective_size = self.num_tiles + new_tile_size;
-        if new_prospective_size <= TOTAL_TILES_IN_MAP {
-            self.num_tiles = new_prospective_size;
-            return true;
-        }
-        false
-    }
-
-    fn link_chunk_to_touching_chunks(self: &mut Self, chunk: &mut MapChunk) {
-        for other_chunk in self.chunks.iter_mut() {
-
-            fn fuse_horizontal(
-                chunk: &mut MapChunk,
-                other_chunk: &mut MapChunk,
-            ) {
-                // check to see if the other chunk touches the top of the new chunk
-                if 
-                    other_chunk.bound.y + other_chunk.bound.height as i32 == chunk.bound.y &&
-                    other_chunk.bound.x + other_chunk.bound.width as i32 > chunk.bound.x &&
-                    other_chunk.bound.x < chunk.bound.x + chunk.bound.width as i32
-                {
-                    let min_x = core::cmp::max(chunk.bound.x, other_chunk.bound.x);
-                    let max_x = core::cmp::min(chunk.bound.x + chunk.bound.width as i32, other_chunk.bound.x + other_chunk.bound.width as i32);
-                    for absolute_coord_x in min_x + 1..max_x - 1 {
-                        let rel_chunk_x = absolute_coord_x - chunk.bound.x;
-                        if rel_chunk_x > 0 && rel_chunk_x < chunk.bound.width as i32 - 1 {
-                            chunk.set_tile(rel_chunk_x as usize, 0 as usize, 0);
-                        }
-                        let rel_other_chunk_x = absolute_coord_x - other_chunk.bound.x;
-                        if rel_other_chunk_x > 0 && rel_other_chunk_x < other_chunk.bound.width as i32 - 1 {
-                            other_chunk.set_tile(rel_other_chunk_x as usize, other_chunk.bound.height as usize - 1, 0)
-                        }
-                    }
-                }
-            }
-
-            fn fuse_vertical(
-                chunk: &mut MapChunk,
-                other_chunk: &mut MapChunk,
-            ) {
-                // check to see if the other chunk touches the left of the new chunk
-                if 
-                    other_chunk.bound.x + other_chunk.bound.width as i32 == chunk.bound.x &&
-                    other_chunk.bound.y + other_chunk.bound.height as i32 > chunk.bound.y &&
-                    other_chunk.bound.y < chunk.bound.y + chunk.bound.height as i32
-                {
-                    let min_y = core::cmp::max(chunk.bound.y, other_chunk.bound.y);
-                    let max_y = core::cmp::min(chunk.bound.y + chunk.bound.height as i32, other_chunk.bound.y + other_chunk.bound.height as i32);
-                    for absolute_coord_y in min_y + 1..max_y - 1 {
-                        let rel_chunk_y = absolute_coord_y - chunk.bound.y;
-                        if rel_chunk_y > 0 && rel_chunk_y < chunk.bound.height as i32 - 1 {
-                            chunk.set_tile(0, rel_chunk_y as usize, 0);
-                        }
-                        let rel_other_chunk_y = absolute_coord_y - other_chunk.bound.y;
-                        if rel_other_chunk_y > 0 && rel_other_chunk_y < other_chunk.bound.height as i32 - 1 {
-                            other_chunk.set_tile(other_chunk.bound.width as usize - 1, rel_other_chunk_y as usize, 0)
-                        }
-                    }
-                }
-            }
-
-            fuse_horizontal(chunk, other_chunk);
-            fuse_horizontal(other_chunk, chunk);
-
-            fuse_vertical(chunk, other_chunk);
-            fuse_vertical(other_chunk, chunk);
-            
-
-            
-            
-        }
-    }
-
-    fn add_chunk(self: & mut Self, mut chunk: MapChunk) {
-        self.link_chunk_to_touching_chunks(&mut chunk);
-        self.chunks.push(chunk);
-    }
-}
 
 fn drawmap(game_state: &GameState) {
     let map = &game_state.map;
@@ -276,63 +68,15 @@ fn drawmap(game_state: &GameState) {
     }
 }
 
-struct Character {
-    x_pos: f32,
-    y_pos: f32,
-    x_vel: f32,
-    y_vel: f32,
-    x_vel_cap: f32,
-    y_vel_cap: f32,
-    count: i32,
-    facing_right: bool,
-    state: KittyStates,
-    current_sprite_i: i32,
-    sprite: spritesheet::Sprite,
-}
-
-#[derive(Debug)]
-pub struct Rng(u128);
-
-impl Rng {
-    pub fn new() -> Self {
-        Self(0x7369787465656E2062797465206E756Du128 | 1)
-    }
-
-    pub fn next(&mut self) -> u64 {
-        self.0 = self.0.wrapping_mul(0x2360ED051FC65DA44385DF649FCCF645);
-        let rot = (self.0 >> 122) as u32;
-        let xsl = ((self.0 >> 64) as u64) ^ (self.0 as u64);
-        xsl.rotate_right(rot)     
-    }
-}
-
-enum GameMode {
-    StartScreen,
-    NormalPlay
-}
 
 
-enum OptionallyEnabledPlayer {
-    Enabled(Character),
-    Disabled
-}
 
-enum MovingEntity<'a> {
-    OptionalPlayer(&'a mut OptionallyEnabledPlayer),
-    NPC(&'a mut Character)
-}
 
-struct GameState<'a> {
-    players: RefCell<[OptionallyEnabledPlayer; 4]>,
-    npcs: RefCell<Vec<Character>>,
-    spritesheet: &'a [u8],
-    spritesheet_stride: usize,
-    background_tiles: Vec<spritesheet::Sprite>,
-    map: GameMap,
-    camera: RefCell<Camera>,
-    rng: RefCell<Rng>,
-    game_mode: GameMode,
-}
+
+
+
+
+
 
 fn create_map() -> GameMap {
     let chunks: Vec<MapChunk> = Vec::new();
@@ -370,11 +114,7 @@ fn regenerate_map(game_state: &mut GameState) {
         npc.y_pos = 10.0;
     }
 
-    impl TileAlignedBoundingBox {
-        fn init(x: i32, y: i32, w: usize, h: usize) -> Self {
-            return TileAlignedBoundingBox { x:x, y: y, width: w, height: h }
-        }
-    }
+
 
     let mut current_chunk_locations: Vec<TileAlignedBoundingBox> = vec![TileAlignedBoundingBox::init(0, 0, 32, 32)];
 
@@ -666,65 +406,6 @@ fn regenerate_map(game_state: &mut GameState) {
     
 }
 
-impl GameState<'static> {
-    fn new() -> GameState<'static> {
-
-        let characters = [
-            OptionallyEnabledPlayer::Enabled(Character::new(0, spritesheet::PresetSprites::MainCat)),
-            OptionallyEnabledPlayer::Enabled(Character::new(10, spritesheet::PresetSprites::MainCat)),
-            OptionallyEnabledPlayer::Enabled(Character::new(20, spritesheet::PresetSprites::MainCat)),
-            OptionallyEnabledPlayer::Enabled(Character::new(30, spritesheet::PresetSprites::MainCat)),
-        ];
-
-        let rng = Rng::new();
-        GameState {
-            players: RefCell::new(characters),
-            npcs: RefCell::new((0..N_NPCS).map(|mut x| {
-                x %= 7;
-                let preset = match x {
-                    0 => spritesheet::PresetSprites::Kitty1,
-                    1 => spritesheet::PresetSprites::Kitty2,
-                    2 => spritesheet::PresetSprites::Kitty3,
-                    3 => spritesheet::PresetSprites::Kitty4,
-                    4 => spritesheet::PresetSprites::Lizard,
-                    5 => spritesheet::PresetSprites::Pig,
-                    6 => spritesheet::PresetSprites::BirdIsntReal,
-                    _ => spritesheet::PresetSprites::Pig
-                };
-                Character::new((x * 2000) % 300 , preset)
-            }).collect::<Vec<Character>>()),
-            // npcs: vec![
-            //     Character::new(500, spritesheet::PresetSprites::Kitty2),
-            //     Character::new(400, spritesheet::PresetSprites::Kitty3),
-            //     Character::new(300, spritesheet::PresetSprites::Kitty4),
-            //     Character::new(200, spritesheet::PresetSprites::Pig),
-            //     Character::new(100, spritesheet::PresetSprites::Lizard),
-            // ],
-            spritesheet: &spritesheet::KITTY_SS,
-            spritesheet_stride: spritesheet::KITTY_SS_STRIDE,
-            background_tiles: vec![
-                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::LineTop),
-                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::LineLeft),
-                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::LineRight),
-                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::LineBottom),
-                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::SolidWhite),
-                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::SeethroughWhite),
-                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::TopleftSolidCorner),
-                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::ToprightSolidCorner),
-                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::BottomleftSolidCorner),
-                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::BottomrightSolidCorner),
-                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::ColumnTop),
-                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::ColumnMiddle),
-                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::ColumnBottom),
-            ],
-            map: create_map(),
-            camera: RefCell::new(Camera { current_viewing_x_offset: 0.0, current_viewing_y_offset: 0.0 }),
-            rng: RefCell::new(rng),
-            game_mode: GameMode::StartScreen
-        }
-    }
-}
-
 thread_local!(static GAME_STATE_HOLDER: RefCell<GameState<'static>> = RefCell::new(GameState::new()));
 
 fn check_absolute_point_inside_tile_aligned_bound(x: i32, y: i32, bound: &TileAlignedBoundingBox) -> bool {
@@ -834,7 +515,7 @@ fn raycast_axis_aligned(horizontal: bool, positive: bool, dist_per_iter: f32, ab
                     break
                 }
             }
-            Err(e) => {
+            Err(_) => {
                 break
             }
         }
@@ -908,12 +589,9 @@ fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
     // logic places us in another valid location, we'll be okay.
 
    
-
-    let mut actual_x_vel_this_frame: f32 = character.x_vel;
-    let mut actual_y_vel_this_frame: f32 = character.y_vel;
     // trace("will check--------------------");
     // look at each chunk, and see if the player is inside it
-    for (i, chunk) in map.chunks.iter().enumerate() {
+    for chunk in map.chunks.iter() {
         
         // trace("checking chn");
 
