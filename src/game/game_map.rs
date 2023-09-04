@@ -85,4 +85,16 @@ impl GameMap {
         self.link_chunk_to_touching_chunks(&mut chunk);
         self.chunks.push(chunk);
     }
+
+    pub fn create_map() -> GameMap {
+        let chunks: Vec<MapChunk> = Vec::new();
+    
+        let map = GameMap { 
+            chunks: chunks,
+            num_tiles: 0,
+        };
+    
+    
+        map
+    }
 }

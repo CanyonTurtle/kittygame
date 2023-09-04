@@ -5,3 +5,4 @@ pub mod game_state;
 pub mod entities;
 pub mod camera;
 pub mod rng;
+pub mod collision;
