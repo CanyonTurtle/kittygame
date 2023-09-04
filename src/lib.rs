@@ -452,16 +452,24 @@ fn check_absolue_bound_partially_inside_tile_aligned_bound(absolute_bound: &Abso
     true
 }
 
-fn raycast_axis_aligned(horizontal: bool, positive: bool, dist_per_iter: f32, abs_start_pt: (i32, i32), ray_len: f32, chunk: &MapChunk) -> f32 {
+fn raycast_axis_aligned(horizontal: bool, dist_per_iter: f32, abs_start_pt: (i32, i32), ray_displacement: f32, chunk: &MapChunk) -> (f32, bool) {
+
+    let positive: bool = ray_displacement >= 0.0;
+
+    let mut required_backing_up: bool = false;
+
     let ray_x_dist_per_iter;
     let ray_y_dist_per_iter;
     
+    // has the opposite sign of the ray displacement, for N iters.
+
     let mut vertical_ray: f32 = 0.0;
     let mut horizontal_ray: f32 = 0.0;
 
-    let mut ret_val = ray_len;
+    let mut ret_val = ray_displacement;
 
     let start_pt;
+    
     
     if horizontal {
         start_pt = (abs_start_pt.0, abs_start_pt.1 - 1);
@@ -493,37 +501,77 @@ fn raycast_axis_aligned(horizontal: bool, positive: bool, dist_per_iter: f32, ab
     
 
     // travel along, see if it's colliding with things
+
+    let mut on_first_iter: bool = true;
+
     loop {
-        if horizontal {
-            if horizontal_ray.abs() > ray_len.abs() {
-                break
-            }
-        } else {
-            if vertical_ray.abs() > ray_len.abs() {
-                break
-            }
-        }
+
+
+        
+
         
         // make sure this ray even is in the chunk in the first place
         match chunk.get_tile_abs(start_pt.0 + horizontal_ray as i32, start_pt.1 + vertical_ray as i32) {
             Ok(tile) => {
                 if tile != 0 {
-                    // text(format!["hit tile {lowerleft_vertical_ray}"], 10, 50);
-                    if horizontal {
-                        should_clamp_x = true;
-                    } else {
-                        should_clamp_y = true;
+                    // if we hit a tile first thing, we need to back up until we DON'T hit anything.
+                    if on_first_iter {
+                        required_backing_up = true;
+                        on_first_iter = false;
                     }
+                    // if we're not backing up and we hit something, we're done
+                    else if !required_backing_up {
+                        
+                        // text(format!["hit tile {lowerleft_vertical_ray}"], 10, 50);
+                        if horizontal {
+                            should_clamp_x = true;
+                        } else {
+                            should_clamp_y = true;
+                        }
+                        
+                        break
+                    }
+
                     
-                    break
+                } else {
+                    // if we don't hit a tile first thing, we should cast forward until we DO hit something.
+                    if on_first_iter {
+                        required_backing_up = false;
+                        on_first_iter = false;
+                    } else if required_backing_up {
+                        if horizontal {
+                            should_clamp_x = true;
+                        } else {
+                            should_clamp_y = true;
+                        }
+                        
+                        break
+                    }
                 }
             }
             Err(_) => {
                 break
             }
         }
-        vertical_ray += ray_y_dist_per_iter;
-        horizontal_ray += ray_x_dist_per_iter;
+
+        if !on_first_iter && !required_backing_up {
+            if horizontal {
+                if horizontal_ray.abs() > ray_displacement.abs() {
+                    break
+                }
+            } else {
+                if vertical_ray.abs() > ray_displacement.abs() {
+                    break
+                }
+            }
+        }
+        
+        let dir = match required_backing_up {
+            true => -1.0,
+            false => 1.0
+        };
+        vertical_ray += ray_y_dist_per_iter * dir;
+        horizontal_ray += ray_x_dist_per_iter * dir;
 
     }
     if should_clamp_x {
@@ -532,7 +580,7 @@ fn raycast_axis_aligned(horizontal: bool, positive: bool, dist_per_iter: f32, ab
         ret_val = horizontal_ray;
     }
 
-    ret_val
+    (ret_val, required_backing_up)
 }
 
 fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
@@ -631,21 +679,33 @@ fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
             let upperleft_checker_location = (char_bound.x, char_bound.y + char_bound.height as i32);
             let upperright_checker_location = (char_bound.x + char_bound.width as i32, char_bound.y + char_bound.height as i32);
             if character.y_vel < 0.0 {
-                character.y_vel = raycast_axis_aligned(false, false, RAYCAST_DIST_PER_ITER, lowerleft_checker_location, character.y_vel, chunk);
-                character.y_vel = raycast_axis_aligned(false, false, RAYCAST_DIST_PER_ITER, lowerright_checker_location, character.y_vel, chunk);
+                let backed_up;
+                (character.y_vel, backed_up) = raycast_axis_aligned(false, RAYCAST_DIST_PER_ITER, lowerleft_checker_location, character.y_vel, chunk);
+                if !backed_up {
+                    (character.y_vel, _) = raycast_axis_aligned(false, RAYCAST_DIST_PER_ITER, lowerright_checker_location, character.y_vel, chunk);
+                }
             }
-            else if character.y_vel > 0.0 {
-                character.y_vel = raycast_axis_aligned(false, true, RAYCAST_DIST_PER_ITER, upperleft_checker_location, character.y_vel, chunk);
-                character.y_vel = raycast_axis_aligned(false, true, RAYCAST_DIST_PER_ITER, upperright_checker_location, character.y_vel, chunk);
+            else if character.y_vel >= 0.0 {
+                let backed_up;
+                (character.y_vel, backed_up) = raycast_axis_aligned(false, RAYCAST_DIST_PER_ITER, upperleft_checker_location, character.y_vel, chunk);
+                if !backed_up { 
+                    (character.y_vel, _) = raycast_axis_aligned(false, RAYCAST_DIST_PER_ITER, upperright_checker_location, character.y_vel, chunk);
+                }
             }
 
             if character.x_vel < 0.0 {
-                character.x_vel = raycast_axis_aligned(true, false, RAYCAST_DIST_PER_ITER, lowerleft_checker_location, character.x_vel, chunk);
-                character.x_vel = raycast_axis_aligned(true, false, RAYCAST_DIST_PER_ITER, upperleft_checker_location, character.x_vel, chunk);
+                let backed_up;
+                (character.x_vel, backed_up) = raycast_axis_aligned(true, RAYCAST_DIST_PER_ITER, lowerleft_checker_location, character.x_vel, chunk);
+                if !backed_up {
+                    (character.x_vel, _) = raycast_axis_aligned(true, RAYCAST_DIST_PER_ITER, upperleft_checker_location, character.x_vel, chunk);
+                }
             }
-            else if character.x_vel > 0.0 {
-                character.x_vel = raycast_axis_aligned(true, true, RAYCAST_DIST_PER_ITER, lowerright_checker_location, character.x_vel, chunk);
-                character.x_vel = raycast_axis_aligned(true, true, RAYCAST_DIST_PER_ITER, upperright_checker_location, character.x_vel, chunk);
+            else if character.x_vel >= 0.0 {
+                let backed_up;
+                (character.x_vel, backed_up) = raycast_axis_aligned(true, RAYCAST_DIST_PER_ITER, lowerright_checker_location, character.x_vel, chunk);
+                if !backed_up {
+                    (character.x_vel, _) = raycast_axis_aligned(true, RAYCAST_DIST_PER_ITER, upperright_checker_location, character.x_vel, chunk);
+                }
             }   
             
             
