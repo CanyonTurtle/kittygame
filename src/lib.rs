@@ -454,7 +454,7 @@ fn check_absolue_bound_partially_inside_tile_aligned_bound(absolute_bound: &Abso
 
 fn raycast_axis_aligned(horizontal: bool, dist_per_iter: f32, abs_start_pt: (i32, i32), ray_displacement: f32, chunk: &MapChunk) -> (f32, bool) {
 
-    let positive: bool = ray_displacement >= 0.0;
+    let positive: bool = ray_displacement > 0.0;
 
     let mut required_backing_up: bool = false;
 
@@ -594,7 +594,20 @@ fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
                     character = ch;
                 }
                 OptionallyEnabledPlayer::Disabled => {
-                    return
+                    if input != 0 {
+                        *optionally_enabled_player = OptionallyEnabledPlayer::Enabled(Character::new(spritesheet::PresetSprites::MainCat));
+                        match optionally_enabled_player {
+                            OptionallyEnabledPlayer::Enabled(ch) => {
+                                character = ch;
+                            }
+                            _ => {
+                                return
+                            }
+                        }
+                    }
+                    else {
+                        return
+                    }
                 }
             }
         }

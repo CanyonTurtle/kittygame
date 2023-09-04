@@ -22,9 +22,9 @@ impl GameState<'static> {
 
         let characters = [
             OptionallyEnabledPlayer::Enabled(Character::new(spritesheet::PresetSprites::MainCat)),
-            OptionallyEnabledPlayer::Enabled(Character::new(spritesheet::PresetSprites::MainCat)),
-            OptionallyEnabledPlayer::Enabled(Character::new(spritesheet::PresetSprites::MainCat)),
-            OptionallyEnabledPlayer::Enabled(Character::new(spritesheet::PresetSprites::MainCat)),
+            OptionallyEnabledPlayer::Disabled,
+            OptionallyEnabledPlayer::Disabled,
+            OptionallyEnabledPlayer::Disabled,
         ];
 
         let rng = Rng::new();
