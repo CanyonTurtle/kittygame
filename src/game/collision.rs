@@ -45,21 +45,27 @@ pub fn check_absolue_bound_partially_inside_tile_aligned_bound(absolute_bound: &
     true
 }
 
-pub fn raycast_axis_aligned(horizontal: bool, dist_per_iter: f32, abs_start_pt: (i32, i32), ray_displacement: f32, chunk: &MapChunk) -> (f32, bool) {
+pub struct CollisionResult {
+    allowable_displacement: i32,
+    collided: bool,
+    backed_up: bool
+}
 
-    let positive: bool = ray_displacement > 0.0;
+pub fn raycast_axis_aligned(horizontal: bool, positive: bool, dist_per_iter: i32, abs_start_pt: (i32, i32), ray_displacement: i32, chunk: &MapChunk) -> CollisionResult {
 
-    let mut required_backing_up: bool = false;
+    let mut collision_result = CollisionResult {
+        allowable_displacement: ray_displacement,
+        collided: true,
+        backed_up: false,
+    };
 
-    let ray_x_dist_per_iter;
-    let ray_y_dist_per_iter;
+    let ray_x_dist_per_iter: i32;
+    let ray_y_dist_per_iter: i32;
     
     // has the opposite sign of the ray displacement, for N iters.
 
-    let mut vertical_ray: f32 = 0.0;
-    let mut horizontal_ray: f32 = 0.0;
-
-    let mut ret_val = ray_displacement;
+    let mut vertical_ray: i32 = 0;
+    let mut horizontal_ray: i32 = 0;
 
     let start_pt;
     
@@ -68,20 +74,20 @@ pub fn raycast_axis_aligned(horizontal: bool, dist_per_iter: f32, abs_start_pt: 
         start_pt = (abs_start_pt.0, abs_start_pt.1 - 1);
         if positive {
             ray_x_dist_per_iter = dist_per_iter;
-            ray_y_dist_per_iter = 0.0;
+            ray_y_dist_per_iter = 0;
         } else {
             ray_x_dist_per_iter = -dist_per_iter;
-            ray_y_dist_per_iter = 0.0;
+            ray_y_dist_per_iter = 0;
         }
     }
     
     else {
         start_pt = (abs_start_pt.0, abs_start_pt.1);
         if positive {
-            ray_x_dist_per_iter = 0.0;
+            ray_x_dist_per_iter = 0;
             ray_y_dist_per_iter = dist_per_iter;
         } else {
-            ray_x_dist_per_iter = 0.0;
+            ray_x_dist_per_iter = 0;
             ray_y_dist_per_iter = -dist_per_iter;
         }
     }
@@ -109,11 +115,11 @@ pub fn raycast_axis_aligned(horizontal: bool, dist_per_iter: f32, abs_start_pt: 
                 if tile != 0 {
                     // if we hit a tile first thing, we need to back up until we DON'T hit anything.
                     if on_first_iter {
-                        required_backing_up = true;
+                        collision_result.backed_up = true;
                         on_first_iter = false;
                     }
                     // if we're not backing up and we hit something, we're done
-                    else if !required_backing_up {
+                    else if !collision_result.backed_up {
                         
                         // text(format!["hit tile {lowerleft_vertical_ray}"], 10, 50);
                         if horizontal {
@@ -129,9 +135,12 @@ pub fn raycast_axis_aligned(horizontal: bool, dist_per_iter: f32, abs_start_pt: 
                 } else {
                     // if we don't hit a tile first thing, we should cast forward until we DO hit something.
                     if on_first_iter {
-                        required_backing_up = false;
+                        collision_result.backed_up = false;
                         on_first_iter = false;
-                    } else if required_backing_up {
+                    } 
+                    
+                    // if we're backing up and we're not hitting something, we're done backing up
+                    else if collision_result.backed_up {
                         if horizontal {
                             should_clamp_x = true;
                         } else {
@@ -144,36 +153,38 @@ pub fn raycast_axis_aligned(horizontal: bool, dist_per_iter: f32, abs_start_pt: 
             }
             Err(_) => {
                 break
+                collision_result.collided = false;
             }
         }
 
-        if !on_first_iter && !required_backing_up {
+        if !on_first_iter && !collision_result.backed_up {
             if horizontal {
                 if horizontal_ray.abs() > ray_displacement.abs() {
+                    collision_result.collided = false;
                     break
                 }
             } else {
                 if vertical_ray.abs() > ray_displacement.abs() {
+                    collision_result.collided = false;
                     break
                 }
             }
         }
         
-        let dir = match required_backing_up {
-            true => -1.0,
-            false => 1.0
+        let dir = match collision_result.backed_up {
+            true => -1,
+            false => 1
         };
         vertical_ray += ray_y_dist_per_iter * dir;
         horizontal_ray += ray_x_dist_per_iter * dir;
 
     }
     if should_clamp_x {
-        ret_val = vertical_ray;
+        collision_result.allowable_displacement = vertical_ray;
     } else if should_clamp_y {
-        ret_val = horizontal_ray;
+        collision_result.allowable_displacement = horizontal_ray;
     }
-
-    (ret_val, required_backing_up)
+    collision_result
 }
 
 pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
@@ -245,7 +256,10 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
     // Since before moving we can assume we are in a valid location, as long as this collision
     // logic places us in another valid location, we'll be okay.
 
-   
+    let mut discretized_y_displacement_this_frame = character.y_vel as i32;
+    let mut discretized_x_displacement_this_frame = character.x_vel as i32;
+
+
     // trace("will check--------------------");
     // look at each chunk, and see if the player is inside it
     for chunk in map.chunks.iter() {
@@ -278,49 +292,78 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
 
             
 
-            const RAYCAST_DIST_PER_ITER: f32 = 1.0;
+            const RAYCAST_DIST_PER_ITER: i32 = 1;
 
             let lowerleft_checker_location = (char_bound.x, char_bound.y);
             let lowerright_checker_location = (char_bound.x + char_bound.width as i32, char_bound.y);
             let upperleft_checker_location = (char_bound.x, char_bound.y + char_bound.height as i32);
             let upperright_checker_location = (char_bound.x + char_bound.width as i32, char_bound.y + char_bound.height as i32);
+
             if character.y_vel < 0.0 {
-                let backed_up;
-                (character.y_vel, backed_up) = raycast_axis_aligned(false, RAYCAST_DIST_PER_ITER, lowerleft_checker_location, character.y_vel, chunk);
-                if !backed_up {
-                    (character.y_vel, _) = raycast_axis_aligned(false, RAYCAST_DIST_PER_ITER, lowerright_checker_location, character.y_vel, chunk);
+                let collision_res = raycast_axis_aligned(false, false, RAYCAST_DIST_PER_ITER, lowerleft_checker_location, discretized_y_displacement_this_frame, chunk);
+                discretized_y_displacement_this_frame = collision_res.allowable_displacement;
+                if collision_res.collided {
+                    character.y_vel = 0.0;
+                }
+                if !collision_res.backed_up {
+                    let second_collision_res = raycast_axis_aligned(false, false, RAYCAST_DIST_PER_ITER, lowerright_checker_location, discretized_y_displacement_this_frame, chunk);
+                    discretized_y_displacement_this_frame = second_collision_res.allowable_displacement;
+                    if second_collision_res.collided {
+                        character.y_vel = 0.0;
+                    }
                 }
             }
-            else if character.y_vel >= 0.0 {
-                let backed_up;
-                (character.y_vel, backed_up) = raycast_axis_aligned(false, RAYCAST_DIST_PER_ITER, upperleft_checker_location, character.y_vel, chunk);
-                if !backed_up { 
-                    (character.y_vel, _) = raycast_axis_aligned(false, RAYCAST_DIST_PER_ITER, upperright_checker_location, character.y_vel, chunk);
+            else {
+                let collision_res = raycast_axis_aligned(false, true, RAYCAST_DIST_PER_ITER, upperleft_checker_location, discretized_y_displacement_this_frame, chunk);
+                discretized_y_displacement_this_frame = collision_res.allowable_displacement;
+                if collision_res.collided {
+                    character.y_vel = 0.0;
+                }
+                if !collision_res.backed_up {
+                    let second_collision_res = raycast_axis_aligned(false, true, RAYCAST_DIST_PER_ITER, upperright_checker_location, discretized_y_displacement_this_frame, chunk);
+                    discretized_y_displacement_this_frame = second_collision_res.allowable_displacement;
+                    if second_collision_res.collided {
+                        character.y_vel = 0.0;
+                    }
                 }
             }
 
             if character.x_vel < 0.0 {
-                let backed_up;
-                (character.x_vel, backed_up) = raycast_axis_aligned(true, RAYCAST_DIST_PER_ITER, lowerleft_checker_location, character.x_vel, chunk);
-                if !backed_up {
-                    (character.x_vel, _) = raycast_axis_aligned(true, RAYCAST_DIST_PER_ITER, upperleft_checker_location, character.x_vel, chunk);
+                let collision_res = raycast_axis_aligned(true, false, RAYCAST_DIST_PER_ITER, lowerleft_checker_location, discretized_x_displacement_this_frame, chunk);
+                discretized_x_displacement_this_frame = collision_res.allowable_displacement;
+                if collision_res.collided {
+                    character.x_vel = 0.0;
+                }
+                if !collision_res.backed_up {
+                    let second_collision_res = raycast_axis_aligned(true, false, RAYCAST_DIST_PER_ITER, upperleft_checker_location, discretized_x_displacement_this_frame, chunk);
+                    discretized_x_displacement_this_frame = second_collision_res.allowable_displacement;
+                    if second_collision_res.collided {
+                        character.x_vel = 0.0;
+                    }
                 }
             }
-            else if character.x_vel >= 0.0 {
-                let backed_up;
-                (character.x_vel, backed_up) = raycast_axis_aligned(true, RAYCAST_DIST_PER_ITER, lowerright_checker_location, character.x_vel, chunk);
-                if !backed_up {
-                    (character.x_vel, _) = raycast_axis_aligned(true, RAYCAST_DIST_PER_ITER, upperright_checker_location, character.x_vel, chunk);
+            else {
+
+                let collision_res = raycast_axis_aligned(true, true, RAYCAST_DIST_PER_ITER, lowerright_checker_location, discretized_x_displacement_this_frame, chunk);
+                discretized_x_displacement_this_frame = collision_res.allowable_displacement;
+                if collision_res.collided {
+                    character.x_vel = 0.0;
+                }
+                if !collision_res.backed_up {
+                    let second_collision_res = raycast_axis_aligned(true, true, RAYCAST_DIST_PER_ITER, upperright_checker_location, discretized_x_displacement_this_frame, chunk);
+                    discretized_x_displacement_this_frame = second_collision_res.allowable_displacement;
+                    if second_collision_res.collided {
+                        character.x_vel = 0.0;
+                    }
                 }
             }   
-            
             
         }
         
     }
 
-    character.x_pos += character.x_vel;
-    character.y_pos += character.y_vel;
+    character.x_pos += discretized_x_displacement_this_frame as f32;
+    character.y_pos += discretized_y_displacement_this_frame as f32;
 
     character.x_pos = num::clamp(character.x_pos, X_LEFT_BOUND as f32, X_RIGHT_BOUND as f32);
     character.y_pos = num::clamp(character.y_pos, Y_LOWER_BOUND as f32, Y_UPPER_BOUND as f32);
