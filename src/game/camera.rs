@@ -11,6 +11,7 @@ pub struct Camera {
 
 impl Camera {
     pub fn slew(self: &mut Self) {
+        // #TODO project across center so it leads target
         let x_err = self.current_viewing_x_target - self.current_viewing_x_offset;
         let y_err = self.current_viewing_y_target - self.current_viewing_y_offset;
 
