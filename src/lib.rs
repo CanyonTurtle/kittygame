@@ -166,11 +166,14 @@ fn update() {
 
                     },
                     OptionallyEnabledPlayer::Enabled(player) => {
-                        game_state.camera.borrow_mut().current_viewing_x_offset = num::clamp(player.x_pos - 80.0, X_LEFT_BOUND as f32, X_RIGHT_BOUND as f32);
-                        game_state.camera.borrow_mut().current_viewing_y_offset = num::clamp(player.y_pos - 80.0, Y_LOWER_BOUND as f32, Y_UPPER_BOUND as f32);
+                        game_state.camera.borrow_mut().current_viewing_x_target = num::clamp(player.x_pos - 80.0, X_LEFT_BOUND as f32, X_RIGHT_BOUND as f32);
+                        game_state.camera.borrow_mut().current_viewing_y_target = num::clamp(player.y_pos - 80.0, Y_LOWER_BOUND as f32, Y_UPPER_BOUND as f32);
                         
                     }
                 }
+
+                game_state.camera.borrow_mut().slew();
+
                 {
                     let mut optional_players = game_state.players.borrow_mut();
 

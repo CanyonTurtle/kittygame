@@ -69,7 +69,12 @@ impl GameState<'static> {
                 spritesheet::Sprite::from_preset(spritesheet::PresetSprites::ColumnBottom),
             ],
             map: GameMap::create_map(),
-            camera: RefCell::new(Camera { current_viewing_x_offset: 0.0, current_viewing_y_offset: 0.0 }),
+            camera: RefCell::new(Camera { 
+                current_viewing_x_offset: 0.0,
+                current_viewing_y_offset: 0.0,
+                current_viewing_x_target: 0.0,
+                current_viewing_y_target: 0.0,
+            }),
             rng: RefCell::new(rng),
             game_mode: GameMode::StartScreen
         }

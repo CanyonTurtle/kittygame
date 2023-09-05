@@ -25,12 +25,18 @@ pub struct Character {
 }
 
 #[derive(PartialEq, Eq, Hash)]
+
+
+
 pub enum KittyStates {
-    Idle,
-    Moving1,
-    Moving2,
-    Jump,
+    Sleeping,
+    Walking(u8),
+    JumpingUp(u8),
+    HuggingWall(bool),
 }
+
+
+
 impl Character {
     pub fn new(sprite_type: spritesheet::PresetSprites) -> Character {
         Character {
@@ -42,7 +48,7 @@ impl Character {
             y_vel_cap: 7.0,
             count: 0,
             facing_right: true,
-            state: KittyStates::Idle,
+            state: KittyStates::JumpingUp(200),
             current_sprite_i: 0,
             sprite: spritesheet::Sprite::from_preset(sprite_type),
         }
