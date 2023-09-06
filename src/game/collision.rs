@@ -446,9 +446,9 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
             const RAYCAST_DIST_PER_ITER: i32 = 1;
 
             let lowerleft_checker_location = (char_bound.x, char_bound.y);
-            let lowerright_checker_location = (char_bound.x + char_bound.width as i32, char_bound.y);
-            let upperleft_checker_location = (char_bound.x, char_bound.y + char_bound.height as i32);
-            let upperright_checker_location = (char_bound.x + char_bound.width as i32, char_bound.y + char_bound.height as i32);
+            let lowerright_checker_location = (char_bound.x + char_bound.width as i32 - 1, char_bound.y);
+            let upperleft_checker_location = (char_bound.x, char_bound.y + char_bound.height as i32 - 1);
+            let upperright_checker_location = (char_bound.x + char_bound.width as i32 - 1, char_bound.y + char_bound.height as i32 - 1);
 
             // upward collision
             if character.y_vel < 0.0 {
