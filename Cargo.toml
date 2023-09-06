@@ -17,7 +17,7 @@ opt-level = "z"
 lto = true
 codegen-units = 1   # Reduce number of codegen units to increase optimizations
 panic = 'abort'     # Abort on panic
-strip = true        # Strip symbols from binary*
+# strip = true        # Strip symbols from binary*
 
 [features]
 # use `--no-default-features` or comment out next line to disable allocator

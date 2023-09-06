@@ -51,7 +51,9 @@ pub struct CollisionResult {
     backed_up: bool
 }
 
-pub fn raycast_axis_aligned(horizontal: bool, positive: bool, dist_per_iter: i32, abs_start_pt: (i32, i32), ray_displacement: i32, chunk: &MapChunk) -> CollisionResult {
+pub fn raycast_axis_aligned(horizontal: bool, positive: bool, abs_start_pt: (i32, i32), ray_displacement: i32, chunk: &MapChunk) -> CollisionResult {
+
+    const DIST_PER_ITER: i32 = 1;
 
     let mut collision_result = CollisionResult {
         allowable_displacement: ray_displacement,
@@ -73,10 +75,10 @@ pub fn raycast_axis_aligned(horizontal: bool, positive: bool, dist_per_iter: i32
     if horizontal {
         start_pt = (abs_start_pt.0, abs_start_pt.1 - 1);
         if positive {
-            ray_x_dist_per_iter = dist_per_iter;
+            ray_x_dist_per_iter = DIST_PER_ITER;
             ray_y_dist_per_iter = 0;
         } else {
-            ray_x_dist_per_iter = -dist_per_iter;
+            ray_x_dist_per_iter = -DIST_PER_ITER;
             ray_y_dist_per_iter = 0;
         }
     }
@@ -85,10 +87,10 @@ pub fn raycast_axis_aligned(horizontal: bool, positive: bool, dist_per_iter: i32
         start_pt = (abs_start_pt.0, abs_start_pt.1);
         if positive {
             ray_x_dist_per_iter = 0;
-            ray_y_dist_per_iter = dist_per_iter;
+            ray_y_dist_per_iter = DIST_PER_ITER;
         } else {
             ray_x_dist_per_iter = 0;
-            ray_y_dist_per_iter = -dist_per_iter;
+            ray_y_dist_per_iter = -DIST_PER_ITER;
         }
     }
 
@@ -443,22 +445,30 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
 
             
 
-            const RAYCAST_DIST_PER_ITER: i32 = 1;
-
             let lowerleft_checker_location = (char_bound.x, char_bound.y);
             let lowerright_checker_location = (char_bound.x + char_bound.width as i32 - 1, char_bound.y);
             let upperleft_checker_location = (char_bound.x, char_bound.y + char_bound.height as i32 - 1);
             let upperright_checker_location = (char_bound.x + char_bound.width as i32 - 1, char_bound.y + char_bound.height as i32 - 1);
 
+            // fn check_collision_group_on_same_dir(
+            //     points: &Vec<(i32, i32)>,
+            //     character: &mut Character,
+            //     displacement_to_set: &mut i32,
+            //     horizontal: bool,
+            //     positive: bool,
+            // ) {
+
+            // }
+
             // upward collision
             if character.y_vel < 0.0 {
-                let collision_res = raycast_axis_aligned(false, false, RAYCAST_DIST_PER_ITER, lowerleft_checker_location, discretized_y_displacement_this_frame, chunk);
+                let collision_res = raycast_axis_aligned(false, false, lowerleft_checker_location, discretized_y_displacement_this_frame, chunk);
                 discretized_y_displacement_this_frame = collision_res.allowable_displacement;
                 if collision_res.collided {
                     character.y_vel = 0.0;
                 }
                 if !collision_res.backed_up {
-                    let second_collision_res = raycast_axis_aligned(false, false, RAYCAST_DIST_PER_ITER, lowerright_checker_location, discretized_y_displacement_this_frame, chunk);
+                    let second_collision_res = raycast_axis_aligned(false, false, lowerright_checker_location, discretized_y_displacement_this_frame, chunk);
                     discretized_y_displacement_this_frame = second_collision_res.allowable_displacement;
                     if second_collision_res.collided {
                         character.y_vel = 0.0;
@@ -468,7 +478,7 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
 
             // downward collision
             else {
-                let collision_res = raycast_axis_aligned(false, true, RAYCAST_DIST_PER_ITER, upperleft_checker_location, discretized_y_displacement_this_frame, chunk);
+                let collision_res = raycast_axis_aligned(false, true, upperleft_checker_location, discretized_y_displacement_this_frame, chunk);
                 discretized_y_displacement_this_frame = collision_res.allowable_displacement;
                 if collision_res.collided {
                     character.y_vel = 0.0;
@@ -490,7 +500,7 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
                     }
                 }
                 if !collision_res.backed_up {
-                    let second_collision_res = raycast_axis_aligned(false, true, RAYCAST_DIST_PER_ITER, upperright_checker_location, discretized_y_displacement_this_frame, chunk);
+                    let second_collision_res = raycast_axis_aligned(false, true, upperright_checker_location, discretized_y_displacement_this_frame, chunk);
                     discretized_y_displacement_this_frame = second_collision_res.allowable_displacement;
                     if second_collision_res.collided {
                         character.y_vel = 0.0;
@@ -500,7 +510,7 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
 
             // left collision
             if character.x_vel < 0.0 {
-                let collision_res = raycast_axis_aligned(true, false, RAYCAST_DIST_PER_ITER, lowerleft_checker_location, discretized_x_displacement_this_frame, chunk);
+                let collision_res = raycast_axis_aligned(true, false, lowerleft_checker_location, discretized_x_displacement_this_frame, chunk);
                 discretized_x_displacement_this_frame = collision_res.allowable_displacement;
                 if collision_res.collided {
                     // if in free fall (after beginning of jump), allow hugging wall
@@ -520,7 +530,7 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
                     character.x_vel = 0.0;
                 }
                 if !collision_res.backed_up {
-                    let second_collision_res = raycast_axis_aligned(true, false, RAYCAST_DIST_PER_ITER, upperleft_checker_location, discretized_x_displacement_this_frame, chunk);
+                    let second_collision_res = raycast_axis_aligned(true, false, upperleft_checker_location, discretized_x_displacement_this_frame, chunk);
                     discretized_x_displacement_this_frame = second_collision_res.allowable_displacement;
                     if second_collision_res.collided {
                         character.x_vel = 0.0;
@@ -531,7 +541,7 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
             // right collision
             else {
 
-                let collision_res = raycast_axis_aligned(true, true, RAYCAST_DIST_PER_ITER, lowerright_checker_location, discretized_x_displacement_this_frame, chunk);
+                let collision_res = raycast_axis_aligned(true, true, lowerright_checker_location, discretized_x_displacement_this_frame, chunk);
                 discretized_x_displacement_this_frame = collision_res.allowable_displacement;
                 if collision_res.collided {
                     // if in free fall (after beginning of jump), allow hugging wall
@@ -552,7 +562,7 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
                     character.x_vel = 0.0;
                 }
                 if !collision_res.backed_up {
-                    let second_collision_res = raycast_axis_aligned(true, true, RAYCAST_DIST_PER_ITER, upperright_checker_location, discretized_x_displacement_this_frame, chunk);
+                    let second_collision_res = raycast_axis_aligned(true, true, upperright_checker_location, discretized_x_displacement_this_frame, chunk);
                     discretized_x_displacement_this_frame = second_collision_res.allowable_displacement;
                     if second_collision_res.collided {
                         character.x_vel = 0.0;
