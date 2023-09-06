@@ -163,6 +163,44 @@ impl GameState<'static> {
                     }
                 }
                 let mut is_viable_spot = true;
+
+                fn shares_enough_axes_with_other_bounds(potential_bound: &TileAlignedBoundingBox, source_bound: &TileAlignedBoundingBox) -> bool {
+                    let b1: &TileAlignedBoundingBox = potential_bound;
+                    let b2: &TileAlignedBoundingBox = source_bound;
+
+                    fn do_for_one_side (b1: &TileAlignedBoundingBox, b2: &TileAlignedBoundingBox) -> bool {
+                        if 
+                        b1.y + b1.height as i32 == b2.y
+                        {
+                            if (b1.x + b1.width as i32 - b2.x).min(b2.x + b2.width as i32 - b1.x) >= MAP_CHUNK_MIN_SIDE_LEN as i32 {
+                                return true
+                            } else {
+                                return false
+                            }
+                        }
+
+                        if 
+                            b1.x + b1.width as i32 == b2.x
+                        {
+                            if (b1.y + b1.height as i32 - b2.y).min(b2.y + b2.height as i32 - b1.y) >= MAP_CHUNK_MIN_SIDE_LEN as i32 {
+                                return true
+                            } else {
+                                return false
+                            }
+                        }
+                        true
+                    }
+                    
+                    do_for_one_side(&b1, &b2) && do_for_one_side(&b2, b1)
+                }
+
+                // ensure it shares enough adjacency with source chunk
+                if !shares_enough_axes_with_other_bounds(&rand_bound, &new_chunk_location) {
+                    is_viable_spot = false;
+                }
+
+                
+
                 for other_bound in &current_chunk_locations {
                     // if it collides with existing chunk, disallow
                     if new_chunk_location.y + new_chunk_location.height as i32 > other_bound.y {
@@ -174,6 +212,11 @@ impl GameState<'static> {
                             }
                         }
                     }
+                    // if it doesn't collide, but it share too little with any adjacent chunks, it's also invalid
+                    if !shares_enough_axes_with_other_bounds(&other_bound, &new_chunk_location) {
+                        is_viable_spot = false;
+                    }
+
                 }
     
                 if is_viable_spot {

@@ -7,12 +7,12 @@
 // const N_BUILDINGS_PER_CHUNK: usize = 30;
 // const USING_DOORS: bool = true;
 
-pub const MAP_CHUNK_MIN_SIDE_LEN: usize = 7;
+pub const MAP_CHUNK_MIN_SIDE_LEN: usize = 6;
 pub const MAP_CHUNK_MAX_SIDE_LEN: usize = 50;
 
-pub const MAP_CHUNK_MAX_N_TILES: usize = 800;
+pub const MAP_CHUNK_MAX_N_TILES: usize = 400;
 
-pub const TOTAL_TILES_IN_MAP: usize = 30000;
+pub const TOTAL_TILES_IN_MAP: usize = 120000;
 
 pub const N_NPCS: i32 = 10;
   

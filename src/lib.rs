@@ -14,7 +14,6 @@ mod wasm4;
 use game::{game_constants::{TILE_WIDTH_PX, TILE_HEIGHT_PX, X_LEFT_BOUND, X_RIGHT_BOUND, Y_LOWER_BOUND, Y_UPPER_BOUND, GameMode}, game_state::GameState, entities::{MovingEntity, Character}, camera::Camera, collision::update_pos};
 use num;
 mod game;
-use core::cell::RefCell;
 use wasm4::*;
 
 use crate::game::entities::OptionallyEnabledPlayer;
@@ -80,7 +79,7 @@ fn drawmap(game_state: &GameState) {
 
 
 
-static mut GAME_STATE_HOLDER: Option<RefCell<GameState<'static>>> = None;
+static mut GAME_STATE_HOLDER: Option<GameState<'static>> = None;
 
 
 fn drawcharacter(spritesheet: &[u8], spritesheet_stride: &usize, camera: &Camera, character: MovingEntity) {
@@ -121,20 +120,30 @@ static mut PREVIOUS_GAMEPAD: [u8; 4] = [0, 0, 0, 0];
 #[no_mangle]
 fn update() {
 
+
+    let game_state: &mut GameState;
+
     unsafe {
-        match GAME_STATE_HOLDER {
+        match &mut GAME_STATE_HOLDER {
             None => {
-                GAME_STATE_HOLDER = Some()
+                let new_game_state = GameState::new();
+                GAME_STATE_HOLDER = Some(new_game_state);
+                
+            },
+            Some(_) => {
+
             }
+        }
+        match &mut GAME_STATE_HOLDER {
+            Some(game_state_holder) => {
+                game_state = game_state_holder;
+            },
+            None => unreachable!()
         }
     }
     
 
-    unsafe {
-        game_state = &mut GAME_STATE_HOLDER.borrow_mut();
-    }
 
-    *game_state = RefCell::new(GameState::new());
 
     let gamepads: [u8; 4] = unsafe { [*GAMEPAD1, *GAMEPAD2, *GAMEPAD3, *GAMEPAD4] };
     let mut btns_pressed_this_frame: [u8; 4] = [0; 4];
