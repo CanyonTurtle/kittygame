@@ -1,2 +1,4 @@
 .cargo
 target
+binaryen*
+output.wasm
