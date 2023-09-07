@@ -423,8 +423,8 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
         let char_bound = AbsoluteBoundingBox {
             x: character.x_pos as i32,
             y: character.y_pos as i32,
-            width: char_positioning.width,
-            height: char_positioning.height,
+            width: char_positioning.width as usize,
+            height: char_positioning.height as usize,
         };
 
 
