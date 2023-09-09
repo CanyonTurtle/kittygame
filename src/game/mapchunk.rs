@@ -79,11 +79,20 @@ impl MapChunk {
         return Result::Err(OutOfChunkBound::OUT);
     }
 
-    pub fn reset_chunk(self: &mut Self) {
+    pub fn initialize(self: &mut Self) -> bool {
         self.tiles.clear();
-        for _ in 0..self.bound.height {
-            for _ in 0..self.bound.width {
-                self.tiles.push(0);
+        match self.tiles.try_reserve_exact(self.bound.width * self.bound.height) {
+            Ok(_) => {
+                for y in 0..self.bound.height {
+                    for x in 0..self.bound.width {
+                        self.tiles.push(0);
+                        self.set_tile(x, y, 0);
+                    }
+                }
+                return true;
+            }
+            Err(_) => {
+                return false;
             }
         }
     }

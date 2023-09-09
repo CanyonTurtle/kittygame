@@ -11,7 +11,9 @@
 mod alloc;
 mod spritesheet;
 mod wasm4;
-use game::{game_constants::{TILE_WIDTH_PX, TILE_HEIGHT_PX, X_LEFT_BOUND, X_RIGHT_BOUND, Y_LOWER_BOUND, Y_UPPER_BOUND, GameMode}, game_state::GameState, entities::{MovingEntity, Character}, camera::Camera, collision::update_pos};
+use std::borrow::BorrowMut;
+
+use game::{game_constants::{TILE_WIDTH_PX, TILE_HEIGHT_PX, X_LEFT_BOUND, X_RIGHT_BOUND, Y_LOWER_BOUND, Y_UPPER_BOUND, GameMode, N_NPCS}, game_state::GameState, entities::{MovingEntity, Character}, camera::Camera, collision::update_pos};
 use num;
 mod game;
 use wasm4::*;
@@ -116,6 +118,8 @@ fn drawcharacter(spritesheet: &[u8], spritesheet_stride: &usize, camera: &Camera
     );
 }
 
+static mut NPC_INPUTS: [u8; N_NPCS] = [0; N_NPCS];
+
 static mut PREVIOUS_GAMEPAD: [u8; 4] = [0, 0, 0, 0];
 #[no_mangle]
 fn update() {
@@ -212,22 +216,22 @@ fn update() {
             // text("WELCOME TO KITTY GAME.          :D       xD                           WHAT IS POPPIN ITS YOUR BOY, THE KITTY GAME", 200 - game_state.camera.current_viewing_x_offset as i32, 130);
             
             // unsafe { *DRAW_COLORS = spritesheet::KITTY_SS_DRAW_COLORS }
-            let mut inputs: Vec<u8> = vec![];
+            let inputs: &mut [u8; N_NPCS] = unsafe {NPC_INPUTS.borrow_mut()};
     
-            for _ in 0..game_state.npcs.borrow().len() {
+            for i in 0..game_state.npcs.borrow().len() {
                 let rngg = &mut game_state.rng.borrow_mut();
                 let rand_val = (rngg.next() % 255) as u8;
                 if rand_val < 20 {
-                    inputs.push(0x10);
+                    inputs[i] = 0x10;
                 }
                 else if rand_val < 40 {
-                    inputs.push(0x20);
+                    inputs[i] = 0x20;
                 }
                 else if rand_val < 42 {
-                    inputs.push(BUTTON_1);
+                    inputs[i] = BUTTON_1;
                 }
                 else {
-                    inputs.push(0x0);
+                    inputs[i] = 0x0;
                 }
                 
             }

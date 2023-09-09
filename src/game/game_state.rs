@@ -221,8 +221,16 @@ impl GameState<'static> {
     
                 if is_viable_spot {
                     // trace(format!("pushing chunk {new_chunk_location:?}"));
-                    current_chunk_locations.push(new_chunk_location);
-                    break;
+                    match current_chunk_locations.try_reserve(1) {
+                        Ok(_) => {
+                            current_chunk_locations.push(new_chunk_location);
+                            break;
+                        },
+                        Err(_) => {
+                            break 'generate_chunks;
+                        }
+                    }
+                    
                 }
             }
         }
@@ -238,15 +246,14 @@ impl GameState<'static> {
                 npcs[i].y_pos = chunk.bound.y as f32 * TILE_HEIGHT_PX as f32 + 10.0;
             }
     
-            // chunk.tiles.clear();
-            // for _ in 0..chunk.bound.height {
-            //     let mut chunk_row: Vec<u8> = Vec::new();
-            //     for _ in 0..chunk.bound.width {
-            //         chunk_row.push(0);
-            //     }
-            //     chunk.tiles.push(chunk_row);
-            // }
-            chunk.reset_chunk();
+            match chunk.initialize() {
+                true => {
+
+                }
+                false => {
+                    return;
+                }
+            }
             
             
     

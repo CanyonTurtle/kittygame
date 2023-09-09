@@ -2,7 +2,7 @@ use buddy_alloc::{BuddyAllocParam, FastAllocParam, NonThreadsafeAlloc};
 
 // These values can be tuned
 const FAST_HEAP_SIZE: usize = 1 * 1024; // 1 KB
-const HEAP_SIZE: usize = 35 * 1024; // 32 KB
+const HEAP_SIZE: usize = 36 * 1024; // 32 KB
 const LEAF_SIZE: usize = 64;
 
 static mut FAST_HEAP: [u8; FAST_HEAP_SIZE] = [0u8; FAST_HEAP_SIZE];
