@@ -10,6 +10,7 @@ pub enum MovingEntity<'a> {
     NPC(&'a mut Character)
 }
 
+
 pub struct Character {
     pub x_pos: f32,
     pub y_pos: f32,
@@ -18,14 +19,13 @@ pub struct Character {
     pub x_vel_cap: f32,
     pub y_vel_cap: f32,
     pub count: i32,
-    pub facing_right: bool,
+    pub is_facing_right: bool,
     pub state: KittyStates,
     pub current_sprite_i: i32,
     pub sprite: spritesheet::Sprite,
 }
 
 #[derive(PartialEq, Eq, Hash)]
-
 
 
 pub enum KittyStates {
@@ -47,7 +47,7 @@ impl Character {
             x_vel_cap: 2.0,
             y_vel_cap: 7.0,
             count: 0,
-            facing_right: true,
+            is_facing_right: true,
             state: KittyStates::JumpingUp(200),
             current_sprite_i: 0,
             sprite: spritesheet::Sprite::from_preset(sprite_type),

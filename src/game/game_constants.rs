@@ -12,9 +12,9 @@ pub const MAP_CHUNK_MAX_SIDE_LEN: usize = 50;
 
 pub const MAP_CHUNK_MAX_N_TILES: usize = 400;
 
-pub const TOTAL_TILES_IN_MAP: usize = 300000;
+pub const TOTAL_TILES_IN_MAP: usize = 500000;
 
-pub const N_NPCS: usize = 10;
+pub const N_NPCS: usize = 8;
   
 pub const TILE_WIDTH_PX: usize = 5;
 pub const TILE_HEIGHT_PX: usize = 5;
@@ -24,7 +24,7 @@ pub const X_RIGHT_BOUND: i32 = 2000;
 pub const Y_LOWER_BOUND: i32 = -1000;
 pub const Y_UPPER_BOUND: i32 = 1000;
 
-pub const GODMODE: bool = true;
+pub const GODMODE: bool = false;
 
 pub enum GameMode {
     StartScreen,

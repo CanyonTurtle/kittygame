@@ -114,7 +114,7 @@ fn drawcharacter(spritesheet: &[u8], spritesheet_stride: &usize, camera: &Camera
         the_char.sprite.frames[i].positioning.start_x as u32,
         the_char.sprite.frames[i].positioning.start_y as u32,
         *spritesheet_stride as u32,
-        spritesheet::KITTY_SS_FLAGS | if the_char.facing_right { 0 } else { BLIT_FLIP_X },
+        spritesheet::KITTY_SS_FLAGS | if the_char.is_facing_right { 0 } else { BLIT_FLIP_X },
     );
 }
 

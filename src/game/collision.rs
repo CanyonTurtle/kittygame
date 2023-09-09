@@ -115,10 +115,12 @@ pub fn raycast_axis_aligned(horizontal: bool, positive: bool, abs_start_pt: (i32
         match chunk.get_tile_abs(start_pt.0 + horizontal_ray as i32, start_pt.1 + vertical_ray as i32) {
             Ok(tile) => {
                 if tile != 0 {
+                    collision_result.collided = true;
                     // if we hit a tile first thing, we need to back up until we DON'T hit anything.
                     if on_first_iter {
                         collision_result.backed_up = true;
                         on_first_iter = false;
+                        
                     }
                     // if we're not backing up and we hit something, we're done
                     else if !collision_result.backed_up {
@@ -235,16 +237,16 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
 
     fn handle_horizontal_input(the_char: &mut Character, input: u8) -> HorizontalMovementOutcome {
         let ret;
-        let previous_direction = the_char.facing_right;
+        let previous_direction = the_char.is_facing_right;
 
         let mut moving_now = false;
         if input & BUTTON_LEFT != 0 {
             the_char.x_vel -= BTN_ACCEL;
-            the_char.facing_right = false;
+            the_char.is_facing_right = false;
             moving_now = true;
         } else if input & BUTTON_RIGHT != 0 {
             the_char.x_vel += BTN_ACCEL;
-            the_char.facing_right = true;
+            the_char.is_facing_right = true;
             moving_now = true;
         } else {
             the_char.x_vel *= H_DECAY;
@@ -254,7 +256,7 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
         if moving_now && the_char.state == KittyStates::Sleeping {
             ret = HorizontalMovementOutcome::StartedMoving;
         }
-        else if moving_now && previous_direction != the_char.facing_right {
+        else if moving_now && previous_direction != the_char.is_facing_right {
             ret = HorizontalMovementOutcome::ChangedDirection;
         }
         else if !moving_now && the_char.state != KittyStates::Sleeping {
@@ -324,7 +326,7 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
         },
         KittyStates::HuggingWall(firstframe) => {
             if firstframe {
-                if character.facing_right {
+                if character.is_facing_right {
                     character.x_pos += character.sprite.frames[3].positioning.width as f32 - character.sprite.frames[4].positioning.width as f32;
                 }
             }
@@ -336,15 +338,15 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
                 },
                 _ => {
                     if handle_jumping(character, input) {
-                        character.facing_right = !character.facing_right;
+                        character.is_facing_right = !character.is_facing_right;
                         const WALLJUMP_VX: f32 = 3.0;
-                        let new_x_vel = match character.facing_right {
+                        let new_x_vel = match character.is_facing_right {
                             true => WALLJUMP_VX,
                             false => -WALLJUMP_VX,
                         };
                         character.x_vel = new_x_vel;
                         // #TODO find better spacing fix for walljump on right.
-                        if !character.facing_right {
+                        if !character.is_facing_right {
                             character.x_pos -= character.sprite.frames[3].positioning.width as f32 - character.sprite.frames[4].positioning.width as f32;
                         }
                     }
@@ -374,7 +376,7 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
                     character.state = KittyStates::Sleeping;
                 },
                 _ => {
-                    character.state = KittyStates::Sleeping;
+                    // character.state = KittyStates::Sleeping;
                 }
             }
             
@@ -394,8 +396,8 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
             },
             KittyStates::Sleeping => 0,
             KittyStates::Walking(t) => {
-                match (t / 8) % 2 {
-                    1 => 1,
+                match (t / 6) % 2 {
+                    0 => 1,
                     _ => 2,
                 }
             }
@@ -418,20 +420,35 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
     let mut discretized_y_displacement_this_frame = character.y_vel as i32;
     let mut discretized_x_displacement_this_frame = character.x_vel as i32;
     
+    // hotfix: if our y displacement is exactly zero, set it to 1, just so we
+    // can properly check if we're colliding with the ground.
+    match character.state {
+        KittyStates::HuggingWall(_) => {},
+        _ => {
+            if discretized_y_displacement_this_frame == 0 {
+                discretized_y_displacement_this_frame = 1;
+            }
+        }
+    }
+
+
+    let mut touching_some_ground: bool = false;
+
     if !GODMODE {
             // trace("will check--------------------");
         // look at each chunk, and see if the player is inside it
+        character.current_sprite_i = get_sprite_i_from_anim_state(&character.state);
+        let char_positioning = character.sprite.frames[character.current_sprite_i as usize].positioning;
+        let char_bound = AbsoluteBoundingBox {
+            x: character.x_pos as i32,
+            y: character.y_pos as i32,
+            width: char_positioning.width as usize,
+            height: char_positioning.height as usize,
+        };
         for chunk in map.chunks.iter() {
             
             // trace("checking chn");
 
-            let char_positioning = character.sprite.frames[character.current_sprite_i as usize].positioning;
-            let char_bound = AbsoluteBoundingBox {
-                x: character.x_pos as i32,
-                y: character.y_pos as i32,
-                width: char_positioning.width as usize,
-                height: char_positioning.height as usize,
-            };
 
 
             
@@ -488,27 +505,17 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
                     discretized_y_displacement_this_frame = collision_res.allowable_displacement;
                     if collision_res.collided {
                         character.y_vel = 0.0;
+                        touching_some_ground = true;
 
-                        // if we hit the floor, stop jumping
-                        match character.state {
-                            KittyStates::JumpingUp(_) => {
-                                character.state = KittyStates::Walking(0);
-                            }
-                            _ => {}
-                        }
+                        
                     } else {
-                        // if we were walking or something and we fall off, change state
-                        match character.state {
-                            KittyStates::Walking(_) => {
-                                character.state = KittyStates::JumpingUp(30);
-                            },
-                            _ => {}
-                        }
+                        
                     }
                     if !collision_res.backed_up {
                         let second_collision_res = raycast_axis_aligned(false, true, upperright_checker_location, discretized_y_displacement_this_frame, chunk);
                         discretized_y_displacement_this_frame = second_collision_res.allowable_displacement;
                         if second_collision_res.collided {
+                            touching_some_ground = true;
                             character.y_vel = 0.0;
                         }
                     }
@@ -581,8 +588,24 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
         }
     }
 
+    if !touching_some_ground {
+        // if we were walking and we fall off, change state
+        match character.state {
+            KittyStates::Walking(_) => {
+                character.state = KittyStates::JumpingUp(30);
+            },
+            _ => {}
+        }
+    } else {
+        // if we hit the floor, stop jumping
+        match character.state {
+            KittyStates::JumpingUp(_) => {
+                character.state = KittyStates::Walking(0);
+            }
+            _ => {}
+        }
+    }
     
-
     character.current_sprite_i = get_sprite_i_from_anim_state(&character.state);
 
     character.x_pos += discretized_x_displacement_this_frame as f32;
