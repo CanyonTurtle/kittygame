@@ -385,14 +385,30 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
         }
     }
 
-    fn get_sprite_i_from_anim_state(state: &KittyStates) -> i32 {
+    fn get_sprite_i_from_anim_state(state: &KittyStates, discrete_y_vel: i32) -> i32 {
         match state {
             KittyStates::HuggingWall(_) => 4,
             KittyStates::JumpingUp(t) => {
                 match t {
-                    0..=20 => 3,
-                    _ => 2
+                    0 => 0,
+                    _ => {
+                        if discrete_y_vel < -1 {
+                            3
+                        }
+                        else if discrete_y_vel < 5 {
+                            2
+                        }
+                        else {
+                            5
+                        }
+                    }
                 }
+                
+                // match t {
+                //     0..=21 => 3,
+                //     22..=25 => 2,
+                //     _ => 5
+                // }
             },
             KittyStates::Sleeping => 0,
             KittyStates::Walking(t) => {
@@ -437,7 +453,7 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
     if !GODMODE {
             // trace("will check--------------------");
         // look at each chunk, and see if the player is inside it
-        character.current_sprite_i = get_sprite_i_from_anim_state(&character.state);
+        character.current_sprite_i = get_sprite_i_from_anim_state(&character.state, discretized_y_displacement_this_frame);
         let char_positioning = character.sprite.frames[character.current_sprite_i as usize].positioning;
         let char_bound = AbsoluteBoundingBox {
             x: character.x_pos as i32,
@@ -591,7 +607,7 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
     if !touching_some_ground {
         // if we were walking and we fall off, change state
         match character.state {
-            KittyStates::Walking(_) => {
+            KittyStates::Walking(_) | KittyStates::Sleeping => {
                 character.state = KittyStates::JumpingUp(30);
             },
             _ => {}
@@ -606,7 +622,7 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
         }
     }
     
-    character.current_sprite_i = get_sprite_i_from_anim_state(&character.state);
+    character.current_sprite_i = get_sprite_i_from_anim_state(&character.state, discretized_y_displacement_this_frame);
 
     character.x_pos += discretized_x_displacement_this_frame as f32;
     character.y_pos += discretized_y_displacement_this_frame as f32;
