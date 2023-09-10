@@ -10,6 +10,8 @@
 #[cfg(feature = "buddy-alloc")]
 mod alloc;
 mod spritesheet;
+mod kitty_ss;
+
 mod wasm4;
 use std::borrow::BorrowMut;
 
@@ -57,7 +59,7 @@ fn drawmap(game_state: &GameState) {
                                 game_state.background_tiles[tile_i].frames[0].positioning.start_x as u32,
                                 game_state.background_tiles[tile_i].frames[0].positioning.start_y as u32,
                                 game_state.spritesheet_stride as u32,
-                                spritesheet::KITTY_SS_FLAGS,
+                                spritesheet::KITTY_SPRITESHEET_FLAGS,
                             );
                         }
                     },
@@ -114,7 +116,7 @@ fn drawcharacter(spritesheet: &[u8], spritesheet_stride: &usize, camera: &Camera
         the_char.sprite.frames[i].positioning.start_x as u32,
         the_char.sprite.frames[i].positioning.start_y as u32,
         *spritesheet_stride as u32,
-        spritesheet::KITTY_SS_FLAGS | if the_char.is_facing_right { 0 } else { BLIT_FLIP_X },
+        spritesheet::KITTY_SPRITESHEET_FLAGS | if the_char.is_facing_right { 0 } else { BLIT_FLIP_X },
     );
 }
 
@@ -169,9 +171,9 @@ fn update() {
             
             
             unsafe {
-                *PALETTE = spritesheet::KITTY_SS_PALLETE;
+                *PALETTE = spritesheet::KITTY_SPRITESHEET_PALLETE;
             }
-            unsafe { *DRAW_COLORS = spritesheet::KITTY_SS_DRAW_COLORS }
+            unsafe { *DRAW_COLORS = spritesheet::KITTY_SPRITESHEET_DRAW_COLORS }
             
             
 
@@ -215,7 +217,7 @@ fn update() {
             // unsafe { *DRAW_COLORS = 0x1112 }
             // text("WELCOME TO KITTY GAME.          :D       xD                           WHAT IS POPPIN ITS YOUR BOY, THE KITTY GAME", 200 - game_state.camera.current_viewing_x_offset as i32, 130);
             
-            // unsafe { *DRAW_COLORS = spritesheet::KITTY_SS_DRAW_COLORS }
+            // unsafe { *DRAW_COLORS = spritesheet::KITTY_SPRITESHEET_DRAW_COLORS }
             let inputs: &mut [u8; N_NPCS] = unsafe {NPC_INPUTS.borrow_mut()};
     
             for i in 0..game_state.npcs.borrow().len() {
@@ -257,7 +259,7 @@ fn update() {
             //     game_state.background_tiles[0].frames[0].positioning.start_x as u32,
             //     game_state.background_tiles[0].frames[0].positioning.start_y as u32,
             //     game_state.spritesheet_stride as u32,
-            //     spritesheet::KITTY_SS_FLAGS | if bob.facing_right { 0 } else { BLIT_FLIP_X },
+            //     spritesheet::KITTY_SPRITESHEET_FLAGS | if bob.facing_right { 0 } else { BLIT_FLIP_X },
             // );
 
             unsafe { *DRAW_COLORS = 0x1112 }
@@ -269,9 +271,9 @@ fn update() {
             unsafe { *DRAW_COLORS = 0x1112 }
             text("Any key: start", 20, 20);
             unsafe {
-                *PALETTE = spritesheet::KITTY_SS_PALLETE;
+                *PALETTE = spritesheet::KITTY_SPRITESHEET_PALLETE;
             }
-            unsafe { *DRAW_COLORS = spritesheet::KITTY_SS_DRAW_COLORS }
+            unsafe { *DRAW_COLORS = spritesheet::KITTY_SPRITESHEET_DRAW_COLORS }
             game_state.rng.borrow_mut().next();
             if gamepads[0] != 0 {
                 game_state.game_mode = GameMode::NormalPlay;

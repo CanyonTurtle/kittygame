@@ -1,7 +1,7 @@
 use core::cell::RefCell;
 
 use crate::spritesheet;
-
+use crate::kitty_ss;
 use super::{entities::{OptionallyEnabledPlayer, Character}, game_map::GameMap, camera::Camera, rng::Rng, game_constants::{GameMode, N_NPCS, MAP_CHUNK_MIN_SIDE_LEN, MAP_CHUNK_MAX_SIDE_LEN, MAP_CHUNK_MAX_N_TILES, TILE_WIDTH_PX, TILE_HEIGHT_PX}, mapchunk::{MapChunk, TileAlignedBoundingBox}};
 
 pub struct GameState<'a> {
@@ -51,8 +51,8 @@ impl GameState<'static> {
             //     Character::new(200, spritesheet::PresetSprites::Pig),
             //     Character::new(100, spritesheet::PresetSprites::Lizard),
             // ],
-            spritesheet: &spritesheet::KITTY_SS,
-            spritesheet_stride: spritesheet::KITTY_SS_STRIDE,
+            spritesheet: kitty_ss::KITTY_SPRITESHEET,
+            spritesheet_stride: spritesheet::KITTY_SPRITESHEET_STRIDE,
             background_tiles: vec![
                 spritesheet::Sprite::from_preset(spritesheet::PresetSprites::LineTop),
                 spritesheet::Sprite::from_preset(spritesheet::PresetSprites::LineLeft),
@@ -235,23 +235,19 @@ impl GameState<'static> {
             }
         }
     
-        for (i, current_chunk_location) in current_chunk_locations.into_iter().enumerate() {
+        'init_the_chunks: for current_chunk_location in current_chunk_locations.into_iter() {
             let mut chunk = MapChunk::init();
             
             chunk.bound = current_chunk_location;
     
-            // spawn an npc here if needed
-            if i < npcs.len() {
-                npcs[i].x_pos = chunk.bound.x as f32 * TILE_WIDTH_PX as f32 + 10.0;
-                npcs[i].y_pos = chunk.bound.y as f32 * TILE_HEIGHT_PX as f32 + 10.0;
-            }
+
     
             match chunk.initialize() {
                 true => {
 
                 }
                 false => {
-                    return;
+                    break 'init_the_chunks;
                 }
             }
             
@@ -261,7 +257,7 @@ impl GameState<'static> {
             //     tiles[MAP_CHUNK_N_ROWS - GROUND_TILE_OFFSET][col] = 1;
             // }
     
-            const CHUNK_BORDER_MATERIAL: u8 = 6;
+            //const CHUNK_BORDER_MATERIAL: u8 = 6;
     
             // const POSSIBLE_BUILDING_MATERIALS: [u8; 1] = [6];
             const CORRUPT_MATERIALS: [u8; 7] = [7, 8, 9, 10, 11, 12, 13];
@@ -275,18 +271,24 @@ impl GameState<'static> {
             }
     
             let rng_ref = &mut rng.borrow_mut();
-    
-            for row in 0..chunk.bound.height as usize {
+            
+            // left and right walls
+            for row in 1..chunk.bound.height-1 as usize {
                 let corrupt_material: u8 = CORRUPT_MATERIALS[rng_ref.next() as usize % CORRUPT_MATERIALS.len()];
-                let material = get_material(CHUNK_BORDER_MATERIAL, corrupt_material, CORRUPT_CHANCE, rng_ref);
-                chunk.set_tile(0, row, material);
-                chunk.set_tile(chunk.bound.width as usize - 1, row, material);
+                let left_material = get_material(3, corrupt_material, CORRUPT_CHANCE, rng_ref);
+                let right_material = get_material(2, corrupt_material, CORRUPT_CHANCE, rng_ref);
+
+                chunk.set_tile(0, row, left_material);
+                chunk.set_tile(chunk.bound.width as usize - 1, row, right_material);
             }
-            for col in 0..chunk.bound.width as usize {
+
+            // top and bottom walls
+            for col in 1..chunk.bound.width-1 as usize {
                 let corrupt_material: u8 = CORRUPT_MATERIALS[rng_ref.next() as usize % CORRUPT_MATERIALS.len()];
-                let material = get_material(CHUNK_BORDER_MATERIAL, corrupt_material, CORRUPT_CHANCE, rng_ref);
-                chunk.set_tile(col, 0, material);
-                chunk.set_tile(col, chunk.bound.height as usize - 1, material);
+                let top_material = get_material(4, corrupt_material, CORRUPT_CHANCE, rng_ref);
+                let bottom_material = get_material(1, corrupt_material, CORRUPT_CHANCE, rng_ref);
+                chunk.set_tile(col, 0, top_material);
+                chunk.set_tile(col, chunk.bound.height as usize - 1, bottom_material);
             }
             
     
@@ -446,8 +448,15 @@ impl GameState<'static> {
         //     let l = chunks.len() - 1;
         //     chunks[l].tiles[row][MAP_CHUNK_N_ROWS - 1] = 3;
         // }
-    
-    
+        
+
+        // spawn an npc here if needed
+        for i in 0.. npcs.len() {
+            let rand_chunk_i = rng.borrow_mut().next() as usize % map.chunks.len();
+            let chunk: &MapChunk = &map.chunks[rand_chunk_i];
+            npcs[i].x_pos = chunk.bound.x as f32 * TILE_WIDTH_PX as f32 + 10.0;
+            npcs[i].y_pos = chunk.bound.y as f32 * TILE_HEIGHT_PX as f32 + 10.0;
+        }
         
     }
     
