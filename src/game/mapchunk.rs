@@ -28,7 +28,7 @@ impl MapChunk {
 
     pub fn init() -> Self {
         let chunk = MapChunk {
-            tiles: vec![],
+            tiles: Vec::new(),
             bound: TileAlignedBoundingBox {
                 y: 1,
                 x: 1,

@@ -344,18 +344,18 @@ fn update() {
                     Some(_) => 1
                 }
             }
-            layertext(&format!["{}/{} found", current_found_npcs, total_npcs_to_find], 0, BOTTOM_UI_TEXT_Y);
+            // layertext(&format!["{}/{} found", current_found_npcs, total_npcs_to_find], 0, BOTTOM_UI_TEXT_Y);
 
             // keep going till the timer hits
             if total_npcs_to_find == current_found_npcs {
-                layertext("- Nice :D", 80, BOTTOM_UI_TEXT_Y)    
+                layertext("You found them!! :D", 0, BOTTOM_UI_TEXT_Y)    
             } else {
                 game_state.timer += 1;
             }
             
             
-            let time_sec = game_state.timer as f32 / 60.0;
-            layertext(&format!["{:.1} sec", time_sec], 90, BOTTOM_UI_TEXT_Y);
+            // let time_sec = game_state.timer as f32 / 60.0;
+            // layertext(&format!["{:.1} sec", time_sec], 90, BOTTOM_UI_TEXT_Y);
 
             // draw UI lines
             // line(0, TOP_UI_TEXT_Y + 8 + 1, 160, TOP_UI_TEXT_Y + 8 + 1);

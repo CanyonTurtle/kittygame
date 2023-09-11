@@ -45,13 +45,7 @@ impl GameState<'static> {
                 };
                 Character::new(preset)
             }).collect::<Vec<Character>>()),
-            // npcs: vec![
-            //     Character::new(500, spritesheet::PresetSprites::Kitty2),
-            //     Character::new(400, spritesheet::PresetSprites::Kitty3),
-            //     Character::new(300, spritesheet::PresetSprites::Kitty4),
-            //     Character::new(200, spritesheet::PresetSprites::Pig),
-            //     Character::new(100, spritesheet::PresetSprites::Lizard),
-            // ],
+
             spritesheet: kitty_ss::KITTY_SPRITESHEET,
             spritesheet_stride: spritesheet::KITTY_SPRITESHEET_STRIDE,
             background_tiles: vec![
@@ -105,10 +99,17 @@ impl GameState<'static> {
     
         let npcs = &mut game_state.npcs.borrow_mut();
     
-    
-    
-        let mut current_chunk_locations: Vec<TileAlignedBoundingBox> = vec![TileAlignedBoundingBox::init(0, 0, 32, 32)];
-    
+        let mut current_chunk_locations: Vec<TileAlignedBoundingBox> = Vec::new();
+        
+        match current_chunk_locations.try_reserve(1) {
+            Ok(_) => {
+                current_chunk_locations.push(TileAlignedBoundingBox::init(0, 0, 32, 32));
+            },
+            Err(_) => {
+                // crate::trace("fail");
+                return;
+            }
+        }
         // place the chunks randomly.
         'generate_chunks: loop {
             // attempt to place a new chunk
