@@ -15,12 +15,12 @@ mod kitty_ss;
 mod wasm4;
 use std::borrow::BorrowMut;
 
-use game::{game_constants::{TILE_WIDTH_PX, TILE_HEIGHT_PX, X_LEFT_BOUND, X_RIGHT_BOUND, Y_LOWER_BOUND, Y_UPPER_BOUND, GameMode, N_NPCS}, game_state::GameState, entities::{MovingEntity, Character}, camera::Camera, collision::update_pos};
+use game::{game_constants::{TILE_WIDTH_PX, TILE_HEIGHT_PX, X_LEFT_BOUND, X_RIGHT_BOUND, Y_LOWER_BOUND, Y_UPPER_BOUND, GameMode, N_NPCS}, game_state::GameState, entities::{MovingEntity, Character}, camera::Camera, collision::{update_pos, check_entity_collisions}};
 use num;
 mod game;
 use wasm4::*;
 
-use crate::game::entities::OptionallyEnabledPlayer;
+use crate::game::{entities::OptionallyEnabledPlayer, collision::{get_bound_of_character, AbsoluteBoundingBox}};
 
 
 
@@ -211,6 +211,8 @@ fn update() {
                     drawcharacter(&game_state.spritesheet, &game_state.spritesheet_stride, &game_state.camera.borrow(), MovingEntity::OptionalPlayer(optional_player));
                 } 
             }
+
+            check_entity_collisions(&game_state);
         
 
             
@@ -223,19 +225,61 @@ fn update() {
             for i in 0..game_state.npcs.borrow().len() {
                 let rngg = &mut game_state.rng.borrow_mut();
                 let rand_val = (rngg.next() % 255) as u8;
-                if rand_val < 20 {
-                    inputs[i] = 0x10;
-                }
-                else if rand_val < 40 {
-                    inputs[i] = 0x20;
-                }
-                else if rand_val < 42 {
-                    inputs[i] = BUTTON_1;
-                }
-                else {
-                    inputs[i] = 0x0;
+                let current_npc = &game_state.npcs.borrow()[i];
+                let mut use_rng_input = false;
+                match current_npc.following_i {
+                    None => {
+                        use_rng_input = true;
+                    },
+                    Some(p_i) => {
+                        let the_opt_player = &game_state.players.borrow()[p_i as usize];
+                        if let OptionallyEnabledPlayer::Enabled(p) = the_opt_player {
+                            let p_bound = get_bound_of_character(&p);
+                            if rngg.next() % 10 > 1 {
+                                inputs[i] = 0;
+                                let npc_bound: AbsoluteBoundingBox = get_bound_of_character(&current_npc);
+                                
+                                if current_npc.x_pos + (npc_bound.width as f32) < p.x_pos {
+                                    inputs[i] |= BUTTON_RIGHT;
+                                }
+                                else if current_npc.x_pos > p.x_pos + p_bound.width as f32 {
+                                    inputs[i] |= BUTTON_LEFT;
+                                }
+                                // fall by doing nothing
+                                if current_npc.y_pos + (npc_bound.height as f32) < p.y_pos {
+    
+                                }
+                                else if current_npc.y_pos > p.y_pos + p_bound.height as f32 {
+                                    inputs[i] |= BUTTON_1;
+                                }
+                            }
+                            else {
+                                use_rng_input = true;
+                            }
+                        }
+                        else {
+                            use_rng_input = false;
+                        }
+                    }
+                    
                 }
                 
+                if use_rng_input {
+                        
+                    if rand_val < 20 {
+                        inputs[i] = 0x10;
+                    }
+                    else if rand_val < 40 {
+                        inputs[i] = 0x20;
+                    }
+                    else if rand_val < 42 {
+                        inputs[i] = BUTTON_1;
+                    }
+                    else {
+                        inputs[i] = 0x0;
+                    }
+                    
+                }
             }
     
             for (i, npc) in game_state.npcs.borrow_mut().iter_mut().enumerate() {
@@ -262,14 +306,68 @@ fn update() {
             //     spritesheet::KITTY_SPRITESHEET_FLAGS | if bob.facing_right { 0 } else { BLIT_FLIP_X },
             // );
 
-            unsafe { *DRAW_COLORS = 0x1112 }
-            text("< > to move, x=jump", 0, 0);
-            text("z=reset", 104, 8);
+            const TOP_UI_TEXT_Y: i32 = 2;
 
+            const BOTTOM_UI_TEXT_Y: i32 = 12; // 160 - 8 - 2;
+                
+            unsafe { *DRAW_COLORS = 0x0001}
+
+            for i in 0..160 {
+                for j in 0..20 {
+                    if (i + j) % 3 != 0 {
+                        line(i, j, i, j)
+                    }
+                }
+            }
+
+            unsafe { *DRAW_COLORS = 0x0002 }
+
+            fn layertext (t: &str, x: i32, y: i32) {
+
+                unsafe {*DRAW_COLORS = 0x0001}
+                text(t, x + 1, y);
+                text(t, x, y + 1);
+                text(t, x + 1, y + 1);
+                unsafe {*DRAW_COLORS = 0x0002}
+
+                text(t, x, y);
+            
+            }
+            layertext("< >=move,x=jmp,z=new", 0, TOP_UI_TEXT_Y);
+            //layertext("z=reset", 104, 8);
+            
+            let total_npcs_to_find: u8 = N_NPCS as u8;
+            let mut current_found_npcs = 0;
+            for npc in game_state.npcs.borrow().iter() {
+                current_found_npcs += match npc.following_i {
+                    None => 0,
+                    Some(_) => 1
+                }
+            }
+            layertext(&format!["{}/{} found", current_found_npcs, total_npcs_to_find], 0, BOTTOM_UI_TEXT_Y);
+
+            // keep going till the timer hits
+            if total_npcs_to_find == current_found_npcs {
+                layertext("- Nice :D", 80, BOTTOM_UI_TEXT_Y)    
+            } else {
+                game_state.timer += 1;
+            }
+            
+            
+            let time_sec = game_state.timer as f32 / 60.0;
+            layertext(&format!["{:.1} sec", time_sec], 90, BOTTOM_UI_TEXT_Y);
+
+            // draw UI lines
+            // line(0, TOP_UI_TEXT_Y + 8 + 1, 160, TOP_UI_TEXT_Y + 8 + 1);
+            line(0, TOP_UI_TEXT_Y - 2, 160, TOP_UI_TEXT_Y - 2);
+
+            line(0, BOTTOM_UI_TEXT_Y + 8 + 1, 160, BOTTOM_UI_TEXT_Y + 8 + 1);
+            // line(0, BOTTOM_UI_TEXT_Y - 2, 160, BOTTOM_UI_TEXT_Y - 2);
         },
         GameMode::StartScreen => {
             unsafe { *DRAW_COLORS = 0x1112 }
-            text("Any key: start", 20, 20);
+            text("Find the kitties!", 20, 20);
+            text("Any key: start", 20, 40);
             unsafe {
                 *PALETTE = spritesheet::KITTY_SPRITESHEET_PALLETE;
             }

@@ -14,6 +14,7 @@ pub struct GameState<'a> {
     pub camera: RefCell<Camera>,
     pub rng: RefCell<Rng>,
     pub game_mode: GameMode,
+    pub timer: u32,
 }
 
 
@@ -76,14 +77,15 @@ impl GameState<'static> {
                 current_viewing_y_target: 0.0,
             }),
             rng: RefCell::new(rng),
-            game_mode: GameMode::StartScreen
+            game_mode: GameMode::StartScreen,
+            timer: 0
         }
     }
 
     pub fn regenerate_map(self: &mut Self) {
 
         let game_state: &mut GameState = self;
-        
+        game_state.timer = 0;
         let map = &mut game_state.map;
         map.num_tiles = 0;
         map.chunks.clear();
@@ -456,6 +458,11 @@ impl GameState<'static> {
             let chunk: &MapChunk = &map.chunks[rand_chunk_i];
             npcs[i].x_pos = chunk.bound.x as f32 * TILE_WIDTH_PX as f32 + 10.0;
             npcs[i].y_pos = chunk.bound.y as f32 * TILE_HEIGHT_PX as f32 + 10.0;
+        }
+
+        // reset NPCs
+        for npc in npcs.iter_mut() {
+            npc.following_i = None;
         }
         
     }

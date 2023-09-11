@@ -19,10 +19,10 @@ pub const N_NPCS: usize = 8;
 pub const TILE_WIDTH_PX: usize = 5;
 pub const TILE_HEIGHT_PX: usize = 5;
 
-pub const X_LEFT_BOUND: i32 = -2000;
-pub const X_RIGHT_BOUND: i32 = 2000;
-pub const Y_LOWER_BOUND: i32 = -1000;
-pub const Y_UPPER_BOUND: i32 = 1000;
+pub const X_LEFT_BOUND: i32 = -5000;
+pub const X_RIGHT_BOUND: i32 = 5000;
+pub const Y_LOWER_BOUND: i32 = -5000;
+pub const Y_UPPER_BOUND: i32 = 5000;
 
 pub const GODMODE: bool = false;
 

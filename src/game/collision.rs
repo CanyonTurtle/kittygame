@@ -1,6 +1,5 @@
 
 
-use itertools::Itertools;
 use crate::spritesheet;
 
 use super::{mapchunk::{TileAlignedBoundingBox, MapChunk}, game_constants::{GODMODE, TILE_WIDTH_PX, TILE_HEIGHT_PX, X_LEFT_BOUND, X_RIGHT_BOUND, Y_LOWER_BOUND, Y_UPPER_BOUND}, game_map::GameMap, entities::{MovingEntity, Character, OptionallyEnabledPlayer, KittyStates}, game_state::GameState};
@@ -26,10 +25,10 @@ pub fn check_absolute_point_inside_tile_aligned_bound(x: i32, y: i32, bound: &Ti
 }
 
 pub struct AbsoluteBoundingBox {
-    x: i32,
-    y: i32,
-    width: usize,
-    height: usize
+    pub x: i32,
+    pub y: i32,
+    pub width: usize,
+    pub height: usize
 }
 pub fn check_absolue_bound_partially_inside_tile_aligned_bound(absolute_bound: &AbsoluteBoundingBox, tile_aligned_bound: &TileAlignedBoundingBox) -> bool {
     let lowerleft = (absolute_bound.x, absolute_bound.y);
@@ -67,55 +66,42 @@ pub fn get_bound_of_character(character: &Character) -> AbsoluteBoundingBox {
 
 pub fn check_entity_collisions(game_state: &GameState) {
 
-    // npc -> npc
-    const N_NPC_NPC_COLLISIONS_TO_CHECK_AT_MOST: usize = 10;
-    let mut npc_hitlist: [(usize, usize); N_NPC_NPC_COLLISIONS_TO_CHECK_AT_MOST] = [(0, 0); N_NPC_NPC_COLLISIONS_TO_CHECK_AT_MOST];
-    let mut hitlist_i: usize = 0;
-    for (i, npc1) in game_state.npcs.borrow().iter().enumerate() {
-        for (j, npc2) in game_state.npcs.borrow().iter().enumerate() {
-            let did_hit: bool;
-            {
-                let npc1_bound = get_bound_of_character(npc1);
-                let npc2_bound = get_bound_of_character(npc2);
-                did_hit = check_absolute_bounding_box_partially_inside_another(&npc1_bound, &npc2_bound);
-            }
-            match did_hit {
-                true => {
-                    // npcs hit
-                    npc_hitlist[hitlist_i] = (i, j);
-                    hitlist_i += 1;
-                    hitlist_i %= N_NPC_NPC_COLLISIONS_TO_CHECK_AT_MOST;
+    // player -> npc
+    const N_PLAYER_NPC_COLLISIONS_TO_CHECK_AT_MOST: usize = 10;
+    let mut npc_hitlist: [(u8, u8); N_PLAYER_NPC_COLLISIONS_TO_CHECK_AT_MOST] = [(0, 0); N_PLAYER_NPC_COLLISIONS_TO_CHECK_AT_MOST];
+    let mut hitlist_i: u8 = 0;
+    for (i, opt_p) in game_state.players.borrow().iter().enumerate() {
+        if let OptionallyEnabledPlayer::Enabled(p) = opt_p {
+            for (j, npc2) in game_state.npcs.borrow().iter().enumerate() {
+                let did_hit: bool;
+                {
+                    let npc1_bound = get_bound_of_character(p);
+                    let npc2_bound = get_bound_of_character(npc2);
+                    did_hit = check_absolute_bounding_box_partially_inside_another(&npc1_bound, &npc2_bound);
                 }
-                _ => {}
+                match did_hit {
+                    true => {
+                        // npcs hit
+                        if hitlist_i < npc_hitlist.len() as u8 {
+                            npc_hitlist[hitlist_i as usize] = (i as u8, j as u8);
+                            hitlist_i += 1;
+                        }
+                    }
+                    _ => {}
+                }
             }
-        }
-            
+        }      
     }
 
-    //character -> character
-    // let players: &mut [OptionallyEnabledPlayer; 4] = &mut game_state.players.borrow_mut();
-    for npc_pairing in 
-        game_state.players.borrow_mut().iter()
-        .permutations(2)
-        {
-            if let OptionallyEnabledPlayer::Enabled(p1) = &npc_pairing[0] {
-                if let OptionallyEnabledPlayer::Enabled(p2) = &npc_pairing[1] {
-                    let did_hit: bool;
-                    {
-                        let p1_bound = get_bound_of_character(p1);
-                        let p2_bound = get_bound_of_character(p2);
-                        did_hit = check_absolute_bounding_box_partially_inside_another(&p1_bound, &p2_bound);
-                    }
-                    match did_hit {
-                        true => {
-                            // npcs hit
-                            // let p1 = &mut npc_pairing[0];
-                        }
-                        _ => {}
-                    }
-                }
-            }
+    for (hit_p_i, hit_npc_i) in &npc_hitlist[..hitlist_i as usize] {
+        let opt_p = &mut game_state.players.borrow_mut()[*hit_p_i as usize];
         
+
+        if let OptionallyEnabledPlayer::Enabled(_p) = opt_p {
+            let npc = &mut game_state.npcs.borrow_mut()[*hit_npc_i as usize];
+            // p.y_pos -= 2.0;
+            npc.following_i = Some(*hit_p_i);
+        }
     }
 }
 
