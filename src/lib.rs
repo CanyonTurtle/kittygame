@@ -350,6 +350,7 @@ fn update() {
             if total_npcs_to_find == current_found_npcs {
                 layertext("You found them!! :D", 0, BOTTOM_UI_TEXT_Y)    
             } else {
+                layertext("find the kitties...", 0, BOTTOM_UI_TEXT_Y);
                 game_state.timer += 1;
             }
             
