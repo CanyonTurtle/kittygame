@@ -1,6 +1,9 @@
+
+
+use itertools::Itertools;
 use crate::spritesheet;
 
-use super::{mapchunk::{TileAlignedBoundingBox, MapChunk}, game_constants::{GODMODE, TILE_WIDTH_PX, TILE_HEIGHT_PX, X_LEFT_BOUND, X_RIGHT_BOUND, Y_LOWER_BOUND, Y_UPPER_BOUND}, game_map::GameMap, entities::{MovingEntity, Character, OptionallyEnabledPlayer, KittyStates}};
+use super::{mapchunk::{TileAlignedBoundingBox, MapChunk}, game_constants::{GODMODE, TILE_WIDTH_PX, TILE_HEIGHT_PX, X_LEFT_BOUND, X_RIGHT_BOUND, Y_LOWER_BOUND, Y_UPPER_BOUND}, game_map::GameMap, entities::{MovingEntity, Character, OptionallyEnabledPlayer, KittyStates}, game_state::GameState};
 
 use crate::wasm4::*;
 
@@ -43,6 +46,77 @@ pub fn check_absolue_bound_partially_inside_tile_aligned_bound(absolute_bound: &
         } 
     }
     true
+}
+
+pub fn check_absolute_bounding_box_partially_inside_another(bound: &AbsoluteBoundingBox, other: &AbsoluteBoundingBox) -> bool {
+    bound.x + bound.width as i32 > other.x
+        && bound.x < other.x + other.width as i32
+        && bound.y + bound.height as i32 > other.y
+        && bound.y < other.y + other.height as i32
+}
+
+pub fn get_bound_of_character(character: &Character) -> AbsoluteBoundingBox {
+    let char_positioning = character.sprite.frames[character.current_sprite_i as usize].positioning;
+    AbsoluteBoundingBox {
+        x: character.x_pos as i32,
+        y: character.y_pos as i32,
+        width: char_positioning.width as usize,
+        height: char_positioning.height as usize,
+    }
+}
+
+pub fn check_entity_collisions(game_state: &GameState) {
+
+    // npc -> npc
+    const N_NPC_NPC_COLLISIONS_TO_CHECK_AT_MOST: usize = 10;
+    let mut npc_hitlist: [(usize, usize); N_NPC_NPC_COLLISIONS_TO_CHECK_AT_MOST] = [(0, 0); N_NPC_NPC_COLLISIONS_TO_CHECK_AT_MOST];
+    let mut hitlist_i: usize = 0;
+    for (i, npc1) in game_state.npcs.borrow().iter().enumerate() {
+        for (j, npc2) in game_state.npcs.borrow().iter().enumerate() {
+            let did_hit: bool;
+            {
+                let npc1_bound = get_bound_of_character(npc1);
+                let npc2_bound = get_bound_of_character(npc2);
+                did_hit = check_absolute_bounding_box_partially_inside_another(&npc1_bound, &npc2_bound);
+            }
+            match did_hit {
+                true => {
+                    // npcs hit
+                    npc_hitlist[hitlist_i] = (i, j);
+                    hitlist_i += 1;
+                    hitlist_i %= N_NPC_NPC_COLLISIONS_TO_CHECK_AT_MOST;
+                }
+                _ => {}
+            }
+        }
+            
+    }
+
+    //character -> character
+    // let players: &mut [OptionallyEnabledPlayer; 4] = &mut game_state.players.borrow_mut();
+    for npc_pairing in 
+        game_state.players.borrow_mut().iter()
+        .permutations(2)
+        {
+            if let OptionallyEnabledPlayer::Enabled(p1) = &npc_pairing[0] {
+                if let OptionallyEnabledPlayer::Enabled(p2) = &npc_pairing[1] {
+                    let did_hit: bool;
+                    {
+                        let p1_bound = get_bound_of_character(p1);
+                        let p2_bound = get_bound_of_character(p2);
+                        did_hit = check_absolute_bounding_box_partially_inside_another(&p1_bound, &p2_bound);
+                    }
+                    match did_hit {
+                        true => {
+                            // npcs hit
+                            // let p1 = &mut npc_pairing[0];
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        
+    }
 }
 
 pub struct CollisionResult {
@@ -450,17 +524,13 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
 
     let mut touching_some_ground: bool = false;
 
+
+
     if !GODMODE {
             // trace("will check--------------------");
         // look at each chunk, and see if the player is inside it
         character.current_sprite_i = get_sprite_i_from_anim_state(&character.state, discretized_y_displacement_this_frame);
-        let char_positioning = character.sprite.frames[character.current_sprite_i as usize].positioning;
-        let char_bound = AbsoluteBoundingBox {
-            x: character.x_pos as i32,
-            y: character.y_pos as i32,
-            width: char_positioning.width as usize,
-            height: char_positioning.height as usize,
-        };
+        let char_bound = get_bound_of_character(&character);
         for chunk in map.chunks.iter() {
             
             // trace("checking chn");
