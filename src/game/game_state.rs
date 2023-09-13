@@ -47,7 +47,7 @@ impl GameState<'static> {
             }).collect::<Vec<Character>>()),
 
             spritesheet: kitty_ss::KITTY_SPRITESHEET,
-            spritesheet_stride: spritesheet::KITTY_SPRITESHEET_STRIDE,
+            spritesheet_stride: spritesheet::KITTY_SPRITESHEET_STRIDE as usize,
             background_tiles: vec![
                 spritesheet::Sprite::from_preset(spritesheet::PresetSprites::LineTop),
                 spritesheet::Sprite::from_preset(spritesheet::PresetSprites::LineLeft),

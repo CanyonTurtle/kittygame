@@ -55,7 +55,7 @@ pub fn check_absolute_bounding_box_partially_inside_another(bound: &AbsoluteBoun
 }
 
 pub fn get_bound_of_character(character: &Character) -> AbsoluteBoundingBox {
-    let char_positioning = character.sprite.frames[character.current_sprite_i as usize].positioning;
+    let char_positioning = character.sprite.frames[character.current_sprite_i as usize];
     AbsoluteBoundingBox {
         x: character.x_pos as i32,
         y: character.y_pos as i32,
@@ -387,7 +387,7 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
         KittyStates::HuggingWall(firstframe) => {
             if firstframe {
                 if character.is_facing_right {
-                    character.x_pos += character.sprite.frames[3].positioning.width as f32 - character.sprite.frames[4].positioning.width as f32;
+                    character.x_pos += character.sprite.frames[3].width as f32 - character.sprite.frames[4].width as f32;
                 }
             }
             character.state = KittyStates::HuggingWall(false);
@@ -407,7 +407,7 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
                         character.x_vel = new_x_vel;
                         // #TODO find better spacing fix for walljump on right.
                         if !character.is_facing_right {
-                            character.x_pos -= character.sprite.frames[3].positioning.width as f32 - character.sprite.frames[4].positioning.width as f32;
+                            character.x_pos -= character.sprite.frames[3].width as f32 - character.sprite.frames[4].width as f32;
                         }
                     }
                 }
