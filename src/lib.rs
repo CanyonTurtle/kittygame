@@ -239,18 +239,37 @@ fn update() {
                                 inputs[i] = 0;
                                 let npc_bound: AbsoluteBoundingBox = get_bound_of_character(&current_npc);
                                 
-                                if current_npc.x_pos + (npc_bound.width as f32) < p.x_pos {
-                                    inputs[i] |= BUTTON_RIGHT;
-                                }
-                                else if current_npc.x_pos > p.x_pos + p_bound.width as f32 {
-                                    inputs[i] |= BUTTON_LEFT;
-                                }
+                                // if current_npc.x_pos + (npc_bound.width as f32) < p.x_pos {
+                                // else if current_npc.x_pos > p.x_pos + p_bound.width as f32 {
+                                
+                                // make NPCs tryhard when they're not in the same Y to get to exact x position to help with climbing
+                                let mut tryhard_get_to_0: bool = true;
+                                
                                 // fall by doing nothing
                                 if current_npc.y_pos + (npc_bound.height as f32) < p.y_pos {
     
                                 }
                                 else if current_npc.y_pos > p.y_pos + p_bound.height as f32 {
                                     inputs[i] |= BUTTON_1;
+                                } else {
+                                    tryhard_get_to_0 = false;
+                                }
+
+                                if tryhard_get_to_0 {
+                                    if current_npc.x_pos < p.x_pos {
+                                        inputs[i] |= BUTTON_RIGHT;
+                                    }
+                                    else if current_npc.x_pos > p.x_pos {
+                                        inputs[i] |= BUTTON_LEFT;
+                                    }
+                                }
+                                else {
+                                    if current_npc.x_pos + (npc_bound.width as f32) < p.x_pos {
+                                        inputs[i] |= BUTTON_RIGHT;
+                                    }
+                                    else if current_npc.x_pos > p.x_pos + p_bound.width as f32 {
+                                        inputs[i] |= BUTTON_LEFT;
+                                    }
                                 }
                             }
                             else {
