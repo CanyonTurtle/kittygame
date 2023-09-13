@@ -58,7 +58,7 @@ fn drawmap(game_state: &GameState) {
                                 game_state.background_tiles[tile_i].frames[0].height as u32,
                                 game_state.background_tiles[tile_i].frames[0].start_x as u32,
                                 game_state.background_tiles[tile_i].frames[0].start_y as u32,
-                                game_state.spritesheet_stride as u32,
+                                (game_state.spritesheet_stride) as u32,
                                 spritesheet::KITTY_SPRITESHEET_FLAGS,
                             );
                         }

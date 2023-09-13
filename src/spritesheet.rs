@@ -15,10 +15,17 @@ pub const KITTY_SPRITESHEET_PALLETE: [u32; 4] = [
 pub const KITTY_SPRITESHEET_DRAW_COLORS: u16 = 0x3420;
 
 
-pub const KITTY_SPRITESHEET_STRIDE: u8 = 32;
 
+
+pub const KITTY_SPRITESHEET_PAGE_WIDTH: u8 = 32;
+
+pub const KITTY_SPRITESHEET_STRIDE: u8 = KITTY_SPRITESHEET_PAGE_WIDTH * 6;
 // KITTY_SPRITESHEET
 
+// kitty_ss
+// const KITTY_SS_WIDTH: u32 = 192;
+// const KITTY_SS_HEIGHT: u32 = 64;
+// const KITTY_SS_FLAGS: u32 = 1; // BLIT_2BPP
 
 pub const KITTY_SPRITESHEET_FLAGS: u32 = 1; // BLIT_2BPP
 
@@ -76,7 +83,7 @@ impl Sprite {
             frames: spriteframe_indecies.iter().map(|pos| SpriteFrame {
                 width: pos[3],
                 height: pos[4],
-                start_x: pos[0] * KITTY_SPRITESHEET_STRIDE + pos[1],
+                start_x: pos[0] * KITTY_SPRITESHEET_PAGE_WIDTH + pos[1],
                 start_y: pos[2]
             
             }).collect::<Vec<_>>()
@@ -87,10 +94,10 @@ impl Sprite {
         match preset_sprite {
             PresetSprites::MainCat => Sprite::from_page_x_y_w_h(vec![
                 [0, 16, 57, 14, 7],
-                [1, 16, 56, 13, 8],
+                [1, 16, 55, 13, 9],
                 [2, 16, 55, 14, 9],
                 [3, 16, 50, 11, 14],
-                [4, 16, 52, 5, 13],
+                [4, 16, 52, 6, 12],
                 [5, 16, 54, 12, 10]
             ]),
             PresetSprites::Kitty1 => Sprite::from_page_x_y_w_h(vec![
