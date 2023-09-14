@@ -3,7 +3,7 @@
 
 // KITTY_SPRITESHEET
 
-pub const KITTY_SPRITESHEET_PALLETES: [[u32; 4]; 9] = [
+pub const KITTY_SPRITESHEET_PALLETES: [[u32; 4]; 7] = [
     [ // RGB
         0x000000, // Black
         0xFFFFFF, // White
@@ -15,18 +15,6 @@ pub const KITTY_SPRITESHEET_PALLETES: [[u32; 4]; 9] = [
         0xFF69B4, // Hot Pink
         0xFFA500, // Orange
         0x90EE90, // Light Green   
-    ],
-    [ // Greeny
-        0x2F4F4F, // Dark Slate Gray
-        0xFFFFFF, // White
-        0xFF6347, // Tomato
-        0xFFD700, // Yellow
-    ],
-    [ // brown?
-        0x6B2506, // Saddle Brown
-        0xffffee, // Lime Green
-        0xFF6347, // Tomato
-        0x77ff22, // Forest Green
     ],
     [ // red and golden
         0x440000, // Dark Red
