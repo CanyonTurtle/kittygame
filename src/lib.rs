@@ -186,6 +186,7 @@ fn update() {
     }
     
     game_state.timer += 1;
+    play_bgm(game_state.timer);
 
     match &mut game_state.game_mode {
         GameMode::NormalPlay => {
@@ -420,15 +421,12 @@ fn update() {
                 // drop(game_state.map.chunks);
                 game_state.regenerate_map();
             }
+        
             
-            const START_NOTE: u32 = 262;
-            const SCALE_MULT: u32 = 20;
-
-            play_bgm(game_state.timer);
             
         },
         GameMode::Options(option_state) => {
-            play_bgm(game_state.timer);
+            
             const MENU_X: i32 = 55;
             const MENU_TOP_Y: i32 = 50;
             const MENU_SPACING: i32 = 15;
