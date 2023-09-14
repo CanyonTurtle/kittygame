@@ -172,8 +172,21 @@ fn update() {
 
     
 
+    fn play_bgm(timer: u32) {
+        const g_minor_frequencies: [u32; 8] = [196, 220, 233, 261, 293, 311, 349, 392];
+
+        let freq1: usize = (timer as usize >> 8) & 0x7;
+        let freq2: usize = (timer as usize >> 1) & 0x7;
+        if timer % 20 == 0 {
+            tone(g_minor_frequencies[freq1], 20, 20, TONE_PULSE1);
+        }
+        if timer % 60 == 0 {
+            tone(g_minor_frequencies[freq2], 60, 20, TONE_PULSE2);
+        }
+    }
     
-    
+    game_state.timer += 1;
+
     match &mut game_state.game_mode {
         GameMode::NormalPlay => {
             
@@ -380,7 +393,6 @@ fn update() {
                 layertext("You found them!! :D", 0, BOTTOM_UI_TEXT_Y)    
             } else {
                 layertext("find the kitties...", 0, BOTTOM_UI_TEXT_Y);
-                game_state.timer += 1;
             }
             
             
@@ -408,8 +420,15 @@ fn update() {
                 // drop(game_state.map.chunks);
                 game_state.regenerate_map();
             }
+            
+            const START_NOTE: u32 = 262;
+            const SCALE_MULT: u32 = 20;
+
+            play_bgm(game_state.timer);
+            
         },
         GameMode::Options(option_state) => {
+            play_bgm(game_state.timer);
             const MENU_X: i32 = 55;
             const MENU_TOP_Y: i32 = 50;
             const MENU_SPACING: i32 = 15;
