@@ -362,7 +362,7 @@ fn update() {
                 text(t, x, y);
             
             }
-            layertext("< >=move,x=jmp,z=new", 0, TOP_UI_TEXT_Y);
+            layertext("< >=move,x=jmp,z=opt", 0, TOP_UI_TEXT_Y);
             //layertext("z=reset", 104, 8);
             
             let total_npcs_to_find: u8 = N_NPCS as u8;
@@ -406,7 +406,6 @@ fn update() {
             if gamepads[0] != 0 {
                 game_state.game_mode = GameMode::NormalPlay;
                 // drop(game_state.map.chunks);
-                text("Spawning map...", 20, 50);
                 game_state.regenerate_map();
             }
         },

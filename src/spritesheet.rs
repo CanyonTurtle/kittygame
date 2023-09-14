@@ -3,7 +3,7 @@
 
 // KITTY_SPRITESHEET
 
-pub const KITTY_SPRITESHEET_PALLETES: [[u32; 4]; 10] = [
+pub const KITTY_SPRITESHEET_PALLETES: [[u32; 4]; 9] = [
     [ // RGB
         0x000000, // Black
         0xFFFFFF, // White
@@ -18,34 +18,34 @@ pub const KITTY_SPRITESHEET_PALLETES: [[u32; 4]; 10] = [
     ],
     [ // Greeny
         0x2F4F4F, // Dark Slate Gray
+        0xFFFFFF, // White
         0xFF6347, // Tomato
         0xFFD700, // Yellow
-        0x8A2BE2, // Blue Violet
     ],
     [ // brown?
-        0x8B4513, // Saddle Brown
-        0x32CD32, // Lime Green
+        0x6B2506, // Saddle Brown
+        0xffffee, // Lime Green
         0xFF6347, // Tomato
-        0x228B22, // Forest Green
+        0x77ff22, // Forest Green
     ],
     [ // red and golden
         0x440000, // Dark Red
         0xFFF7D9, // Cream
-        0x23A7F2, // Blue
+        0xFF6347, // Tomato
         0x99E64E, // Light Green
     ],
 
     [ // modified og
         0x000000, // Black
         0xFFFFFF, // White
-        0x44D3F2, // Sky Blue
+        0xFFA07A, // Medium Orange-Pink (Alternate Text)
         0x96EB91, // Mint Green
     ],
     [ // Midnight Serenade
         0x050540, // Midnight Blue
-        0xe6e6a6, // Gold
-        0x8A2BE2, // Blue Violet
-        0x87CEEB, // Sky Blue
+        0xFFFFFF, // White
+        0xFF3311, // Red
+        0xf6f666, // Gold
     ],
     [ // Enchanted Forest
         0x112211, // Dark Green
@@ -53,18 +53,12 @@ pub const KITTY_SPRITESHEET_PALLETES: [[u32; 4]; 10] = [
         0x8A2BE2, // Blue Violet
         0x3CB371, // Medium Sea Green
     ],
-    [ // Alltime Variant
-        0xB6DCE6, // Light Blue (Background)
-        0xFFFFF2, // Very Light Yellow with a hint of Green (Ball/Overlay/Smoke)
-        0xFCE38A, // Light Yellow (Alternate Text)
-        0x8CD17D, // Medium Green (Paddles)
-        
-    ],
     [ // Spring Bloom Palette
-        0x5AC6AC, // Bright Blue-Green (Paddles)
+        0x00B5AD, // Bright Blue-Green (Ball/Overlay/Smoke)
         0xFFE5D5, // Light Orange (Background)
         0xFFA07A, // Medium Orange-Pink (Alternate Text)
-        0x00B5AD, // Bright Blue-Green (Ball/Overlay/Smoke)
+        0x55FF22, // Bright Blue-Green (Paddles)
+        
     ],
 
 ];
