@@ -4,23 +4,23 @@
 // KITTY_SPRITESHEET
 
 pub const KITTY_SPRITESHEET_PALLETES: [[u32; 4]; 10] = [
-    [ // 0: default
+    [ // RGB
         0x000000, // Black
-        0xffffff, // White
-        0xff67d3, // Bright Pink
-        0x99e550, // Light Green
+        0xFFFFFF, // White
+        0xFF0000, // R
+        0x00FF00, // G
     ],
     [ // Pinky
         0x4B0082, // Indigo
         0xFF69B4, // Hot Pink
-        0x90EE90, // Light Green
         0xFFA500, // Orange
+        0x90EE90, // Light Green   
     ],
     [ // Greeny
         0x2F4F4F, // Dark Slate Gray
         0xFF6347, // Tomato
-        0x8A2BE2, // Blue Violet
         0xFFD700, // Yellow
+        0x8A2BE2, // Blue Violet
     ],
     [ // brown?
         0x8B4513, // Saddle Brown
@@ -56,16 +56,17 @@ pub const KITTY_SPRITESHEET_PALLETES: [[u32; 4]; 10] = [
     [ // Alltime Variant
         0xB6DCE6, // Light Blue (Background)
         0xFFFFF2, // Very Light Yellow with a hint of Green (Ball/Overlay/Smoke)
-        0x8CD17D, // Medium Green (Paddles)
         0xFCE38A, // Light Yellow (Alternate Text)
+        0x8CD17D, // Medium Green (Paddles)
+        
     ],
     [ // Spring Bloom Palette
         0x5AC6AC, // Bright Blue-Green (Paddles)
         0xFFE5D5, // Light Orange (Background)
         0xFFA07A, // Medium Orange-Pink (Alternate Text)
-        
         0x00B5AD, // Bright Blue-Green (Ball/Overlay/Smoke)
     ],
+
 ];
 
 
