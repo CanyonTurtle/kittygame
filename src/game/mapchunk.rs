@@ -48,12 +48,56 @@ impl MapChunk {
     pub fn set_tile(self: &mut Self, x: usize, y: usize, val: u8) {
         let clamped_coords = self.clamp_coords(x, y);
 
-        self.tiles[clamped_coords.1 * self.bound.width as usize + clamped_coords.0] = val;
+        
+
+        let logical_idx = clamped_coords.1 * self.bound.width as usize + clamped_coords.0;
+        let actual_idx = logical_idx / 2;
+        // crate::trace(format!["l: {}", logical_idx]);
+        // crate::trace(format!["a: {}", actual_idx]);
+        // crate::trace(format!["len: {}", self.tiles.len()]);
+        // even tiles will be in the lower 4 bits
+        // odd tiles will be the upper 4 bits
+        let mut prior;
+        {
+            prior = self.tiles[actual_idx];
+        }
+        
+
+        if logical_idx % 2 == 0 { 
+            prior &= 0xf0; 
+            prior |= val & 0x0f;
+            self.tiles[actual_idx] = prior;
+            // crate::trace("e1");
+        }
+        else {
+            prior &= 0x0f;
+            prior |= (((val as u32) << 4) & 0xf0) as u8;
+            self.tiles[actual_idx] = prior;
+            // crate::trace("e2");
+        }
+        // crate::trace("set tile inside");
     }
 
     pub fn get_tile(self: &Self, x: usize, y: usize) -> u8 {
         let clamped_coords = self.clamp_coords(x, y);
-        self.tiles[clamped_coords.1 * self.bound.width as usize + clamped_coords.0]
+
+        let logical_idx = clamped_coords.1 * self.bound.width as usize + clamped_coords.0;
+        let actual_idx: usize = logical_idx / 2;
+
+        // even tiles will be in the lower 4 bits
+        // odd tiles will be the upper 4 bits
+        let current;
+        {
+            current = self.tiles[actual_idx];
+        }
+        
+        if logical_idx % 2 == 0 {
+            current & 0x0f
+        }
+        else {
+            // 0// (current << 4) & 0xf0
+            (((current as u32) >> 4) & 0x0f) as u8
+        }
     }
 
     pub fn is_tile_idx_inside_tile_aligned_bound(self: &Self, x: i32, y: i32) -> bool {
@@ -81,13 +125,11 @@ impl MapChunk {
 
     pub fn initialize(self: &mut Self) -> bool {
         self.tiles.clear();
-        match self.tiles.try_reserve_exact(self.bound.width * self.bound.height) {
+        let n_bytes_for_chunk_storage = (self.bound.width * self.bound.height) / 2 + 2;
+        match self.tiles.try_reserve_exact(n_bytes_for_chunk_storage) {
             Ok(_) => {
-                for y in 0..self.bound.height {
-                    for x in 0..self.bound.width {
-                        self.tiles.push(0);
-                        self.set_tile(x, y, 0);
-                    }
+                for _ in 0..n_bytes_for_chunk_storage {
+                    self.tiles.push(0);
                 }
                 return true;
             }
