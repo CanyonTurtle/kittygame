@@ -2,7 +2,7 @@
 
 use crate::spritesheet;
 
-use super::{mapchunk::{TileAlignedBoundingBox, MapChunk}, game_constants::{GODMODE, TILE_WIDTH_PX, TILE_HEIGHT_PX, X_LEFT_BOUND, X_RIGHT_BOUND, Y_LOWER_BOUND, Y_UPPER_BOUND}, game_map::GameMap, entities::{MovingEntity, Character, OptionallyEnabledPlayer, KittyStates}, game_state::GameState};
+use super::{mapchunk::{TileAlignedBoundingBox, MapChunk}, game_constants::{TILE_WIDTH_PX, TILE_HEIGHT_PX, X_LEFT_BOUND, X_RIGHT_BOUND, Y_LOWER_BOUND, Y_UPPER_BOUND}, game_map::GameMap, entities::{MovingEntity, Character, OptionallyEnabledPlayer, KittyStates}, game_state::GameState};
 
 use crate::wasm4::*;
 
@@ -251,7 +251,7 @@ pub fn raycast_axis_aligned(horizontal: bool, positive: bool, abs_start_pt: (i32
     collision_result
 }
 
-pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
+pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode: bool) {
     
     let character: &mut Character;
 
@@ -355,7 +355,7 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
         
     }
 
-    if GODMODE {
+    if godmode {
         character.state = KittyStates::JumpingUp(0);
         handle_jumping(character, input);
     }
@@ -512,7 +512,7 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8) {
 
 
 
-    if !GODMODE {
+    if !godmode {
             // trace("will check--------------------");
         // look at each chunk, and see if the player is inside it
         character.current_sprite_i = get_sprite_i_from_anim_state(&character.state, discretized_y_displacement_this_frame);

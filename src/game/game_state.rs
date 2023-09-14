@@ -15,6 +15,8 @@ pub struct GameState<'a> {
     pub rng: RefCell<Rng>,
     pub game_mode: GameMode,
     pub timer: u32,
+    pub godmode: bool,
+    pub pallette_idx: usize,
 }
 
 
@@ -72,12 +74,14 @@ impl GameState<'static> {
             }),
             rng: RefCell::new(rng),
             game_mode: GameMode::StartScreen,
-            timer: 0
+            timer: 0,
+            godmode: false,
+            pallette_idx: 0,
         }
     }
 
     pub fn regenerate_map(self: &mut Self) {
-
+        self.godmode = false;
         let game_state: &mut GameState = self;
         game_state.timer = 0;
         let map = &mut game_state.map;

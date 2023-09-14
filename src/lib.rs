@@ -20,7 +20,7 @@ use num;
 mod game;
 use wasm4::*;
 
-use crate::game::{entities::OptionallyEnabledPlayer, collision::{get_bound_of_character, AbsoluteBoundingBox}};
+use crate::{game::{entities::OptionallyEnabledPlayer, collision::{get_bound_of_character, AbsoluteBoundingBox}, game_constants::OptionsState}, spritesheet::KITTY_SPRITESHEET_PALLETES};
 
 
 
@@ -122,7 +122,24 @@ fn drawcharacter(spritesheet: &[u8], spritesheet_stride: &usize, camera: &Camera
 
 static mut NPC_INPUTS: [u8; N_NPCS] = [0; N_NPCS];
 
+
+
 static mut PREVIOUS_GAMEPAD: [u8; 4] = [0, 0, 0, 0];
+
+fn get_inputs_this_frame() -> [[u8; 4]; 2] {
+    let gamepads: [u8; 4] = unsafe { [*GAMEPAD1, *GAMEPAD2, *GAMEPAD3, *GAMEPAD4] };
+    let mut btns_pressed_this_frame: [u8; 4] = [0; 4];
+
+    for i in 0..gamepads.len() {
+        let gamepad = gamepads[i];
+        let previous = unsafe {PREVIOUS_GAMEPAD[i]};
+        let pressed_this_frame = gamepad & (gamepad ^ previous);
+        btns_pressed_this_frame[i] = pressed_this_frame;
+        unsafe {PREVIOUS_GAMEPAD.copy_from_slice(&gamepads[..])};
+    }
+    [btns_pressed_this_frame, gamepads]
+}
+
 #[no_mangle]
 fn update() {
 
@@ -151,27 +168,18 @@ fn update() {
 
 
 
-    let gamepads: [u8; 4] = unsafe { [*GAMEPAD1, *GAMEPAD2, *GAMEPAD3, *GAMEPAD4] };
-    let mut btns_pressed_this_frame: [u8; 4] = [0; 4];
+    let [btns_pressed_this_frame, gamepads] = get_inputs_this_frame();
 
-
-    for i in 0..gamepads.len() {
-        let gamepad = gamepads[i];
-        let previous = unsafe {PREVIOUS_GAMEPAD[i]};
-        let pressed_this_frame = gamepad & (gamepad ^ previous);
-        btns_pressed_this_frame[i] = pressed_this_frame;
-        unsafe {PREVIOUS_GAMEPAD.copy_from_slice(&gamepads[..])};
-    }
     
 
     
     
-    match game_state.game_mode {
+    match &mut game_state.game_mode {
         GameMode::NormalPlay => {
             
             
             unsafe {
-                *PALETTE = spritesheet::KITTY_SPRITESHEET_PALLETE;
+                *PALETTE = spritesheet::KITTY_SPRITESHEET_PALLETES[game_state.pallette_idx];
             }
             unsafe { *DRAW_COLORS = spritesheet::KITTY_SPRITESHEET_DRAW_COLORS }
             
@@ -207,7 +215,7 @@ fn update() {
                 let mut optional_players = game_state.players.borrow_mut();
 
                 for (i, optional_player) in &mut optional_players.iter_mut().enumerate() {
-                    update_pos(&game_state.map, MovingEntity::OptionalPlayer(optional_player), gamepads[i]);
+                    update_pos(&game_state.map, MovingEntity::OptionalPlayer(optional_player), gamepads[i], game_state.godmode);
                     drawcharacter(&game_state.spritesheet, &game_state.spritesheet_stride, &game_state.camera.borrow(), MovingEntity::OptionalPlayer(optional_player));
                 } 
             }
@@ -302,7 +310,7 @@ fn update() {
             }
     
             for (i, npc) in game_state.npcs.borrow_mut().iter_mut().enumerate() {
-                update_pos(&game_state.map, MovingEntity::NPC(npc), inputs[i]);
+                update_pos(&game_state.map, MovingEntity::NPC(npc), inputs[i], game_state.godmode);
                 drawcharacter(&game_state.spritesheet, &game_state.spritesheet_stride, &game_state.camera.borrow(), MovingEntity::NPC(npc));
             }
 
@@ -310,7 +318,9 @@ fn update() {
             drawmap(&game_state);
             
             if btns_pressed_this_frame[0] & BUTTON_2 != 0 {
-                game_state.regenerate_map();
+                game_state.game_mode = GameMode::Options(OptionsState{ current_selection: 0 });
+                return;
+                // game_state.regenerate_map();
             }
             
             // blit_sub(
@@ -389,7 +399,7 @@ fn update() {
             text("Find the kitties!", 20, 20);
             text("Any key: start", 20, 40);
             unsafe {
-                *PALETTE = spritesheet::KITTY_SPRITESHEET_PALLETE;
+                *PALETTE = spritesheet::KITTY_SPRITESHEET_PALLETES[game_state.pallette_idx];
             }
             unsafe { *DRAW_COLORS = spritesheet::KITTY_SPRITESHEET_DRAW_COLORS }
             game_state.rng.borrow_mut().next();
@@ -398,6 +408,64 @@ fn update() {
                 // drop(game_state.map.chunks);
                 text("Spawning map...", 20, 50);
                 game_state.regenerate_map();
+            }
+        },
+        GameMode::Options(option_state) => {
+            const MENU_X: i32 = 55;
+            const MENU_TOP_Y: i32 = 50;
+            const MENU_SPACING: i32 = 15;
+            const N_OPTIONS: u8 = 4;
+            unsafe { *DRAW_COLORS = 0x0002 }
+            text("-- OPTIONS --", 25, 20);
+            text("back", MENU_X, MENU_TOP_Y + MENU_SPACING * 0);
+            text("pallette", MENU_X, MENU_TOP_Y + MENU_SPACING * 1);
+
+            for (i, c) in (0x0002..=0x0004).enumerate() {
+                unsafe { *DRAW_COLORS = c }
+                text("x", MENU_X + 70 + 8 * i as i32, MENU_TOP_Y + MENU_SPACING * 1)
+            }
+            unsafe { *DRAW_COLORS = 0x0002 }
+
+            text("fly", MENU_X, MENU_TOP_Y + MENU_SPACING * 2);
+            text("reset", MENU_X, MENU_TOP_Y + MENU_SPACING * 3);
+
+            let cursor_x = MENU_X -25;
+            let cursor_y: i32 = MENU_TOP_Y + MENU_SPACING * option_state.current_selection as i32;
+
+            text(">>", cursor_x, cursor_y);
+
+            if btns_pressed_this_frame[0] & BUTTON_DOWN != 0{
+                option_state.current_selection += 1;
+                option_state.current_selection %= N_OPTIONS;
+            }
+            else if btns_pressed_this_frame[0] & BUTTON_UP != 0{
+                option_state.current_selection -= 1;
+                option_state.current_selection %= N_OPTIONS;
+            } else if btns_pressed_this_frame[0] & (BUTTON_1 | BUTTON_2) != 0 {
+                match option_state.current_selection {
+                    0 => {
+                        game_state.game_mode = GameMode::NormalPlay
+                    },
+                    1 => {
+                        game_state.pallette_idx += 1;
+                        game_state.pallette_idx %= KITTY_SPRITESHEET_PALLETES.len();
+                        unsafe {
+                            *PALETTE = spritesheet::KITTY_SPRITESHEET_PALLETES[game_state.pallette_idx];
+                        }
+                        // unsafe { *DRAW_COLORS = spritesheet::KITTY_SPRITESHEET_DRAW_COLORS }
+                    },
+                    2 => {
+                        game_state.godmode = !game_state.godmode;
+                        game_state.game_mode = GameMode::NormalPlay;
+                    },
+                    3 => {
+                        game_state.regenerate_map();
+                        game_state.game_mode = GameMode::NormalPlay;
+                    }
+                    _ => {
+                        unreachable!()
+                    }
+                }
             }
         }
     }

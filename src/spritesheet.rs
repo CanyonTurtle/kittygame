@@ -2,15 +2,72 @@
 
 
 // KITTY_SPRITESHEET
-pub const KITTY_SPRITESHEET_PALLETE: [u32; 4] = [
-    // 0x222034,
-    // 0x000000,
-    // 0x202020,
-    0x000000,
-    0xffffff,
-    0xff67d3,
-    0x99e550,
+
+pub const KITTY_SPRITESHEET_PALLETES: [[u32; 4]; 10] = [
+    [ // 0: default
+        0x000000, // Black
+        0xffffff, // White
+        0xff67d3, // Bright Pink
+        0x99e550, // Light Green
+    ],
+    [ // Pinky
+        0x4B0082, // Indigo
+        0xFF69B4, // Hot Pink
+        0x90EE90, // Light Green
+        0xFFA500, // Orange
+    ],
+    [ // Greeny
+        0x2F4F4F, // Dark Slate Gray
+        0xFF6347, // Tomato
+        0x8A2BE2, // Blue Violet
+        0xFFD700, // Yellow
+    ],
+    [ // brown?
+        0x8B4513, // Saddle Brown
+        0x32CD32, // Lime Green
+        0xFF6347, // Tomato
+        0x228B22, // Forest Green
+    ],
+    [ // red and golden
+        0x440000, // Dark Red
+        0xFFF7D9, // Cream
+        0x23A7F2, // Blue
+        0x99E64E, // Light Green
+    ],
+
+    [ // modified og
+        0x000000, // Black
+        0xFFFFFF, // White
+        0x44D3F2, // Sky Blue
+        0x96EB91, // Mint Green
+    ],
+    [ // Midnight Serenade
+        0x050540, // Midnight Blue
+        0xe6e6a6, // Gold
+        0x8A2BE2, // Blue Violet
+        0x87CEEB, // Sky Blue
+    ],
+    [ // Enchanted Forest
+        0x112211, // Dark Green
+        0xFFd3e3, // pink
+        0x8A2BE2, // Blue Violet
+        0x3CB371, // Medium Sea Green
+    ],
+    [ // Alltime Variant
+        0xB6DCE6, // Light Blue (Background)
+        0xFFFFF2, // Very Light Yellow with a hint of Green (Ball/Overlay/Smoke)
+        0x8CD17D, // Medium Green (Paddles)
+        0xFCE38A, // Light Yellow (Alternate Text)
+    ],
+    [ // Spring Bloom Palette
+        0x5AC6AC, // Bright Blue-Green (Paddles)
+        0xFFE5D5, // Light Orange (Background)
+        0xFFA07A, // Medium Orange-Pink (Alternate Text)
+        
+        0x00B5AD, // Bright Blue-Green (Ball/Overlay/Smoke)
+    ],
 ];
+
 
 pub const KITTY_SPRITESHEET_DRAW_COLORS: u16 = 0x3420;
 

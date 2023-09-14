@@ -24,9 +24,12 @@ pub const X_RIGHT_BOUND: i32 = 5000;
 pub const Y_LOWER_BOUND: i32 = -5000;
 pub const Y_UPPER_BOUND: i32 = 5000;
 
-pub const GODMODE: bool = false;
+pub struct OptionsState {
+    pub current_selection: u8,
+}
 
 pub enum GameMode {
     StartScreen,
-    NormalPlay
+    NormalPlay,
+    Options(OptionsState),
 }
