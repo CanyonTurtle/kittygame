@@ -87,7 +87,7 @@ pub const SONGS: [Song; 8] = [
         time_signature: (2, 4),
     },
     Song { // c6 minor
-        name: "minor",
+        name: "ionos",
         scale: [523, 587, 622, 698, 784, 831, 932, 1047],
         f1_pitchchange_timer: 10,
         f2_pitchchange_timer: 13,
