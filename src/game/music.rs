@@ -11,7 +11,7 @@ pub struct Song {
     pub time_signature: (u8, u8),
 }
 
-pub const SONGS: [Song; 6] = [
+pub const SONGS: [Song; 8] = [
     Song { // happy cat
         name: "happy",
         scale: [294, 330, 370, 392, 440, 494, 554, 587],
@@ -74,6 +74,27 @@ pub const SONGS: [Song; 6] = [
         f1_note_duration: 18,
         f2_note_duration: 6,
         time_signature: (4, 2),
+    },
+    Song { // boop cat
+        name: "boop!",
+        scale: [247, 277, 294, 330, 370, 392, 440, 494],
+        // scale: [196, 220, 247, 262, 294, 330, 370, 392],
+        f1_pitchchange_timer: 7,
+        f2_pitchchange_timer: 16,
+        measure_length: 8,
+        f1_note_duration: 17,
+        f2_note_duration: 19,
+        time_signature: (2, 4),
+    },
+    Song { // c6 minor
+        name: "minor",
+        scale: [523, 587, 622, 698, 784, 831, 932, 1047],
+        f1_pitchchange_timer: 10,
+        f2_pitchchange_timer: 13,
+        measure_length: 11,
+        f1_note_duration: 10,
+        f2_note_duration: 16,
+        time_signature: (4, 3),
     }
 ];
 
