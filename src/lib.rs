@@ -173,15 +173,21 @@ fn update() {
     
 
     fn play_bgm(timer: u32) {
-        const g_minor_frequencies: [u32; 8] = [196, 220, 233, 261, 293, 311, 349, 392];
+        const D_MAJOR_FREQUENCIES: [u32; 8] = [293, 329, 369, 392, 440, 493, 554, 587];
 
-        let freq1: usize = (timer as usize >> 8) & 0x7;
-        let freq2: usize = (timer as usize >> 1) & 0x7;
-        if timer % 20 == 0 {
-            tone(g_minor_frequencies[freq1], 20, 20, TONE_PULSE1);
+        let freq1: usize = (timer as usize / 5) % D_MAJOR_FREQUENCIES.len();
+        let freq2: usize = (timer as usize / 3) % D_MAJOR_FREQUENCIES.len();
+
+
+        const TIMESIG_MULT: u32 = 12;
+
+        const TIME_SIGNATURE_NUMERATOR: u32 = 3*TIMESIG_MULT;
+        const TIME_SIGNATURE_DENOMINATOR: u32 = 4*TIMESIG_MULT;
+        if timer % TIME_SIGNATURE_NUMERATOR == 0 {
+            tone(D_MAJOR_FREQUENCIES[freq1], TIME_SIGNATURE_NUMERATOR, 20, TONE_PULSE1);
         }
-        if timer % 60 == 0 {
-            tone(g_minor_frequencies[freq2], 60, 20, TONE_PULSE2);
+        if timer % TIME_SIGNATURE_DENOMINATOR == 0 {
+            tone(D_MAJOR_FREQUENCIES[freq2], TIME_SIGNATURE_DENOMINATOR, 20, TONE_PULSE2);
         }
     }
     

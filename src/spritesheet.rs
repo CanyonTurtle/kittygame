@@ -3,7 +3,7 @@
 
 // KITTY_SPRITESHEET
 
-pub const KITTY_SPRITESHEET_PALLETES: [[u32; 4]; 7] = [
+pub const KITTY_SPRITESHEET_PALLETES: [[u32; 4]; 10] = [
     [ // RGB
         0x000000, // Black
         0xFFFFFF, // White
@@ -48,6 +48,25 @@ pub const KITTY_SPRITESHEET_PALLETES: [[u32; 4]; 7] = [
         0x55FF22, // Bright Blue-Green (Paddles)
         
     ],
+
+    [ // very cool: Black, Orange Red, Gold, Dark Turquoise
+        0x000000,
+        0xFF4500,
+        0xFFD700,
+        0x00CED1
+    ], 
+    [ // another cool purpley: Blue Violet, Tomato, Chartreuse, Royal Blue
+        0x8A2BE2,
+        0xFF6347,
+        0xFFD700,
+        0x32CD32
+    ], 
+    [ // interesting red: Maroon, Tomato, Lime Green, Blue Violet
+        0xFF6347,
+        0x800000,
+        0x8A2BE2,
+        0xffbbaa
+    ]  
 
 ];
 
