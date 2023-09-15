@@ -17,6 +17,7 @@ pub struct GameState<'a> {
     pub timer: u32,
     pub godmode: bool,
     pub pallette_idx: usize,
+    pub song_idx: usize,
 }
 
 
@@ -77,6 +78,7 @@ impl GameState<'static> {
             timer: 0,
             godmode: false,
             pallette_idx: 0,
+            song_idx: 0,
         }
     }
 

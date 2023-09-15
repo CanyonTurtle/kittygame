@@ -15,7 +15,7 @@ mod kitty_ss;
 mod wasm4;
 use std::borrow::BorrowMut;
 
-use game::{game_constants::{TILE_WIDTH_PX, TILE_HEIGHT_PX, X_LEFT_BOUND, X_RIGHT_BOUND, Y_LOWER_BOUND, Y_UPPER_BOUND, GameMode, N_NPCS}, game_state::GameState, entities::{MovingEntity, Character}, camera::Camera, collision::{update_pos, check_entity_collisions}};
+use game::{game_constants::{TILE_WIDTH_PX, TILE_HEIGHT_PX, X_LEFT_BOUND, X_RIGHT_BOUND, Y_LOWER_BOUND, Y_UPPER_BOUND, GameMode, N_NPCS}, game_state::GameState, entities::{MovingEntity, Character}, camera::Camera, collision::{update_pos, check_entity_collisions}, music::{play_bgm, SONGS}};
 use num;
 mod game;
 use wasm4::*;
@@ -170,87 +170,10 @@ fn update() {
 
     let [btns_pressed_this_frame, gamepads] = get_inputs_this_frame();
 
-    struct Song {
-        scale: [u16; 8],
-        f1_pitchchange_timer: u8,
-        f2_pitchchange_timer: u8,
-        measure_length: u8,
-        f1_note_duration: u8,
-        f2_note_duration: u8,
-        time_signature: (u8, u8),
-    }
 
-    let happy_cat = Song {
-        scale: [294, 330, 370, 392, 440, 494, 554, 587],
-        f1_pitchchange_timer: 5,
-        f2_pitchchange_timer: 3,
-        measure_length: 12,
-        f1_note_duration: 5,
-        f2_note_duration: 3,
-        time_signature: (3, 4),
-    };
-
-    let sneak_cat = Song {
-        scale: [196, 220, 247, 262, 294, 330, 370, 392],
-        f1_pitchchange_timer: 17,
-        f2_pitchchange_timer: 5,
-        measure_length: 30,
-        f1_note_duration: 10,
-        f2_note_duration: 20,
-        time_signature: (1, 3),
-    };
-
-    let mosh_cat = Song {
-        scale: [196, 220, 247, 262, 294, 330, 370, 392],
-        f1_pitchchange_timer: 1,
-        f2_pitchchange_timer: 2,
-        measure_length: 5,
-        f1_note_duration: 1,
-        f2_note_duration: 15,
-        time_signature: (2, 5),
-    };
-
-    let rando_cat = Song {
-        scale: [247, 277, 311, 330, 370, 415, 466, 494],
-        // scale: [196, 220, 247, 262, 294, 330, 370, 392],
-        f1_pitchchange_timer: 19,
-        f2_pitchchange_timer: 7,
-        measure_length: 4,
-        f1_note_duration: 1,
-        f2_note_duration: 26,
-        time_signature: (4, 4),
-    };
-
-    let explore_cat = Song {
-        scale: [196, 220, 247, 262, 294, 330, 370, 392],
-        // scale: [196, 220, 247, 262, 294, 330, 370, 392],
-        f1_pitchchange_timer: 7,
-        f2_pitchchange_timer: 11,
-        measure_length: 4,
-        f1_note_duration: 12,
-        f2_note_duration: 18,
-        time_signature: (12, 3),
-    };
-
-    fn play_bgm(timer: u32, song: &Song) {
-        
-
-        let freq1: usize = (timer as usize / song.f1_pitchchange_timer as usize) % song.scale.len();
-        let freq2: usize = (timer as usize / song.f2_pitchchange_timer as usize) % song.scale.len();
-
-
-        let time_signature_numerator: u32 = song.time_signature.0 as u32*song.measure_length as u32;
-        let time_signature_denominator: u32 = song.time_signature.1 as u32*song.measure_length as u32;
-        if timer % time_signature_numerator == 0 {
-            tone(song.scale[freq1] as u32, song.f1_note_duration as u32, 20, TONE_PULSE1);
-        }
-        if timer % time_signature_denominator == 0 && (freq2 as i32).abs_diff(freq1 as i32) > 1 {
-            tone(song.scale[freq2] as u32, song.f2_note_duration as u32, 20, TONE_PULSE2);
-        }
-    }
     
     game_state.timer += 1;
-    play_bgm(game_state.timer, &happy_cat);
+    play_bgm(game_state.timer, &SONGS[game_state.song_idx]);
 
     match &mut game_state.game_mode {
         GameMode::NormalPlay => {
@@ -494,7 +417,7 @@ fn update() {
             const MENU_X: i32 = 55;
             const MENU_TOP_Y: i32 = 50;
             const MENU_SPACING: i32 = 15;
-            const N_OPTIONS: u8 = 4;
+            const N_OPTIONS: u8 = 5;
             unsafe { *DRAW_COLORS = 0x0002 }
             text("-- OPTIONS --", 25, 20);
             text("back", MENU_X, MENU_TOP_Y + MENU_SPACING * 0);
@@ -508,6 +431,7 @@ fn update() {
 
             text("fly", MENU_X, MENU_TOP_Y + MENU_SPACING * 2);
             text("reset", MENU_X, MENU_TOP_Y + MENU_SPACING * 3);
+            text(SONGS[game_state.song_idx].name, MENU_X, MENU_TOP_Y + MENU_SPACING * 4);
 
             let cursor_x = MENU_X -25;
             let cursor_y: i32 = MENU_TOP_Y + MENU_SPACING * option_state.current_selection as i32;
@@ -541,6 +465,10 @@ fn update() {
                     3 => {
                         game_state.regenerate_map();
                         game_state.game_mode = GameMode::NormalPlay;
+                    },
+                    4 => {
+                        game_state.song_idx += 1;
+                        game_state.song_idx %= SONGS.len();
                     }
                     _ => {
                         unreachable!()

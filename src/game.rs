@@ -6,3 +6,4 @@ pub mod entities;
 pub mod camera;
 pub mod rng;
 pub mod collision;
+pub mod music;
