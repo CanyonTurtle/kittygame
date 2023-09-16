@@ -12,6 +12,16 @@ pub struct Song {
 }
 
 pub const SONGS: [Song; 8] = [
+    Song { // it works but how
+        name: "ptdyl",
+        scale: [330, 370, 415, 440, 494, 554, 622, 659],
+        f1_pitchchange_timer: 3,
+        f2_pitchchange_timer: 8,
+        measure_length: 19,
+        f1_note_duration: 6,
+        f2_note_duration: 44,
+        time_signature: (2, 4),
+    },
     Song { // happy cat
         name: "happy",
         scale: [294, 330, 370, 392, 440, 494, 554, 587],
@@ -32,18 +42,8 @@ pub const SONGS: [Song; 8] = [
         f2_note_duration: 20,
         time_signature: (1, 3),
     },
-    Song { // mosh cat
-        name: "mosh ",
-        scale: [196, 220, 247, 262, 294, 330, 370, 392],
-        f1_pitchchange_timer: 1,
-        f2_pitchchange_timer: 2,
-        measure_length: 5,
-        f1_note_duration: 1,
-        f2_note_duration: 15,
-        time_signature: (2, 5),
-    },
     Song { // rando_cat
-        name: "rando",
+        name: "boop!",
         scale: [247, 277, 311, 330, 370, 415, 466, 494],
         // scale: [196, 220, 247, 262, 294, 330, 370, 392],
         f1_pitchchange_timer: 19,
@@ -64,28 +64,6 @@ pub const SONGS: [Song; 8] = [
         f2_note_duration: 18,
         time_signature: (12, 3),
     },
-    Song { // eflat cat
-        name: "eflat",
-        scale: [156, 175, 196, 208, 233, 262, 294, 311],
-        // scale: [196, 220, 247, 262, 294, 330, 370, 392],
-        f1_pitchchange_timer: 36,
-        f2_pitchchange_timer: 5,
-        measure_length: 14,
-        f1_note_duration: 18,
-        f2_note_duration: 6,
-        time_signature: (4, 2),
-    },
-    Song { // boop cat
-        name: "boop!",
-        scale: [247, 277, 294, 330, 370, 392, 440, 494],
-        // scale: [196, 220, 247, 262, 294, 330, 370, 392],
-        f1_pitchchange_timer: 7,
-        f2_pitchchange_timer: 16,
-        measure_length: 8,
-        f1_note_duration: 17,
-        f2_note_duration: 19,
-        time_signature: (2, 4),
-    },
     Song { // c6 minor
         name: "ionos",
         scale: [523, 587, 622, 698, 784, 831, 932, 1047],
@@ -95,7 +73,28 @@ pub const SONGS: [Song; 8] = [
         f1_note_duration: 10,
         f2_note_duration: 16,
         time_signature: (4, 3),
-    }
+    },
+    Song { // a flat
+        name: "crpkt",
+        scale: [415, 466, 523, 554, 622, 698, 784, 831],
+        f1_pitchchange_timer: 11,
+        f2_pitchchange_timer: 17,
+        measure_length: 24,
+        f1_note_duration: 16,
+        f2_note_duration: 24,
+        time_signature: (1, 3),
+    },
+    Song { // g sharp
+        name: "blopy",
+        scale: [415, 466, 523, 554, 622, 698, 784, 831],
+        f1_pitchchange_timer: 2,
+        f2_pitchchange_timer: 7,
+        measure_length: 3,
+        f1_note_duration: 5,
+        f2_note_duration: 7,
+        time_signature: (4, 6),
+    },
+
 ];
 
 
