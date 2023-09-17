@@ -11,7 +11,7 @@ pub struct Song {
     pub time_signature: (u8, u8),
 }
 
-pub const SONGS: [Song; 8] = [
+pub const SONGS: [Song; 9] = [
     Song { // it works but how
         name: "ptdyl",
         scale: [330, 370, 415, 440, 494, 554, 622, 659],
@@ -94,7 +94,16 @@ pub const SONGS: [Song; 8] = [
         f2_note_duration: 7,
         time_signature: (4, 6),
     },
-
+    Song { // f
+        name: "Yumbo",
+        scale: [175, 196, 220, 233, 262, 293, 330, 349],
+        f1_pitchchange_timer: 5,
+        f2_pitchchange_timer: 7,
+        measure_length: 3,
+        f1_note_duration: 4,
+        f2_note_duration: 17,
+        time_signature: (4, 16),
+    },
 ];
 
 
