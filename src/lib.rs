@@ -15,10 +15,11 @@ mod kitty_ss;
 mod wasm4;
 use std::borrow::BorrowMut;
 
-use game::{game_constants::{TILE_WIDTH_PX, TILE_HEIGHT_PX, X_LEFT_BOUND, X_RIGHT_BOUND, Y_LOWER_BOUND, Y_UPPER_BOUND, GameMode, MAX_N_NPCS}, game_state::GameState, entities::{MovingEntity, Character}, camera::Camera, collision::{update_pos, check_entity_collisions}, music::{play_bgm, SONGS}};
+use game::{game_constants::{TILE_WIDTH_PX, TILE_HEIGHT_PX, X_LEFT_BOUND, X_RIGHT_BOUND, Y_LOWER_BOUND, Y_UPPER_BOUND, GameMode, MAX_N_NPCS, NormalPlayModes, Modal}, game_state::GameState, entities::{MovingEntity, Character}, camera::Camera, collision::{update_pos, check_entity_collisions}, music::{play_bgm, SONGS}};
 use num;
 mod game;
 use wasm4::*;
+use core::cell::RefCell;
 
 use crate::{game::{entities::OptionallyEnabledPlayer, collision::{get_bound_of_character, AbsoluteBoundingBox}, game_constants::OptionsState}, spritesheet::KITTY_SPRITESHEET_PALLETES};
 
@@ -83,7 +84,7 @@ fn drawmap(game_state: &GameState) {
 
 
 
-static mut GAME_STATE_HOLDER: Option<GameState<'static>> = None;
+static mut GAME_STATE_HOLDER: Option<GameState<'static, 'static>> = None;
 
 
 fn drawcharacter(spritesheet: &[u8], spritesheet_stride: &usize, camera: &Camera, character: MovingEntity) {
@@ -146,6 +147,7 @@ fn update() {
 
     let game_state: &mut GameState;
 
+    // -------- INITIALIZE GAME STATE IF NEEDED ----------
     unsafe {
         match &mut GAME_STATE_HOLDER {
             None => {
@@ -166,19 +168,30 @@ fn update() {
         }
     }
     
-
-
-
-    let [btns_pressed_this_frame, gamepads] = get_inputs_this_frame();
-
-
-    
+    // ----------- UPDATE TIMER AND PLAY BGM -----------
     game_state.timer += 1;
     play_bgm(game_state.timer, &SONGS[game_state.song_idx]);
 
-    match &mut game_state.game_mode {
-        GameMode::NormalPlay => {
-            
+    // ------------- POLL INPUT ---------------
+
+    let [btns_pressed_this_frame, gamepads] = get_inputs_this_frame();
+
+    
+
+    
+    match &game_state.game_mode {
+        GameMode::NormalPlay(play_mode) => {
+
+            let mut showing_modal = false;
+
+            match play_mode {
+                NormalPlayModes::MainGameplay => {
+                    // handle player inputs here
+                },
+                game::game_constants::NormalPlayModes::HoverModal(_) => {
+                    showing_modal = true;
+                },
+            }
             
             unsafe {
                 *PALETTE = spritesheet::KITTY_SPRITESHEET_PALLETES[game_state.pallette_idx];
@@ -217,7 +230,11 @@ fn update() {
                 let mut optional_players = game_state.players.borrow_mut();
 
                 for (i, optional_player) in &mut optional_players.iter_mut().enumerate() {
-                    update_pos(&game_state.map, MovingEntity::OptionalPlayer(optional_player), gamepads[i], game_state.godmode);
+                    let input = match showing_modal {
+                        false => gamepads[i],
+                        true => 0,
+                    };
+                    update_pos(&game_state.map, MovingEntity::OptionalPlayer(optional_player), input, game_state.godmode);
                     drawcharacter(&game_state.spritesheet, &game_state.spritesheet_stride, &game_state.camera.borrow(), MovingEntity::OptionalPlayer(optional_player));
                 } 
             }
@@ -349,7 +366,7 @@ fn update() {
             
             drawmap(&game_state);
             
-            if btns_pressed_this_frame[0] & BUTTON_2 != 0 {
+            if !showing_modal && btns_pressed_this_frame[0] & BUTTON_2 != 0 {
                 game_state.game_mode = GameMode::Options(OptionsState{ current_selection: 0 });
                 return;
                 // game_state.regenerate_map();
@@ -396,6 +413,7 @@ fn update() {
             }
             layertext("< >=move,x=jmp,z=opt", 0, TOP_UI_TEXT_Y);
             //layertext("z=reset", 104, 8);
+            layertext(&format!["Lv. {}", game_state.difficulty_level], 0, 152);
             
             let mut current_found_npcs = 0;
             for npc in game_state.npcs.borrow().iter() {
@@ -404,12 +422,65 @@ fn update() {
                     Some(_) => 1
                 }
             }
-            
+
+            if showing_modal {
+                match play_mode {
+                    NormalPlayModes::MainGameplay => {unreachable!()},
+                    NormalPlayModes::HoverModal(m) => {
+                        const MIN_MODAL_TIME: u32 = 20;
+                        let options_ready_to_select;
+                        text(m.message, 30, 30);
+                        {
+                            let timer: &mut u32 = &mut m.timer.borrow_mut();
+                            *timer += 1;
+                            options_ready_to_select = *timer > MIN_MODAL_TIME;
+                        }
+
+                        if options_ready_to_select {
+                            let mut option_selected:u8 = 10;
+                            {
+                                let option: &mut u8 = &mut m.current_selection.borrow_mut();
+
+                                if btns_pressed_this_frame[0] & BUTTON_DOWN != 0{
+                                    *option += 1;
+                                    *option %= m.options.len() as u8;
+                                }
+                                else if btns_pressed_this_frame[0] & BUTTON_UP != 0{
+                                    *option -= 1;
+                                    *option %= m.options.len() as u8;
+                                } else if btns_pressed_this_frame[0] & (BUTTON_1 | BUTTON_2) != 0 {
+                                    option_selected = *option;
+                                }
+                            }
+                            match option_selected {
+                                0 => {
+                                    game_state.difficulty_level += 1;
+                                    game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::MainGameplay);
+                                    game_state.regenerate_map();
+                                    
+                                },
+                                10 => {}
+                                _ => {
+                                    unreachable!()
+                                }
+                            }
+                        }
+                        
+                    },
+                }
+            } else {
+                // ------- LEVEL WIN CONDITION -----------
+                if game_state.total_npcs_to_find == current_found_npcs {
+                    game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::HoverModal(Modal { message: &"Found!!", options: vec![&"yay!"], timer: RefCell::new(0), current_selection: RefCell::new(0) }));
+                    game_state.song_idx = 1;
+                } 
+            }  
 
             // keep going till the timer hits
             if game_state.total_npcs_to_find == current_found_npcs {
                 layertext("You found them!! :D", 0, BOTTOM_UI_TEXT_Y);
                 // game_state.difficulty_level += 1;
+                
             } else {
                 // layertext("find the kitties...", 0, BOTTOM_UI_TEXT_Y);
                 layertext(&format!["find kitties {}/{}", current_found_npcs, game_state.total_npcs_to_find], 0, BOTTOM_UI_TEXT_Y);
@@ -425,6 +496,9 @@ fn update() {
 
             line(0, BOTTOM_UI_TEXT_Y + 8 + 1, 160, BOTTOM_UI_TEXT_Y + 8 + 1);
             // line(0, BOTTOM_UI_TEXT_Y - 2, 160, BOTTOM_UI_TEXT_Y - 2);
+
+
+
         },
         GameMode::StartScreen => {
             unsafe { *DRAW_COLORS = 0x1112 }
@@ -436,7 +510,7 @@ fn update() {
             unsafe { *DRAW_COLORS = spritesheet::KITTY_SPRITESHEET_DRAW_COLORS }
             game_state.rng.borrow_mut().next();
             if gamepads[0] != 0 {
-                game_state.game_mode = GameMode::NormalPlay;
+                game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::MainGameplay);
                 // drop(game_state.map.chunks);
                 game_state.regenerate_map();
             }
@@ -471,16 +545,18 @@ fn update() {
             text(">>", cursor_x, cursor_y);
 
             if btns_pressed_this_frame[0] & BUTTON_DOWN != 0{
-                option_state.current_selection += 1;
-                option_state.current_selection %= N_OPTIONS;
+                let mut new_cur_select = option_state.current_selection + 1;
+                new_cur_select %= N_OPTIONS;
+                game_state.game_mode = GameMode::Options(OptionsState { current_selection: new_cur_select });
             }
             else if btns_pressed_this_frame[0] & BUTTON_UP != 0{
-                option_state.current_selection -= 1;
-                option_state.current_selection %= N_OPTIONS;
+                let mut new_cur_select = option_state.current_selection - 1;
+                new_cur_select %= N_OPTIONS;
+                game_state.game_mode = GameMode::Options(OptionsState { current_selection: new_cur_select });
             } else if btns_pressed_this_frame[0] & (BUTTON_1 | BUTTON_2) != 0 {
                 match option_state.current_selection {
                     0 => {
-                        game_state.game_mode = GameMode::NormalPlay
+                        game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::MainGameplay)
                     },
                     1 => {
                         game_state.pallette_idx += 1;
@@ -492,11 +568,11 @@ fn update() {
                     },
                     2 => {
                         game_state.godmode = !game_state.godmode;
-                        game_state.game_mode = GameMode::NormalPlay;
+                        game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::MainGameplay);
                     },
                     3 => {
                         game_state.regenerate_map();
-                        game_state.game_mode = GameMode::NormalPlay;
+                        game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::MainGameplay);
                     },
                     4 => {
                         game_state.song_idx += 1;
