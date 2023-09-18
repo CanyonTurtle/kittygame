@@ -2,14 +2,14 @@ use core::cell::RefCell;
 
 use crate::spritesheet;
 use crate::kitty_ss;
-use super::{entities::{OptionallyEnabledPlayer, Character}, game_map::GameMap, camera::Camera, rng::Rng, game_constants::{GameMode, N_NPCS, MAP_CHUNK_MIN_SIDE_LEN, MAP_CHUNK_MAX_SIDE_LEN, MAP_CHUNK_MAX_N_TILES, TILE_WIDTH_PX, TILE_HEIGHT_PX}, mapchunk::{MapChunk, TileAlignedBoundingBox}};
+use super::{entities::{OptionallyEnabledPlayer, Character}, game_map::GameMap, camera::Camera, rng::Rng, game_constants::{GameMode, MAX_N_NPCS, MAP_CHUNK_MIN_SIDE_LEN, MAP_CHUNK_MAX_SIDE_LEN, MAP_CHUNK_MAX_N_TILES, TILE_WIDTH_PX, TILE_HEIGHT_PX}, mapchunk::{MapChunk, TileAlignedBoundingBox}};
 
 pub struct GameState<'a> {
     pub players: RefCell<[OptionallyEnabledPlayer; 4]>,
     pub npcs: RefCell<Vec<Character>>,
     pub spritesheet: &'a [u8],
     pub spritesheet_stride: usize,
-    pub background_tiles: Vec<spritesheet::Sprite>,
+    pub background_tiles: Vec<&'static spritesheet::Sprite>,
     pub map: GameMap,
     pub camera: RefCell<Camera>,
     pub rng: RefCell<Rng>,
@@ -18,6 +18,8 @@ pub struct GameState<'a> {
     pub godmode: bool,
     pub pallette_idx: usize,
     pub song_idx: usize,
+    pub difficulty_level: u32,
+    pub total_npcs_to_find: u32,
 }
 
 
@@ -32,22 +34,25 @@ impl GameState<'static> {
         ];
 
         let rng = Rng::new();
+
+        // (0..N_NPCS).map(|mut x| {
+        //     x %= 7;
+        //     let preset = match x {
+        //         0 => spritesheet::PresetSprites::Kitty1,
+        //         1 => spritesheet::PresetSprites::Kitty2,
+        //         2 => spritesheet::PresetSprites::Kitty3,
+        //         3 => spritesheet::PresetSprites::Kitty4,
+        //         4 => spritesheet::PresetSprites::Lizard,
+        //         5 => spritesheet::PresetSprites::Pig,
+        //         6 => spritesheet::PresetSprites::BirdIsntReal,
+        //         _ => spritesheet::PresetSprites::Pig
+        //     };
+        //     Character::new(preset)
+        // }).collect::<Vec<Character>>()
+
         GameState {
             players: RefCell::new(characters),
-            npcs: RefCell::new((0..N_NPCS).map(|mut x| {
-                x %= 7;
-                let preset = match x {
-                    0 => spritesheet::PresetSprites::Kitty1,
-                    1 => spritesheet::PresetSprites::Kitty2,
-                    2 => spritesheet::PresetSprites::Kitty3,
-                    3 => spritesheet::PresetSprites::Kitty4,
-                    4 => spritesheet::PresetSprites::Lizard,
-                    5 => spritesheet::PresetSprites::Pig,
-                    6 => spritesheet::PresetSprites::BirdIsntReal,
-                    _ => spritesheet::PresetSprites::Pig
-                };
-                Character::new(preset)
-            }).collect::<Vec<Character>>()),
+            npcs: RefCell::new(Vec::new()),
 
             spritesheet: kitty_ss::KITTY_SPRITESHEET,
             spritesheet_stride: spritesheet::KITTY_SPRITESHEET_STRIDE as usize,
@@ -79,6 +84,8 @@ impl GameState<'static> {
             godmode: false,
             pallette_idx: 0,
             song_idx: 0,
+            difficulty_level: 1,
+            total_npcs_to_find: 3,
         }
     }
 
@@ -89,7 +96,7 @@ impl GameState<'static> {
         let map = &mut game_state.map;
         map.num_tiles = 0;
         map.chunks.clear();
-        let rng = &mut game_state.rng;
+        let rng = &mut game_state.rng.borrow_mut();
     
         for optional_player in game_state.players.borrow_mut().iter_mut() {
             match optional_player {
@@ -104,6 +111,27 @@ impl GameState<'static> {
         }
     
         let npcs = &mut game_state.npcs.borrow_mut();
+
+        npcs.clear();
+
+        game_state.total_npcs_to_find = (3 + (game_state.difficulty_level / 3)).min(MAX_N_NPCS as u32);
+
+        // generate the NPCs before making the chunks.
+        for _ in 0..game_state.total_npcs_to_find {
+            let x = rng.next() % 1000;
+            let preset = match x {
+                0..=200 => spritesheet::PresetSprites::Kitty1,
+                201..=400 => spritesheet::PresetSprites::Kitty2,
+                401..=600 => spritesheet::PresetSprites::Kitty3,
+                601..=800 => spritesheet::PresetSprites::Kitty4,
+                801..=850 => spritesheet::PresetSprites::Lizard,
+                851..=900 => spritesheet::PresetSprites::Pig,
+                901..=950 => spritesheet::PresetSprites::BirdIsntReal,
+                951..=1000 => spritesheet::PresetSprites::Kitty1,
+                _ => unreachable!()
+            };
+            npcs.push(Character::new(preset));
+        }
     
         let mut current_chunk_locations: Vec<TileAlignedBoundingBox> = Vec::new();
         
@@ -117,22 +145,27 @@ impl GameState<'static> {
             }
         }
         // place the chunks randomly.
+        let mut chunk_count = 0;
+        let max_n_chunks = 8 + game_state.difficulty_level * 4;
         'generate_chunks: loop {
+            if chunk_count >= max_n_chunks {
+                break 'generate_chunks;
+            }
             // attempt to place a new chunk
             // if in viable location, place this chunk
-            loop {
+            'generate_one_chunk: loop {
                 // trace("placing chunk");
                 // choose a new viable chunk size
     
                 let mut chunk_wid: usize;
                 let mut chunk_hei: usize;
-                loop {
-                    chunk_wid = MAP_CHUNK_MIN_SIDE_LEN + (rng.borrow_mut().next() as usize % (MAP_CHUNK_MAX_SIDE_LEN - MAP_CHUNK_MIN_SIDE_LEN));
-                    chunk_hei = MAP_CHUNK_MIN_SIDE_LEN + (rng.borrow_mut().next() as usize % (MAP_CHUNK_MAX_SIDE_LEN - MAP_CHUNK_MIN_SIDE_LEN));
+                'find_place_for_chunk: loop {
+                    chunk_wid = MAP_CHUNK_MIN_SIDE_LEN + (rng.next() as usize % (MAP_CHUNK_MAX_SIDE_LEN - MAP_CHUNK_MIN_SIDE_LEN));
+                    chunk_hei = MAP_CHUNK_MIN_SIDE_LEN + (rng.next() as usize % (MAP_CHUNK_MAX_SIDE_LEN - MAP_CHUNK_MIN_SIDE_LEN));
                     // trace(format!("{chunk_wid} {chunk_hei}"));
                     if chunk_hei * chunk_wid <= MAP_CHUNK_MAX_N_TILES {
                         if map.try_fit_chunk_into(chunk_wid, chunk_hei) {
-                            break
+                            break 'find_place_for_chunk
                         } else {
                             // n_retries += 1;
                             // if n_retries > 1000 {
@@ -142,8 +175,7 @@ impl GameState<'static> {
                         }
                     }
                 }
-    
-                let rng = &mut rng.borrow_mut();
+;
     
                 let r_offs_1: i32 = rng.next() as i32 % MAP_CHUNK_MIN_SIDE_LEN as i32 - (MAP_CHUNK_MIN_SIDE_LEN as f32 / 2.0) as i32;
     
@@ -233,7 +265,8 @@ impl GameState<'static> {
                     match current_chunk_locations.try_reserve(1) {
                         Ok(_) => {
                             current_chunk_locations.push(new_chunk_location);
-                            break;
+                            chunk_count += 1;
+                            break 'generate_one_chunk;
                         },
                         Err(_) => {
                             break 'generate_chunks;
@@ -279,13 +312,13 @@ impl GameState<'static> {
                 corrupt
             }
     
-            let rng_ref = &mut rng.borrow_mut();
+
             
             // left and right walls
             for row in 1..chunk.bound.height-1 as usize {
-                let corrupt_material: u8 = CORRUPT_MATERIALS[rng_ref.next() as usize % CORRUPT_MATERIALS.len()];
-                let left_material = get_material(3, corrupt_material, CORRUPT_CHANCE, rng_ref);
-                let right_material = get_material(2, corrupt_material, CORRUPT_CHANCE, rng_ref);
+                let corrupt_material: u8 = CORRUPT_MATERIALS[rng.next() as usize % CORRUPT_MATERIALS.len()];
+                let left_material = get_material(3, corrupt_material, CORRUPT_CHANCE, rng);
+                let right_material = get_material(2, corrupt_material, CORRUPT_CHANCE, rng);
 
                 chunk.set_tile(0, row, left_material);
                 chunk.set_tile(chunk.bound.width as usize - 1, row, right_material);
@@ -293,9 +326,9 @@ impl GameState<'static> {
 
             // top and bottom walls
             for col in 1..chunk.bound.width-1 as usize {
-                let corrupt_material: u8 = CORRUPT_MATERIALS[rng_ref.next() as usize % CORRUPT_MATERIALS.len()];
-                let top_material = get_material(4, corrupt_material, CORRUPT_CHANCE, rng_ref);
-                let bottom_material = get_material(1, corrupt_material, CORRUPT_CHANCE, rng_ref);
+                let corrupt_material: u8 = CORRUPT_MATERIALS[rng.next() as usize % CORRUPT_MATERIALS.len()];
+                let top_material = get_material(4, corrupt_material, CORRUPT_CHANCE, rng);
+                let bottom_material = get_material(1, corrupt_material, CORRUPT_CHANCE, rng);
                 chunk.set_tile(col, 0, top_material);
                 chunk.set_tile(col, chunk.bound.height as usize - 1, bottom_material);
             }
@@ -461,7 +494,7 @@ impl GameState<'static> {
 
         // spawn an npc here if needed
         for i in 0.. npcs.len() {
-            let rand_chunk_i = rng.borrow_mut().next() as usize % map.chunks.len();
+            let rand_chunk_i = rng.next() as usize % map.chunks.len();
             let chunk: &MapChunk = &map.chunks[rand_chunk_i];
             npcs[i].x_pos = chunk.bound.x as f32 * TILE_WIDTH_PX as f32 + 10.0;
             npcs[i].y_pos = chunk.bound.y as f32 * TILE_HEIGHT_PX as f32 + 10.0;

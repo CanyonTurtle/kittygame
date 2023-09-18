@@ -15,7 +15,7 @@ mod kitty_ss;
 mod wasm4;
 use std::borrow::BorrowMut;
 
-use game::{game_constants::{TILE_WIDTH_PX, TILE_HEIGHT_PX, X_LEFT_BOUND, X_RIGHT_BOUND, Y_LOWER_BOUND, Y_UPPER_BOUND, GameMode, N_NPCS}, game_state::GameState, entities::{MovingEntity, Character}, camera::Camera, collision::{update_pos, check_entity_collisions}, music::{play_bgm, SONGS}};
+use game::{game_constants::{TILE_WIDTH_PX, TILE_HEIGHT_PX, X_LEFT_BOUND, X_RIGHT_BOUND, Y_LOWER_BOUND, Y_UPPER_BOUND, GameMode, MAX_N_NPCS}, game_state::GameState, entities::{MovingEntity, Character}, camera::Camera, collision::{update_pos, check_entity_collisions}, music::{play_bgm, SONGS}};
 use num;
 mod game;
 use wasm4::*;
@@ -120,7 +120,7 @@ fn drawcharacter(spritesheet: &[u8], spritesheet_stride: &usize, camera: &Camera
     );
 }
 
-static mut NPC_INPUTS: [u8; N_NPCS] = [0; N_NPCS];
+static mut NPC_INPUTS: [u8; MAX_N_NPCS] = [0; MAX_N_NPCS];
 
 
 
@@ -149,6 +149,7 @@ fn update() {
     unsafe {
         match &mut GAME_STATE_HOLDER {
             None => {
+                spritesheet::Sprite::init_all_sprites();
                 let new_game_state = GameState::new();
                 GAME_STATE_HOLDER = Some(new_game_state);
                 
@@ -229,12 +230,15 @@ fn update() {
             // text("WELCOME TO KITTY GAME.          :D       xD                           WHAT IS POPPIN ITS YOUR BOY, THE KITTY GAME", 200 - game_state.camera.current_viewing_x_offset as i32, 130);
             
             // unsafe { *DRAW_COLORS = spritesheet::KITTY_SPRITESHEET_DRAW_COLORS }
-            let inputs: &mut [u8; N_NPCS] = unsafe {NPC_INPUTS.borrow_mut()};
-    
-            for i in 0..game_state.npcs.borrow().len() {
+            let inputs: &mut [u8; MAX_N_NPCS] = unsafe {NPC_INPUTS.borrow_mut()};
+            let l;
+            {
+                l = game_state.npcs.borrow().len();
+            }
+            for i in 0..l {
                 let rngg = &mut game_state.rng.borrow_mut();
                 let rand_val = (rngg.next() % 255) as u8;
-                let current_npc = &game_state.npcs.borrow()[i];
+                let current_npc = &mut game_state.npcs.borrow_mut()[i];
                 let mut use_rng_input = false;
                 match current_npc.following_i {
                     None => {
@@ -244,46 +248,73 @@ fn update() {
                         let the_opt_player = &game_state.players.borrow()[p_i as usize];
                         if let OptionallyEnabledPlayer::Enabled(p) = the_opt_player {
                             let p_bound = get_bound_of_character(&p);
-                            if rngg.next() % 10 > 1 {
-                                inputs[i] = 0;
-                                let npc_bound: AbsoluteBoundingBox = get_bound_of_character(&current_npc);
+                            let npc_bound: AbsoluteBoundingBox = get_bound_of_character(&current_npc);
+                            let needs_teleport;
+                            {
                                 
-                                // if current_npc.x_pos + (npc_bound.width as f32) < p.x_pos {
-                                // else if current_npc.x_pos > p.x_pos + p_bound.width as f32 {
                                 
-                                // make NPCs tryhard when they're not in the same Y to get to exact x position to help with climbing
-                                let mut tryhard_get_to_0: bool = true;
-                                
-                                // fall by doing nothing
-                                if current_npc.y_pos + (npc_bound.height as f32) < p.y_pos {
-    
+                                // teleportAyh-shon if needed
+                                const TELEPORT_AXIS_MIN_DIST: u32 = 160;
+                                if 
+                                    p_bound.x.abs_diff(npc_bound.x) > TELEPORT_AXIS_MIN_DIST ||
+                                    p_bound.y.abs_diff(npc_bound.y) > TELEPORT_AXIS_MIN_DIST 
+                                {
+                                    needs_teleport = true
                                 }
-                                else if current_npc.y_pos > p.y_pos + p_bound.height as f32 {
-                                    inputs[i] |= BUTTON_1;
-                                } else {
-                                    tryhard_get_to_0 = false;
+                                else {
+                                    needs_teleport = false
                                 }
+                            }
 
-                                if tryhard_get_to_0 {
-                                    if current_npc.x_pos < p.x_pos {
-                                        inputs[i] |= BUTTON_RIGHT;
+                            if needs_teleport {
+                                current_npc.x_pos = p_bound.x as f32;
+                                current_npc.y_pos = p_bound.y as f32;
+                                current_npc.x_vel = 0.0;
+                                current_npc.y_vel = 0.0;
+                            }
+                            else {
+                                if rngg.next() % 10 > 1 {
+                                    inputs[i] = 0;
+                                    
+                                    
+                                    // if current_npc.x_pos + (npc_bound.width as f32) < p.x_pos {
+                                    // else if current_npc.x_pos > p.x_pos + p_bound.width as f32 {
+                                    
+                                    // make NPCs tryhard when they're not in the same Y to get to exact x position to help with climbing
+                                    let mut tryhard_get_to_0: bool = true;
+                                    
+                                    // fall by doing nothing
+                                    if current_npc.y_pos + (npc_bound.height as f32) < p.y_pos {
+        
                                     }
-                                    else if current_npc.x_pos > p.x_pos {
-                                        inputs[i] |= BUTTON_LEFT;
+                                    else if current_npc.y_pos > p.y_pos + p_bound.height as f32 {
+                                        inputs[i] |= BUTTON_1;
+                                    } else {
+                                        tryhard_get_to_0 = false;
+                                    }
+    
+                                    if tryhard_get_to_0 {
+                                        if current_npc.x_pos < p.x_pos {
+                                            inputs[i] |= BUTTON_RIGHT;
+                                        }
+                                        else if current_npc.x_pos > p.x_pos {
+                                            inputs[i] |= BUTTON_LEFT;
+                                        }
+                                    }
+                                    else {
+                                        if current_npc.x_pos + (npc_bound.width as f32) < p.x_pos {
+                                            inputs[i] |= BUTTON_RIGHT;
+                                        }
+                                        else if current_npc.x_pos > p.x_pos + p_bound.width as f32 {
+                                            inputs[i] |= BUTTON_LEFT;
+                                        }
                                     }
                                 }
                                 else {
-                                    if current_npc.x_pos + (npc_bound.width as f32) < p.x_pos {
-                                        inputs[i] |= BUTTON_RIGHT;
-                                    }
-                                    else if current_npc.x_pos > p.x_pos + p_bound.width as f32 {
-                                        inputs[i] |= BUTTON_LEFT;
-                                    }
+                                    use_rng_input = true;
                                 }
                             }
-                            else {
-                                use_rng_input = true;
-                            }
+                            
                         }
                         else {
                             use_rng_input = false;
@@ -366,7 +397,6 @@ fn update() {
             layertext("< >=move,x=jmp,z=opt", 0, TOP_UI_TEXT_Y);
             //layertext("z=reset", 104, 8);
             
-            let total_npcs_to_find: u8 = N_NPCS as u8;
             let mut current_found_npcs = 0;
             for npc in game_state.npcs.borrow().iter() {
                 current_found_npcs += match npc.following_i {
@@ -374,13 +404,15 @@ fn update() {
                     Some(_) => 1
                 }
             }
-            // layertext(&format!["{}/{} found", current_found_npcs, total_npcs_to_find], 0, BOTTOM_UI_TEXT_Y);
+            
 
             // keep going till the timer hits
-            if total_npcs_to_find == current_found_npcs {
-                layertext("You found them!! :D", 0, BOTTOM_UI_TEXT_Y)    
+            if game_state.total_npcs_to_find == current_found_npcs {
+                layertext("You found them!! :D", 0, BOTTOM_UI_TEXT_Y);
+                // game_state.difficulty_level += 1;
             } else {
-                layertext("find the kitties...", 0, BOTTOM_UI_TEXT_Y);
+                // layertext("find the kitties...", 0, BOTTOM_UI_TEXT_Y);
+                layertext(&format!["find kitties {}/{}", current_found_npcs, game_state.total_npcs_to_find], 0, BOTTOM_UI_TEXT_Y);
             }
             
             

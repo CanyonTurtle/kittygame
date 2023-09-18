@@ -14,7 +14,7 @@ pub const MAP_CHUNK_MAX_N_TILES: usize = 400;
 
 pub const TOTAL_TILES_IN_MAP: usize = 200 * 1024;
 
-pub const N_NPCS: usize = 8;
+pub const MAX_N_NPCS: usize = 20;
   
 pub const TILE_WIDTH_PX: usize = 5;
 pub const TILE_HEIGHT_PX: usize = 5;

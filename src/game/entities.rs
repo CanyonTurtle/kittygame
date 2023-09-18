@@ -22,7 +22,7 @@ pub struct Character {
     pub is_facing_right: bool,
     pub state: KittyStates,
     pub current_sprite_i: i32,
-    pub sprite: spritesheet::Sprite,
+    pub sprite: &'static spritesheet::Sprite,
     pub following_i: Option<u8>,
 }
 
@@ -51,7 +51,7 @@ impl Character {
             is_facing_right: true,
             state: KittyStates::JumpingUp(200),
             current_sprite_i: 0,
-            sprite: spritesheet::Sprite::from_preset(sprite_type),
+            sprite: &spritesheet::Sprite::from_preset(sprite_type),
             following_i: None
         }
     }
