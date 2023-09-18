@@ -117,7 +117,7 @@ impl GameState<'static, 'static> {
 
         npcs.clear();
 
-        game_state.total_npcs_to_find = (3 + (game_state.difficulty_level / 3)).min(MAX_N_NPCS as u32);
+        game_state.total_npcs_to_find = (1 + (game_state.difficulty_level / 3) + rng.next() as u32 % 3).min(MAX_N_NPCS as u32);
 
         // generate the NPCs before making the chunks.
         for _ in 0..game_state.total_npcs_to_find {
