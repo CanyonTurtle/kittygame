@@ -97,7 +97,7 @@ impl GameState<'static> {
         self.godmode = false;
         let game_state: &mut GameState = self;
 
-        const LEVELS_PER_SONG: usize = 3;
+        const LEVELS_PER_SONG: usize = 5;
         let new_song_idx = 
             1 + ((game_state.difficulty_level as usize - 1) / LEVELS_PER_SONG) % (SONGS.len() - 1);
 

@@ -516,7 +516,6 @@ fn update() {
                         unreachable!()
                     }
                     NormalPlayModes::HoverModal(m) => {
-                        const MIN_MODAL_TIME: u32 = 200;
                         let mut options_ready_to_select: bool = false;
   
                         let ready_to_show_text;
@@ -541,7 +540,7 @@ fn update() {
                             {
                                 let timer: &mut u32 = &mut m.timer.borrow_mut();
                                 *timer += 1;
-                                options_ready_to_select = *timer > MIN_MODAL_TIME;
+                                options_ready_to_select = true;
                                 text_timer = *timer;
 
                             }
@@ -625,9 +624,9 @@ fn update() {
                                     }
                                 },
                                 MenuTypes::WonLevel => {
-
+                                    const BLINK_START: u32 = 50;
                                     const BLINK_TITLE_PERIOD: u32 = 17;
-                                    if (text_timer / BLINK_TITLE_PERIOD) % 2 == 0 {
+                                    if text_timer < BLINK_START || (text_timer / BLINK_TITLE_PERIOD) % 2 == 0 {
                                         text("Found!!", 50, 50);
                                     }
 
