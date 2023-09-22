@@ -516,7 +516,7 @@ fn update() {
                         unreachable!()
                     }
                     NormalPlayModes::HoverModal(m) => {
-                        const MIN_MODAL_TIME: u32 = 3;
+                        const MIN_MODAL_TIME: u32 = 200;
                         let mut options_ready_to_select: bool = false;
   
                         let ready_to_show_text;
@@ -670,7 +670,8 @@ fn update() {
                             }),
                             menu_type: MenuTypes::WonLevel
                         }));
-                    game_state.song_idx = 1;
+                    game_state.song_idx = 0;
+                    game_state.song_timer = 0;
                 }
             }
 
