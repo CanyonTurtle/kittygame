@@ -7,3 +7,4 @@ pub mod camera;
 pub mod rng;
 pub mod collision;
 pub mod music;
+pub mod menus;

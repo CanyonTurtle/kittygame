@@ -2,9 +2,10 @@ use core::cell::RefCell;
 
 use crate::spritesheet;
 use crate::kitty_ss;
-use super::{entities::{OptionallyEnabledPlayer, Character}, game_map::GameMap, camera::Camera, rng::Rng, game_constants::{GameMode, MAX_N_NPCS, MAP_CHUNK_MIN_SIDE_LEN, MAP_CHUNK_MAX_SIDE_LEN, MAP_CHUNK_MAX_N_TILES, TILE_WIDTH_PX, TILE_HEIGHT_PX}, mapchunk::{MapChunk, TileAlignedBoundingBox}};
+use super::menus::GameMode;
+use super::{entities::{OptionallyEnabledPlayer, Character}, game_map::GameMap, camera::Camera, rng::Rng, game_constants::{MAX_N_NPCS, MAP_CHUNK_MIN_SIDE_LEN, MAP_CHUNK_MAX_SIDE_LEN, MAP_CHUNK_MAX_N_TILES, TILE_WIDTH_PX, TILE_HEIGHT_PX}, mapchunk::{MapChunk, TileAlignedBoundingBox}};
 
-pub struct GameState<'a, 'b> {
+pub struct GameState<'a> {
     pub players: RefCell<[OptionallyEnabledPlayer; 4]>,
     pub npcs: RefCell<Vec<Character>>,
     pub spritesheet: &'a [u8],
@@ -13,7 +14,7 @@ pub struct GameState<'a, 'b> {
     pub map: GameMap,
     pub camera: RefCell<Camera>,
     pub rng: RefCell<Rng>,
-    pub game_mode: GameMode<'b>,
+    pub game_mode: GameMode,
     pub timer: u32,
     pub godmode: bool,
     pub pallette_idx: usize,
@@ -23,8 +24,8 @@ pub struct GameState<'a, 'b> {
 }
 
 
-impl GameState<'static, 'static> {
-    pub fn new() -> GameState<'static, 'static> {
+impl GameState<'static> {
+    pub fn new() -> GameState<'static> {
 
         let characters = [
             OptionallyEnabledPlayer::Enabled(Character::new(spritesheet::PresetSprites::MainCat)),

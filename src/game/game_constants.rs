@@ -7,7 +7,6 @@
 // const N_BUILDINGS_PER_CHUNK: usize = 30;
 // const USING_DOORS: bool = true;
 
-use core::cell::RefCell;
 
 pub const MAP_CHUNK_MIN_SIDE_LEN: usize = 6;
 pub const MAP_CHUNK_MAX_SIDE_LEN: usize = 50;
@@ -26,25 +25,3 @@ pub const X_RIGHT_BOUND: i32 = 5000;
 pub const Y_LOWER_BOUND: i32 = -5000;
 pub const Y_UPPER_BOUND: i32 = 5000;
 
-pub struct OptionsState {
-    pub current_selection: u8,
-}
-
-pub struct Modal<'a> {
-    pub message: &'a str,
-    pub options: Vec<&'a str>,
-    pub timer: RefCell<u32>,
-    pub current_selection: RefCell<u8>
-}
-
-pub enum NormalPlayModes<'a> {
-    MainGameplay,
-    // hover modal is a text, 
-    HoverModal(Modal<'a>)
-}
-
-pub enum GameMode<'a> {
-    StartScreen,
-    NormalPlay(NormalPlayModes<'a>),
-    Options(OptionsState),
-}

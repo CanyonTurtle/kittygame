@@ -24,13 +24,13 @@ pub fn check_absolute_point_inside_tile_aligned_bound(x: i32, y: i32, bound: &Ti
     false
 }
 
-pub struct AbsoluteBoundingBox {
-    pub x: i32,
-    pub y: i32,
-    pub width: usize,
-    pub height: usize
+pub struct AbsoluteBoundingBox<P, W> {
+    pub x: P,
+    pub y: P,
+    pub width: W,
+    pub height: W
 }
-pub fn check_absolue_bound_partially_inside_tile_aligned_bound(absolute_bound: &AbsoluteBoundingBox, tile_aligned_bound: &TileAlignedBoundingBox) -> bool {
+pub fn check_absolue_bound_partially_inside_tile_aligned_bound(absolute_bound: &AbsoluteBoundingBox<i32, u32>, tile_aligned_bound: &TileAlignedBoundingBox) -> bool {
     let lowerleft = (absolute_bound.x, absolute_bound.y);
     let lowerright = (absolute_bound.x + absolute_bound.width as i32, absolute_bound.y);
     let upperleft = (absolute_bound.x, absolute_bound.y + absolute_bound.height as i32);
@@ -47,20 +47,20 @@ pub fn check_absolue_bound_partially_inside_tile_aligned_bound(absolute_bound: &
     true
 }
 
-pub fn check_absolute_bounding_box_partially_inside_another(bound: &AbsoluteBoundingBox, other: &AbsoluteBoundingBox) -> bool {
+pub fn check_absolute_bounding_box_partially_inside_another(bound: &AbsoluteBoundingBox<i32, u32>, other: &AbsoluteBoundingBox<i32, u32>) -> bool {
     bound.x + bound.width as i32 > other.x
         && bound.x < other.x + other.width as i32
         && bound.y + bound.height as i32 > other.y
         && bound.y < other.y + other.height as i32
 }
 
-pub fn get_bound_of_character(character: &Character) -> AbsoluteBoundingBox {
+pub fn get_bound_of_character(character: &Character) -> AbsoluteBoundingBox<i32, u32> {
     let char_positioning = character.sprite.frames[character.current_sprite_i as usize];
     AbsoluteBoundingBox {
         x: character.x_pos as i32,
         y: character.y_pos as i32,
-        width: char_positioning.width as usize,
-        height: char_positioning.height as usize,
+        width: char_positioning.width as u32,
+        height: char_positioning.height as u32,
     }
 }
 
