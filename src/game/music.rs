@@ -12,16 +12,6 @@ pub struct Song {
 }
 
 pub const SONGS: [Song; 9] = [
-    Song { // it works but how
-        name: "ptdyl",
-        scale: [330, 370, 415, 440, 494, 554, 622, 659],
-        f1_pitchchange_timer: 3,
-        f2_pitchchange_timer: 8,
-        measure_length: 19,
-        f1_note_duration: 6,
-        f2_note_duration: 44,
-        time_signature: (2, 4),
-    },
     Song { // happy cat
         name: "happy",
         scale: [294, 330, 370, 392, 440, 494, 554, 587],
@@ -31,6 +21,16 @@ pub const SONGS: [Song; 9] = [
         f1_note_duration: 5,
         f2_note_duration: 3,
         time_signature: (3, 4),
+    },
+    Song { // it works but how
+        name: "ptdyl",
+        scale: [330, 370, 415, 440, 494, 554, 622, 659],
+        f1_pitchchange_timer: 3,
+        f2_pitchchange_timer: 8,
+        measure_length: 19,
+        f1_note_duration: 6,
+        f2_note_duration: 44,
+        time_signature: (2, 4),
     },
     Song { // sneak cat
         name: "sneak",

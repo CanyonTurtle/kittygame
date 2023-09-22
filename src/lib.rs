@@ -167,7 +167,8 @@ fn update() {
 
     // ----------- UPDATE TIMER AND PLAY BGM -----------
     game_state.timer += 1;
-    play_bgm(game_state.timer, &SONGS[game_state.song_idx]);
+    game_state.song_timer += 1;
+    play_bgm(game_state.song_timer, &SONGS[game_state.song_idx]);
 
     // ------------- POLL INPUT ---------------
 
@@ -365,7 +366,7 @@ fn update() {
 
                 game_state.game_mode =
                     GameMode::NormalPlay(NormalPlayModes::HoverModal(Modal {
-                        n_options: 5,
+                        n_options: 4,
                         timer: RefCell::new(0),
                         current_selection: RefCell::new(0),
                         target_position: RefCell::new(AbsoluteBoundingBox {
@@ -535,16 +536,14 @@ fn update() {
                             draw_modal_bg(&actual_position, 1);
                         
                         }
+                        let mut text_timer = 0;
                         if ready_to_show_text {
                             {
                                 let timer: &mut u32 = &mut m.timer.borrow_mut();
                                 *timer += 1;
                                 options_ready_to_select = *timer > MIN_MODAL_TIME;
+                                text_timer = *timer;
 
-                                // const BLINK_TITLE_PERIOD: u32 = 17;
-                                // if (*timer / BLINK_TITLE_PERIOD) % 2 == 0 {
-                                //     layertext(m.message, 40, 50);
-                                // }
                             }
                         }
                         
@@ -589,11 +588,7 @@ fn update() {
 
                                     text("fly", MENU_X, MENU_TOP_Y + MENU_SPACING * 2);
                                     text("reset", MENU_X, MENU_TOP_Y + MENU_SPACING * 3);
-                                    text(
-                                        SONGS[game_state.song_idx].name,
-                                        MENU_X,
-                                        MENU_TOP_Y + MENU_SPACING * 4,
-                                    );
+          
 
                                     let cursor_x = MENU_X - 25;
                                     let cursor_y: i32 = MENU_TOP_Y + MENU_SPACING * cursor_opt as i32;
@@ -621,10 +616,6 @@ fn update() {
                                             game_state.regenerate_map();
                                             game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::MainGameplay);
                                         }
-                                        4 => {
-                                            game_state.song_idx += 1;
-                                            game_state.song_idx %= SONGS.len();
-                                        }
                                         10 => {
 
                                         }
@@ -634,7 +625,12 @@ fn update() {
                                     }
                                 },
                                 MenuTypes::WonLevel => {
-                                    text("Found!!", 30, 50);
+
+                                    const BLINK_TITLE_PERIOD: u32 = 17;
+                                    if (text_timer / BLINK_TITLE_PERIOD) % 2 == 0 {
+                                        text("Found!!", 50, 50);
+                                    }
+
                                     match option_selected {
                                         0 => {
                                             game_state.difficulty_level += 1;

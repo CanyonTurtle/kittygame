@@ -1,5 +1,6 @@
 use core::cell::RefCell;
 
+use crate::game::music::SONGS;
 use crate::spritesheet;
 use crate::kitty_ss;
 use super::menus::GameMode;
@@ -19,6 +20,7 @@ pub struct GameState<'a> {
     pub godmode: bool,
     pub pallette_idx: usize,
     pub song_idx: usize,
+    pub song_timer: u32,
     pub difficulty_level: u32,
     pub total_npcs_to_find: u32,
 }
@@ -85,6 +87,7 @@ impl GameState<'static> {
             godmode: false,
             pallette_idx: 0,
             song_idx: 0,
+            song_timer: 0,
             difficulty_level: 1,
             total_npcs_to_find: 3,
         }
@@ -94,9 +97,16 @@ impl GameState<'static> {
         self.godmode = false;
         let game_state: &mut GameState = self;
 
-        game_state.song_idx = 0;
+        const LEVELS_PER_SONG: usize = 3;
+        let new_song_idx = 
+            1 + ((game_state.difficulty_level as usize - 1) / LEVELS_PER_SONG) % (SONGS.len() - 1);
 
-        game_state.timer = 0;
+        if new_song_idx != game_state.song_idx {
+            game_state.song_timer = 0;
+        }
+        game_state.song_idx = new_song_idx;
+
+        // game_state.timer = 0;
         let map = &mut game_state.map;
         map.num_tiles = 0;
         map.chunks.clear();
