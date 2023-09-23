@@ -35,7 +35,7 @@ use crate::{
     game::{
         collision::{get_bound_of_character, AbsoluteBoundingBox},
         entities::OptionallyEnabledPlayer,
-        menus::{Modal, NormalPlayModes, MenuTypes},
+        menus::{Modal, NormalPlayModes, MenuTypes}, game_constants::COUNTDOWN_TIMER_START,
     },
     spritesheet::KITTY_SPRITESHEET_PALLETES,
 };
@@ -168,34 +168,7 @@ fn update() {
     // ----------- UPDATE TIMER AND PLAY BGM -----------
 
 
-    if !game_state.countdown_paused {
-        game_state.countdown_timer_msec -= 1;
-
-        // ---- LOSE CONDITION ----
-        if game_state.countdown_timer_msec <= 0 {
-
-            game_state.song_idx = 0;
-
-            game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::HoverModal(Modal {
-                n_options: 1,
-                timer: RefCell::new(0),
-                current_selection: RefCell::new(0),
-                target_position: RefCell::new(AbsoluteBoundingBox {
-                    x: 10,
-                    y: 10,
-                    width: 140,
-                    height: 140,
-                }),
-                actual_position: RefCell::new(AbsoluteBoundingBox {
-                    x: 80.0,
-                    y: 80.0,
-                    width: 1.0,
-                    height: 1.0,
-                }),
-                menu_type: MenuTypes::Done
-            }));
-        }
-    }
+    
     
 
     game_state.song_timer += 1;
@@ -219,6 +192,8 @@ fn update() {
                     game_state.countdown_paused = true;
                 }
             }
+
+            
 
             unsafe {
                 *PALETTE = spritesheet::KITTY_SPRITESHEET_PALLETES[game_state.pallette_idx];
@@ -435,7 +410,7 @@ fn update() {
 
             const TOP_UI_TEXT_Y: i32 = 2;
 
-            const BOTTOM_UI_TEXT_Y: i32 = 12; // 160 - 8 - 2;
+            const BOTTOM_UI_TEXT_Y: i32 = 160 - 8; // 160 - 8 - 2;
 
             unsafe { *DRAW_COLORS = 0x0001 }
 
@@ -480,20 +455,27 @@ fn update() {
 
                 unsafe { *DRAW_COLORS = 0x0002 }
                 // borders
-                line(p.x, p.y, p.x + p.width as i32, p.y);
-                line(p.x, p.y, p.x, p.y + p.height as i32);
-                line(
-                    p.x,
-                    p.y + p.height as i32,
-                    p.x + p.width as i32,
-                    p.y + p.height as i32,
-                );
-                line(
-                    p.x + p.width as i32,
-                    p.y,
-                    p.x + p.width as i32,
-                    p.y + p.height as i32,
-                );
+
+                match style {
+                    1 => {
+                        line(p.x, p.y, p.x + p.width as i32, p.y);
+                        line(p.x, p.y, p.x, p.y + p.height as i32);
+                        line(
+                            p.x,
+                            p.y + p.height as i32,
+                            p.x + p.width as i32,
+                            p.y + p.height as i32,
+                        );
+                        line(
+                            p.x + p.width as i32,
+                            p.y,
+                            p.x + p.width as i32,
+                            p.y + p.height as i32,
+                        );
+                    }
+                    _ => {}
+                }
+                
             }
 
             draw_modal_bg(
@@ -501,7 +483,17 @@ fn update() {
                     x: -1.0,
                     y: 0.0,
                     width: 162.0,
-                    height: 20.0,
+                    height: 10.0,
+                },
+                0,
+            );
+
+            draw_modal_bg(
+                &AbsoluteBoundingBox {
+                    x: -1.0,
+                    y: 150.0,
+                    width: 162.0,
+                    height: 10.0,
                 },
                 0,
             );
@@ -515,9 +507,9 @@ fn update() {
 
                 text(t, x, y);
             }
-            layertext("< >=move,x=jmp,z=opt", 0, TOP_UI_TEXT_Y);
-            //layertext("z=reset", 104, 8);
-            layertext(&format!["Lv. {}", game_state.difficulty_level], 0, 152);
+
+            layertext(&format!["Lv. {}", game_state.difficulty_level], 0, BOTTOM_UI_TEXT_Y);
+            layertext(&format!["Sc. {}", game_state.score], 80, BOTTOM_UI_TEXT_Y);
 
             let mut current_found_npcs = 0;
             for npc in game_state.npcs.borrow().iter() {
@@ -529,7 +521,7 @@ fn update() {
 
             // keep going till the timer hits
             if game_state.total_npcs_to_find == current_found_npcs {
-                layertext("You found them!! :D", 0, BOTTOM_UI_TEXT_Y);
+                layertext("You found them!! :D", 0, TOP_UI_TEXT_Y);
                 // game_state.difficulty_level += 1;
             } else {
                 // layertext("find the kitties...", 0, BOTTOM_UI_TEXT_Y);
@@ -539,7 +531,7 @@ fn update() {
                         current_found_npcs, game_state.total_npcs_to_find, game_state.countdown_timer_msec / 60
                     ],
                     0,
-                    BOTTOM_UI_TEXT_Y,
+                    TOP_UI_TEXT_Y,
                 );
             }
 
@@ -601,10 +593,13 @@ fn update() {
                                 MenuTypes::Options => {
 
                                     const MENU_X: i32 = 45;
-                                    const MENU_TOP_Y: i32 = 50;
+                                    const MENU_TOP_Y: i32 = 44;
                                     const MENU_SPACING: i32 = 15;
                                     unsafe { *DRAW_COLORS = 0x0002 }
-                                    text("-- OPTIONS --", 25, 20);
+                                    text("-- PAUSED --", 30, 20);
+                                    // line(30, 110, 130, 110);
+                                    text("< > to move,", 34, 124); 
+                                    text("x=jump, z=opt", 30, 136);
                                     text("back", MENU_X, MENU_TOP_Y + MENU_SPACING * 0);
                                     text("pallette", MENU_X, MENU_TOP_Y + MENU_SPACING * 1);
 
@@ -680,13 +675,32 @@ fn update() {
                                     const BLINK_START: u32 = 50;
                                     const BLINK_TITLE_PERIOD: u32 = 17;
                                     if text_timer < BLINK_START || (text_timer / BLINK_TITLE_PERIOD) % 2 == 0 {
-                                        text("All Done!", 50, 50);
+                                        text("Time's Up!", 44, 50);
                                     }
+
+                                    text(&format!["Score: {} pts", game_state.score], 20, 80);
 
                                     match option_selected {
                                         0 => {
                                             game_state.difficulty_level = 1;
                                             game_state.game_mode = GameMode::StartScreen;
+                                        }
+                                        10 => {}
+                                        _ => {
+                                            unreachable!()
+                                        }
+                                    }
+                                },
+                                MenuTypes::StartGameMessage => {
+                                    text("-- GOAL --", 40, 30);
+                                    text("Find all the", 30, 50);
+                                    text("kitties in time!", 20, 65);
+                                    text("-- CONTROLS --", 24, 110);
+                                    text("< > to move,", 34, 124); 
+                                    text("x=jump, z=opt", 30, 136);
+                                    match option_selected {
+                                        0 => {
+                                            game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::MainGameplay);
                                         }
                                         10 => {}
                                         _ => {
@@ -699,6 +713,29 @@ fn update() {
                     }
                 }
             } else {
+                // HELP TEXT AT START OF GAME
+                if game_state.difficulty_level == 1 && game_state.countdown_timer_msec == COUNTDOWN_TIMER_START - 2 * 60 {
+                    game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::HoverModal(Modal {
+                        n_options: 1,
+                        timer: RefCell::new(0),
+                        current_selection: RefCell::new(0),
+                        target_position: RefCell::new(AbsoluteBoundingBox {
+                            x: 10,
+                            y: 10,
+                            width: 140,
+                            height: 140,
+                        }),
+                        actual_position: RefCell::new(AbsoluteBoundingBox {
+                            x: 80.0,
+                            y: 80.0,
+                            width: 1.0,
+                            height: 1.0,
+                        }),
+                        menu_type: MenuTypes::StartGameMessage
+                    }));
+                }
+                
+
                 // ------- LEVEL WIN CONDITION -----------
                 if game_state.total_npcs_to_find == current_found_npcs {
                     game_state.game_mode =
@@ -723,6 +760,35 @@ fn update() {
                     game_state.song_idx = 0;
                     game_state.song_timer = 0;
                 }
+
+                if !game_state.countdown_paused {
+                    game_state.countdown_timer_msec -= 1;
+            
+                    // ---- LOSE CONDITION ----
+                    if game_state.countdown_timer_msec <= 0 {
+            
+                        game_state.song_idx = 0;
+            
+                        game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::HoverModal(Modal {
+                            n_options: 1,
+                            timer: RefCell::new(0),
+                            current_selection: RefCell::new(0),
+                            target_position: RefCell::new(AbsoluteBoundingBox {
+                                x: 10,
+                                y: 10,
+                                width: 140,
+                                height: 140,
+                            }),
+                            actual_position: RefCell::new(AbsoluteBoundingBox {
+                                x: 80.0,
+                                y: 80.0,
+                                width: 1.0,
+                                height: 1.0,
+                            }),
+                            menu_type: MenuTypes::Done
+                        }));
+                    }
+                }
             }
 
             
@@ -741,8 +807,11 @@ fn update() {
             game_state.song_idx = 1;
             game_state.song_timer = 0;
             unsafe { *DRAW_COLORS = 0x1112 }
-            text("Find the kitties!", 20, 20);
+            text("Kitty Game!", 20, 20);
             text("Any key: start", 20, 40);
+            text("by CanyonTurtle", 20, 100);
+            text(" & BurntSugar  ", 20, 114);
+
             unsafe {
                 *PALETTE = spritesheet::KITTY_SPRITESHEET_PALLETES[game_state.pallette_idx];
             }
@@ -750,6 +819,7 @@ fn update() {
             game_state.rng.borrow_mut().next();
             if btns_pressed_this_frame[0] != 0 {
                 game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::MainGameplay);
+                
                 // drop(game_state.map.chunks);
                 game_state.new_game();
                 game_state.regenerate_map();

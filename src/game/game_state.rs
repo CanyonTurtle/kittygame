@@ -25,6 +25,7 @@ pub struct GameState<'a> {
     pub song_timer: u32,
     pub difficulty_level: u32,
     pub total_npcs_to_find: u32,
+    pub score: u32,
 }
 
 
@@ -93,11 +94,13 @@ impl GameState<'static> {
             song_timer: 0,
             difficulty_level: 1,
             total_npcs_to_find: 3,
+            score: 0,
         }
     }
 
     pub fn new_game(self: &mut Self) {
         self.countdown_timer_msec = COUNTDOWN_TIMER_START;
+        self.score = 0;
     }
 
     pub fn regenerate_map(self: &mut Self) {
@@ -136,7 +139,19 @@ impl GameState<'static> {
         npcs.clear();
 
         game_state.total_npcs_to_find = (1 + (game_state.difficulty_level / 3) + rng.next() as u32 % 3).min(MAX_N_NPCS as u32);
-        game_state.countdown_timer_msec += (10 + game_state.total_npcs_to_find * 4 + game_state.difficulty_level.min(20)) * 60;
+
+        let countdown_and_score_bonus = (10 + game_state.total_npcs_to_find * 2 + game_state.difficulty_level.min(20) * 2) * 60;
+        
+        game_state.countdown_timer_msec += countdown_and_score_bonus;
+        game_state.score += countdown_and_score_bonus;
+
+        match game_state.difficulty_level {
+            1 => {
+                game_state.countdown_timer_msec = COUNTDOWN_TIMER_START;
+                game_state.score = 0;
+            },
+            _ => {}
+        }
 
         // generate the NPCs before making the chunks.
         for _ in 0..game_state.total_npcs_to_find {

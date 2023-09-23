@@ -25,4 +25,4 @@ pub const X_RIGHT_BOUND: i32 = 5000;
 pub const Y_LOWER_BOUND: i32 = -5000;
 pub const Y_UPPER_BOUND: i32 = 5000;
 
-pub const COUNTDOWN_TIMER_START: u32 = 5 * 60;
+pub const COUNTDOWN_TIMER_START: u32 = 60 * 60;

@@ -3,6 +3,7 @@ use core::cell::RefCell;
 use super::collision::AbsoluteBoundingBox;
 
 pub enum MenuTypes {
+    StartGameMessage,
     Options,
     WonLevel,
     Done,
