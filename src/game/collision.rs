@@ -540,10 +540,10 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
 
                 
 
-                let lowerleft_checker_location = (char_bound.x, char_bound.y);
-                let lowerright_checker_location = (char_bound.x + char_bound.width as i32 - 1, char_bound.y);
-                let upperleft_checker_location = (char_bound.x, char_bound.y + char_bound.height as i32 - 1);
-                let upperright_checker_location = (char_bound.x + char_bound.width as i32 - 1, char_bound.y + char_bound.height as i32 - 1);
+                // let lowerleft_checker_location = (char_bound.x, char_bound.y);
+                // let lowerright_checker_location = (char_bound.x + char_bound.width as i32 - 1, char_bound.y);
+                // let upperleft_checker_location = (char_bound.x, char_bound.y + char_bound.height as i32 - 1);
+                // let upperright_checker_location = (char_bound.x + char_bound.width as i32 - 1, char_bound.y + char_bound.height as i32 - 1);
 
                 // fn check_collision_group_on_same_dir(
                 //     points: &Vec<(i32, i32)>,
@@ -555,105 +555,198 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
 
                 // }
 
-                // upward collision
-                if character.y_vel < 0.0 {
-                    let collision_res = raycast_axis_aligned(false, false, lowerleft_checker_location, discretized_y_displacement_this_frame, chunk);
-                    discretized_y_displacement_this_frame = collision_res.allowable_displacement;
-                    if collision_res.collided {
-                        character.y_vel = 0.0;
-                    }
-                    if !collision_res.backed_up {
-                        let second_collision_res = raycast_axis_aligned(false, false, lowerright_checker_location, discretized_y_displacement_this_frame, chunk);
-                        discretized_y_displacement_this_frame = second_collision_res.allowable_displacement;
-                        if second_collision_res.collided {
-                            character.y_vel = 0.0;
-                        }
-                    }
+                let h_col_res_lower;
+                let h_col_res_upper;
+                let v_col_res_left;
+                let v_col_res_right;
+                
+                let upper_y = char_bound.y + char_bound.height as i32 - 1;
+                let lower_y = char_bound.y;
+                let left_x: i32 = char_bound.x;
+                let right_x: i32 = char_bound.x + char_bound.width as i32 - 1;
+
+                let vert_y;
+                let positive_y;
+
+                // VERTICAL RAYCAST
+                if discretized_y_displacement_this_frame > 0 {
+                    // GOING DOWNWARD
+                    positive_y = true;
+                    vert_y = upper_y;
+                } else {
+                    positive_y = false;
+                    vert_y = lower_y;
                 }
+                v_col_res_left = raycast_axis_aligned(false, positive_y, (left_x, vert_y), discretized_y_displacement_this_frame, chunk);
+                v_col_res_right = raycast_axis_aligned(false, positive_y, (right_x, vert_y), discretized_y_displacement_this_frame, chunk);
 
-                // downward collision
-                else {
-                    let collision_res = raycast_axis_aligned(false, true, upperleft_checker_location, discretized_y_displacement_this_frame, chunk);
-                    discretized_y_displacement_this_frame = collision_res.allowable_displacement;
-                    if collision_res.collided {
-                        character.y_vel = 0.0;
-                        touching_some_ground = true;
+                let horizontal_x;
+                let positive_x;
 
-                        
+                // HORIZONTAL RAYCAST
+                if discretized_x_displacement_this_frame > 0 {
+                    // GOING DOWNWARD
+                    positive_x = true;
+                    horizontal_x = right_x;
+                } else {
+                    positive_x = false;
+                    horizontal_x = left_x;
+                }
+                h_col_res_lower = raycast_axis_aligned(true, positive_x, (horizontal_x, lower_y), discretized_x_displacement_this_frame, chunk);
+                h_col_res_upper = raycast_axis_aligned(true, positive_x, (horizontal_x, upper_y), discretized_x_displacement_this_frame, chunk);
+
+                if v_col_res_left.collided || v_col_res_right.collided {
+                    character.y_vel = 0.0;
+                    if v_col_res_left.backed_up {
+                        discretized_y_displacement_this_frame = v_col_res_left.allowable_displacement;
+                    } else if v_col_res_right.backed_up {
+                        discretized_y_displacement_this_frame = v_col_res_right.allowable_displacement;
                     } else {
+                        discretized_y_displacement_this_frame = v_col_res_left.allowable_displacement.signum() * v_col_res_left.allowable_displacement.abs_diff(v_col_res_left.allowable_displacement) as i32;
+                    }
+
+                    if positive_y {
+                        touching_some_ground = true;
+                    }
+                }
+
+                
+                if h_col_res_lower.collided || h_col_res_upper.collided {
+                    if !h_col_res_lower.collided && positive_y
+                    {
+                        // if we are touching floor (pos y), and the bottom horizontal hit but 
+                        // not the top, allow us to hop up the ledge.
+               
+                        discretized_y_displacement_this_frame -= TILE_HEIGHT_PX as i32;
+                    } else {
+                        // if the above special case isn't true, we hit a wall
+                        character.x_vel = 0.0;
+
+                        // if in free fall (after beginning of jump), allow hugging wall
+                        match character.state {
+                            KittyStates::JumpingUp(t) => {
+                                match t {
+                                    0..=15 => {
+
+                                    },
+                                    _ => {
+                                        character.state = KittyStates::HuggingWall(true);
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+
+                    
+
+                    if h_col_res_lower.backed_up {
+                        discretized_x_displacement_this_frame = h_col_res_lower.allowable_displacement;
+                    } else if h_col_res_upper.backed_up {
+                        discretized_x_displacement_this_frame = h_col_res_upper.allowable_displacement;
+                    } else {
+                        discretized_x_displacement_this_frame = h_col_res_lower.allowable_displacement.signum() * h_col_res_upper.allowable_displacement.abs_diff(h_col_res_lower.allowable_displacement) as i32;
+                    }
+                }
+                // // upward collision
+                // if character.y_vel < 0.0 {
+                //     let collision_res = raycast_axis_aligned(false, false, lowerleft_checker_location, discretized_y_displacement_this_frame, chunk);
+                //     discretized_y_displacement_this_frame = collision_res.allowable_displacement;
+                //     if collision_res.collided {
+                //         character.y_vel = 0.0;
+                //     }
+                //     if !collision_res.backed_up {
+                //         let second_collision_res = raycast_axis_aligned(false, false, lowerright_checker_location, discretized_y_displacement_this_frame, chunk);
+                //         discretized_y_displacement_this_frame = second_collision_res.allowable_displacement;
+                //         if second_collision_res.collided {
+                //             character.y_vel = 0.0;
+                //         }
+                //     }
+                // }
+
+                // // downward collision
+                // else {
+                //     let collision_res = raycast_axis_aligned(false, true, upperleft_checker_location, discretized_y_displacement_this_frame, chunk);
+                //     discretized_y_displacement_this_frame = collision_res.allowable_displacement;
+                //     if collision_res.collided {
+                //         character.y_vel = 0.0;
+                //         touching_some_ground = true;
+
                         
-                    }
-                    if !collision_res.backed_up {
-                        let second_collision_res = raycast_axis_aligned(false, true, upperright_checker_location, discretized_y_displacement_this_frame, chunk);
-                        discretized_y_displacement_this_frame = second_collision_res.allowable_displacement;
-                        if second_collision_res.collided {
-                            touching_some_ground = true;
-                            character.y_vel = 0.0;
-                        }
-                    }
-                }
+                //     } else {
+                        
+                //     }
+                //     if !collision_res.backed_up {
+                //         let second_collision_res = raycast_axis_aligned(false, true, upperright_checker_location, discretized_y_displacement_this_frame, chunk);
+                //         discretized_y_displacement_this_frame = second_collision_res.allowable_displacement;
+                //         if second_collision_res.collided {
+                //             touching_some_ground = true;
+                //             character.y_vel = 0.0;
+                //         }
+                //     }
+                // }
 
-                // left collision
-                if character.x_vel < 0.0 {
-                    let collision_res = raycast_axis_aligned(true, false, lowerleft_checker_location, discretized_x_displacement_this_frame, chunk);
-                    discretized_x_displacement_this_frame = collision_res.allowable_displacement;
-                    if collision_res.collided {
-                        // if in free fall (after beginning of jump), allow hugging wall
-                        match character.state {
-                            KittyStates::JumpingUp(t) => {
-                                match t {
-                                    0..=15 => {
+                // // left collision
+                // if character.x_vel < 0.0 {
+                //     let collision_res = raycast_axis_aligned(true, false, lowerleft_checker_location, discretized_x_displacement_this_frame, chunk);
+                //     discretized_x_displacement_this_frame = collision_res.allowable_displacement;
+                //     if collision_res.collided {
+                //         // if in free fall (after beginning of jump), allow hugging wall
+                //         match character.state {
+                //             KittyStates::JumpingUp(t) => {
+                //                 match t {
+                //                     0..=15 => {
 
-                                    },
-                                    _ => {
-                                        character.state = KittyStates::HuggingWall(true);
-                                    }
-                                }
-                            }
-                            _ => {}
-                        }
-                        character.x_vel = 0.0;
-                    }
-                    if !collision_res.backed_up {
-                        let second_collision_res = raycast_axis_aligned(true, false, upperleft_checker_location, discretized_x_displacement_this_frame, chunk);
-                        discretized_x_displacement_this_frame = second_collision_res.allowable_displacement;
-                        if second_collision_res.collided {
-                            character.x_vel = 0.0;
-                        }
-                    }
-                }
+                //                     },
+                //                     _ => {
+                //                         character.state = KittyStates::HuggingWall(true);
+                //                     }
+                //                 }
+                //             }
+                //             _ => {}
+                //         }
+                //         character.x_vel = 0.0;
+                //     }
+                //     if !collision_res.backed_up {
+                //         let second_collision_res = raycast_axis_aligned(true, false, upperleft_checker_location, discretized_x_displacement_this_frame, chunk);
+                //         discretized_x_displacement_this_frame = second_collision_res.allowable_displacement;
+                //         if second_collision_res.collided {
+                //             character.x_vel = 0.0;
+                //         }
+                //     }
+                // }
 
-                // right collision
-                else {
+                // // right collision
+                // else {
 
-                    let collision_res = raycast_axis_aligned(true, true, lowerright_checker_location, discretized_x_displacement_this_frame, chunk);
-                    discretized_x_displacement_this_frame = collision_res.allowable_displacement;
-                    if collision_res.collided {
-                        // if in free fall (after beginning of jump), allow hugging wall
-                        match character.state {
-                            KittyStates::JumpingUp(t) => {
-                                match t {
-                                    0..=15 => {
+                //     let collision_res = raycast_axis_aligned(true, true, lowerright_checker_location, discretized_x_displacement_this_frame, chunk);
+                //     discretized_x_displacement_this_frame = collision_res.allowable_displacement;
+                //     if collision_res.collided {
+                //         // if in free fall (after beginning of jump), allow hugging wall
+                //         match character.state {
+                //             KittyStates::JumpingUp(t) => {
+                //                 match t {
+                //                     0..=15 => {
 
-                                    },
-                                    _ => {
-                                        character.state = KittyStates::HuggingWall(true);
-                                    }
-                                }
-                            }
-                            _ => {}
-                        }
+                //                     },
+                //                     _ => {
+                //                         character.state = KittyStates::HuggingWall(true);
+                //                     }
+                //                 }
+                //             }
+                //             _ => {}
+                //         }
 
-                        character.x_vel = 0.0;
-                    }
-                    if !collision_res.backed_up {
-                        let second_collision_res = raycast_axis_aligned(true, true, upperright_checker_location, discretized_x_displacement_this_frame, chunk);
-                        discretized_x_displacement_this_frame = second_collision_res.allowable_displacement;
-                        if second_collision_res.collided {
-                            character.x_vel = 0.0;
-                        }
-                    }
-                }   
+                //         character.x_vel = 0.0;
+                //     }
+                //     if !collision_res.backed_up {
+                //         let second_collision_res = raycast_axis_aligned(true, true, upperright_checker_location, discretized_x_displacement_this_frame, chunk);
+                //         discretized_x_displacement_this_frame = second_collision_res.allowable_displacement;
+                //         if second_collision_res.collided {
+                //             character.x_vel = 0.0;
+                //         }
+                //     }
+                // }   
                 
             }
             
