@@ -5,6 +5,7 @@ use super::collision::AbsoluteBoundingBox;
 pub enum MenuTypes {
     Options,
     WonLevel,
+    Done,
 }
 
 pub struct Modal {

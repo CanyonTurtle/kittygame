@@ -3,6 +3,7 @@ use core::cell::RefCell;
 use crate::game::music::SONGS;
 use crate::spritesheet;
 use crate::kitty_ss;
+use super::game_constants::COUNTDOWN_TIMER_START;
 use super::menus::GameMode;
 use super::{entities::{OptionallyEnabledPlayer, Character}, game_map::GameMap, camera::Camera, rng::Rng, game_constants::{MAX_N_NPCS, MAP_CHUNK_MIN_SIDE_LEN, MAP_CHUNK_MAX_SIDE_LEN, MAP_CHUNK_MAX_N_TILES, TILE_WIDTH_PX, TILE_HEIGHT_PX}, mapchunk::{MapChunk, TileAlignedBoundingBox}};
 
@@ -16,7 +17,8 @@ pub struct GameState<'a> {
     pub camera: RefCell<Camera>,
     pub rng: RefCell<Rng>,
     pub game_mode: GameMode,
-    pub timer: u32,
+    pub countdown_timer_msec: u32,
+    pub countdown_paused: bool,
     pub godmode: bool,
     pub pallette_idx: usize,
     pub song_idx: usize,
@@ -83,7 +85,8 @@ impl GameState<'static> {
             }),
             rng: RefCell::new(rng),
             game_mode: GameMode::StartScreen,
-            timer: 0,
+            countdown_timer_msec: 60 * 3,
+            countdown_paused: false,
             godmode: false,
             pallette_idx: 0,
             song_idx: 0,
@@ -91,6 +94,10 @@ impl GameState<'static> {
             difficulty_level: 1,
             total_npcs_to_find: 3,
         }
+    }
+
+    pub fn new_game(self: &mut Self) {
+        self.countdown_timer_msec = COUNTDOWN_TIMER_START;
     }
 
     pub fn regenerate_map(self: &mut Self) {
@@ -129,6 +136,7 @@ impl GameState<'static> {
         npcs.clear();
 
         game_state.total_npcs_to_find = (1 + (game_state.difficulty_level / 3) + rng.next() as u32 % 3).min(MAX_N_NPCS as u32);
+        game_state.countdown_timer_msec += (10 + game_state.total_npcs_to_find * 4 + game_state.difficulty_level.min(20)) * 60;
 
         // generate the NPCs before making the chunks.
         for _ in 0..game_state.total_npcs_to_find {

@@ -166,7 +166,38 @@ fn update() {
     }
 
     // ----------- UPDATE TIMER AND PLAY BGM -----------
-    game_state.timer += 1;
+
+
+    if !game_state.countdown_paused {
+        game_state.countdown_timer_msec -= 1;
+
+        // ---- LOSE CONDITION ----
+        if game_state.countdown_timer_msec <= 0 {
+
+            game_state.song_idx = 0;
+
+            game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::HoverModal(Modal {
+                n_options: 1,
+                timer: RefCell::new(0),
+                current_selection: RefCell::new(0),
+                target_position: RefCell::new(AbsoluteBoundingBox {
+                    x: 10,
+                    y: 10,
+                    width: 140,
+                    height: 140,
+                }),
+                actual_position: RefCell::new(AbsoluteBoundingBox {
+                    x: 80.0,
+                    y: 80.0,
+                    width: 1.0,
+                    height: 1.0,
+                }),
+                menu_type: MenuTypes::Done
+            }));
+        }
+    }
+    
+
     game_state.song_timer += 1;
     play_bgm(game_state.song_timer, &SONGS[game_state.song_idx]);
 
@@ -181,9 +212,11 @@ fn update() {
             match play_mode {
                 NormalPlayModes::MainGameplay => {
                     // handle player inputs here
+                    game_state.countdown_paused = false;
                 }
                 NormalPlayModes::HoverModal(_) => {
                     showing_modal = true;
+                    game_state.countdown_paused = true;
                 }
             }
 
@@ -502,8 +535,8 @@ fn update() {
                 // layertext("find the kitties...", 0, BOTTOM_UI_TEXT_Y);
                 layertext(
                     &format![
-                        "find kitties {}/{}",
-                        current_found_npcs, game_state.total_npcs_to_find
+                        "found {}/{} Time: {:.2}",
+                        current_found_npcs, game_state.total_npcs_to_find, game_state.countdown_timer_msec / 60
                     ],
                     0,
                     BOTTOM_UI_TEXT_Y,
@@ -643,6 +676,24 @@ fn update() {
                                         }
                                     }
                                 },
+                                MenuTypes::Done => {
+                                    const BLINK_START: u32 = 50;
+                                    const BLINK_TITLE_PERIOD: u32 = 17;
+                                    if text_timer < BLINK_START || (text_timer / BLINK_TITLE_PERIOD) % 2 == 0 {
+                                        text("All Done!", 50, 50);
+                                    }
+
+                                    match option_selected {
+                                        0 => {
+                                            game_state.difficulty_level = 1;
+                                            game_state.game_mode = GameMode::StartScreen;
+                                        }
+                                        10 => {}
+                                        _ => {
+                                            unreachable!()
+                                        }
+                                    }
+                                }
                             }     
                         }
                     }
@@ -687,6 +738,8 @@ fn update() {
             // line(0, BOTTOM_UI_TEXT_Y - 2, 160, BOTTOM_UI_TEXT_Y - 2);
         }
         GameMode::StartScreen => {
+            game_state.song_idx = 1;
+            game_state.song_timer = 0;
             unsafe { *DRAW_COLORS = 0x1112 }
             text("Find the kitties!", 20, 20);
             text("Any key: start", 20, 40);
@@ -695,9 +748,10 @@ fn update() {
             }
             unsafe { *DRAW_COLORS = spritesheet::KITTY_SPRITESHEET_DRAW_COLORS }
             game_state.rng.borrow_mut().next();
-            if gamepads[0] != 0 {
+            if btns_pressed_this_frame[0] != 0 {
                 game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::MainGameplay);
                 // drop(game_state.map.chunks);
+                game_state.new_game();
                 game_state.regenerate_map();
             }
         }

@@ -284,7 +284,7 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
         }
     }
     
-    const BTN_ACCEL: f32 = 0.8;
+    const BTN_ACCEL: f32 = 0.85;
     const HOP_V: f32 = -5.0;
     const H_DECAY: f32 = 0.92;
 
@@ -560,10 +560,10 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
                 let v_col_res_left;
                 let v_col_res_right;
                 
-                let upper_y = char_bound.y + char_bound.height as i32 - 1;
-                let lower_y = char_bound.y;
-                let left_x: i32 = char_bound.x;
-                let right_x: i32 = char_bound.x + char_bound.width as i32 - 1;
+                let upper_y = char_bound.y + char_bound.height as i32 - 2;
+                let lower_y = char_bound.y + 1;
+                let left_x: i32 = char_bound.x + 1;
+                let right_x: i32 = char_bound.x + char_bound.width as i32 - 2;
 
                 let vert_y;
                 let positive_y;
