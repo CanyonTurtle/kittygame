@@ -166,7 +166,7 @@ impl Sprite {
 
         // main kitty
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![
-            [0, 16, 57, 14, 7],
+            [0, 16, 55, 14, 9],
             [1, 16, 55, 13, 9],
             [2, 16, 55, 14, 9],
             [3, 16, 50, 11, 14],

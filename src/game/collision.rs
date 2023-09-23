@@ -605,7 +605,7 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
                         discretized_y_displacement_this_frame = v_col_res_left.allowable_displacement.signum() * v_col_res_left.allowable_displacement.abs_diff(v_col_res_left.allowable_displacement) as i32;
                     }
 
-                    if positive_y {
+                    if positive_y { // && !h_col_res_lower.collided && !h_col_res_upper.collided {
                         touching_some_ground = true;
                     }
                 }
@@ -764,14 +764,20 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
     } else {
         // if we hit the floor, stop jumping
         match character.state {
-            KittyStates::JumpingUp(_) => {
-                character.state = KittyStates::Walking(0);
+            KittyStates::JumpingUp(t) => {
+                match t {
+                    0..=15 => {},
+                    _ => {
+                        character.state = KittyStates::Walking(0);
+                    }
+                }
+                
             }
             _ => {}
         }
     }
     
-    character.current_sprite_i = get_sprite_i_from_anim_state(&character.state, discretized_y_displacement_this_frame);
+    // character.current_sprite_i = get_sprite_i_from_anim_state(&character.state, discretized_y_displacement_this_frame);
 
     character.x_pos += discretized_x_displacement_this_frame as f32;
     character.y_pos += discretized_y_displacement_this_frame as f32;
