@@ -35,7 +35,7 @@ use crate::{
     game::{
         collision::{get_bound_of_character, AbsoluteBoundingBox},
         entities::OptionallyEnabledPlayer,
-        menus::{Modal, NormalPlayModes, MenuTypes}, game_constants::COUNTDOWN_TIMER_START,
+        menus::{Modal, NormalPlayModes, MenuTypes}, game_constants::COUNTDOWN_TIMER_START, popup_text::PopTextRingbuffer,
     },
     spritesheet::KITTY_SPRITESHEET_PALLETES,
 };
@@ -509,7 +509,7 @@ fn update() {
             }
 
             layertext(&format!["Lv. {}", game_state.difficulty_level], 0, BOTTOM_UI_TEXT_Y);
-            layertext(&format!["Sc. {}", game_state.score], 80, BOTTOM_UI_TEXT_Y);
+            layertext(&format!["Sc. {}", *game_state.score.borrow()], 80, BOTTOM_UI_TEXT_Y);
 
             let mut current_found_npcs = 0;
             for npc in game_state.npcs.borrow().iter() {
@@ -528,12 +528,33 @@ fn update() {
                 layertext(
                     &format![
                         "found {}/{} Time: {:.2}",
-                        current_found_npcs, game_state.total_npcs_to_find, game_state.countdown_timer_msec / 60
+                        current_found_npcs, game_state.total_npcs_to_find, *game_state.countdown_timer_msec.borrow() as u32 / 60
                     ],
                     0,
                     TOP_UI_TEXT_Y,
                 );
             }
+
+            // update popups
+            {
+                let popup_texts_rb: &mut PopTextRingbuffer = &mut game_state.popup_text_ringbuffer.borrow_mut();
+                popup_texts_rb.update_popup_positions();
+                let camera = game_state.camera.borrow();
+                for popup in popup_texts_rb.texts.iter() {
+                    match popup {
+                        Some(p) => {
+                            const T_BEFORE_BLINK: u32 = 60;
+                            if p.duration_timer < T_BEFORE_BLINK || p.duration_timer % 6 < 3 {
+                                layertext(&p.text, (p.x_pos - camera.current_viewing_x_offset) as i32, (p.y_pos - camera.current_viewing_y_offset) as i32);
+                            }
+                        },
+                        None => {
+
+                        }
+                    }
+                }
+            }
+
 
             if showing_modal {
                 match play_mode {
@@ -678,7 +699,7 @@ fn update() {
                                         text("Time's Up!", 44, 50);
                                     }
 
-                                    text(&format!["Score: {} pts", game_state.score], 20, 80);
+                                    text(&format!["Score: {} pts", *game_state.score.borrow()], 20, 80);
 
                                     match option_selected {
                                         0 => {
@@ -714,7 +735,7 @@ fn update() {
                 }
             } else {
                 // HELP TEXT AT START OF GAME
-                if game_state.difficulty_level == 1 && game_state.countdown_timer_msec == COUNTDOWN_TIMER_START - 2 * 60 {
+                if game_state.difficulty_level == 1 && *game_state.countdown_timer_msec.borrow() == COUNTDOWN_TIMER_START - 2 * 60 {
                     game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::HoverModal(Modal {
                         n_options: 1,
                         timer: RefCell::new(0),
@@ -762,10 +783,10 @@ fn update() {
                 }
 
                 if !game_state.countdown_paused {
-                    game_state.countdown_timer_msec -= 1;
+                    *game_state.countdown_timer_msec.borrow_mut() -= 1;
             
                     // ---- LOSE CONDITION ----
-                    if game_state.countdown_timer_msec <= 0 {
+                    if *game_state.countdown_timer_msec.borrow() <= 0 {
             
                         game_state.song_idx = 0;
             

@@ -1,6 +1,6 @@
 
 
-use crate::spritesheet;
+use crate::{spritesheet, game::popup_text::PopTextRingbuffer};
 
 use super::{mapchunk::{TileAlignedBoundingBox, MapChunk}, game_constants::{TILE_WIDTH_PX, TILE_HEIGHT_PX, X_LEFT_BOUND, X_RIGHT_BOUND, Y_LOWER_BOUND, Y_UPPER_BOUND}, game_map::GameMap, entities::{MovingEntity, Character, OptionallyEnabledPlayer, KittyStates}, game_state::GameState};
 
@@ -75,9 +75,10 @@ pub fn check_entity_collisions(game_state: &GameState) {
             for (j, npc2) in game_state.npcs.borrow().iter().enumerate() {
                 let did_hit: bool;
                 {
-                    let npc1_bound = get_bound_of_character(p);
+                    let player_bound = get_bound_of_character(p);
+
                     let npc2_bound = get_bound_of_character(npc2);
-                    did_hit = check_absolute_bounding_box_partially_inside_another(&npc1_bound, &npc2_bound);
+                    did_hit = check_absolute_bounding_box_partially_inside_another(&player_bound, &npc2_bound);
                 }
                 match did_hit {
                     true => {
@@ -86,6 +87,8 @@ pub fn check_entity_collisions(game_state: &GameState) {
                             npc_hitlist[hitlist_i as usize] = (i as u8, j as u8);
                             hitlist_i += 1;
                         }
+
+                       
                     }
                     _ => {}
                 }
@@ -98,9 +101,33 @@ pub fn check_entity_collisions(game_state: &GameState) {
         
 
         if let OptionallyEnabledPlayer::Enabled(_p) = opt_p {
+
+            
+
             let npc = &mut game_state.npcs.borrow_mut()[*hit_npc_i as usize];
+
+            let pop_x = npc.x_pos;
+            let pop_y = npc.y_pos;
+
+            match npc.following_i {
+                None => {
+                    // add score popup if this was newly found, update score
+                    let popup_texts_rb: &mut PopTextRingbuffer = &mut game_state.popup_text_ringbuffer.borrow_mut();
+                    popup_texts_rb.add_new_popup(pop_x, pop_y, format!["+{}", 1].to_string());
+
+                    let game_state_cd_timer: &mut u32 = &mut game_state.countdown_timer_msec.borrow_mut();
+                    let gained_amount = 1 * 60;
+                    *game_state_cd_timer += gained_amount;
+                    *game_state.score.borrow_mut() += gained_amount;
+                },
+                Some(_) => {}
+            }
+
             // p.y_pos -= 2.0;
             npc.following_i = Some(*hit_p_i);
+
+             
+
         }
     }
 }
