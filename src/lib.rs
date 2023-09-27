@@ -95,8 +95,8 @@ fn drawcharacter(
     match character {
         MovingEntity::OptionalPlayer(optionally_enabled_player) => {
             match optionally_enabled_player {
-                OptionallyEnabledPlayer::Enabled(character) => {
-                    the_char = character;
+                OptionallyEnabledPlayer::Enabled(p) => {
+                    the_char = &mut p.character;
                 }
                 OptionallyEnabledPlayer::Disabled => return,
             }
@@ -214,12 +214,12 @@ fn update() {
                 OptionallyEnabledPlayer::Disabled => {}
                 OptionallyEnabledPlayer::Enabled(player) => {
                     game_state.camera.borrow_mut().current_viewing_x_target = num::clamp(
-                        player.x_pos - 80.0,
+                        player.character.x_pos - 80.0,
                         X_LEFT_BOUND as f32,
                         X_RIGHT_BOUND as f32,
                     );
                     game_state.camera.borrow_mut().current_viewing_y_target = num::clamp(
-                        player.y_pos - 80.0,
+                        player.character.y_pos - 80.0,
                         Y_LOWER_BOUND as f32,
                         Y_UPPER_BOUND as f32,
                     );
@@ -274,7 +274,7 @@ fn update() {
                     Some(p_i) => {
                         let the_opt_player = &game_state.players.borrow()[p_i as usize];
                         if let OptionallyEnabledPlayer::Enabled(p) = the_opt_player {
-                            let p_bound = get_bound_of_character(&p);
+                            let p_bound = get_bound_of_character(&p.character);
                             let npc_bound: AbsoluteBoundingBox<i32, u32> =
                                 get_bound_of_character(&current_npc);
                             let needs_teleport;
@@ -304,25 +304,25 @@ fn update() {
 
                                     // make NPCs tryhard when they're not in the same Y to get to exact x position to help with climbing
                                     let mut tryhard_get_to_0: bool = true;
-
+                                    let ch = &p.character;
                                     // fall by doing nothing
-                                    if current_npc.y_pos + (npc_bound.height as f32) < p.y_pos {
-                                    } else if current_npc.y_pos > p.y_pos + p_bound.height as f32 {
+                                    if current_npc.y_pos + (npc_bound.height as f32) < ch.y_pos {
+                                    } else if current_npc.y_pos > ch.y_pos + p_bound.height as f32 {
                                         inputs[i] |= BUTTON_1;
                                     } else {
                                         tryhard_get_to_0 = false;
                                     }
 
                                     if tryhard_get_to_0 {
-                                        if current_npc.x_pos < p.x_pos {
+                                        if current_npc.x_pos < ch.x_pos {
                                             inputs[i] |= BUTTON_RIGHT;
-                                        } else if current_npc.x_pos > p.x_pos {
+                                        } else if current_npc.x_pos > ch.x_pos {
                                             inputs[i] |= BUTTON_LEFT;
                                         }
                                     } else {
-                                        if current_npc.x_pos + (npc_bound.width as f32) < p.x_pos {
+                                        if current_npc.x_pos + (npc_bound.width as f32) < ch.x_pos {
                                             inputs[i] |= BUTTON_RIGHT;
-                                        } else if current_npc.x_pos > p.x_pos + p_bound.width as f32
+                                        } else if current_npc.x_pos > ch.x_pos + p_bound.width as f32
                                         {
                                             inputs[i] |= BUTTON_LEFT;
                                         }
@@ -367,7 +367,7 @@ fn update() {
 
             drawmap(&game_state);
 
-            if !showing_modal && btns_pressed_this_frame[0] & BUTTON_2 != 0 {
+            if !showing_modal && btns_pressed_this_frame[0] & BUTTON_DOWN != 0 {
                 // game_state.game_mode = GameMode::Options(OptionsState {
                 //     current_selection: 0,
                 // });
@@ -521,13 +521,13 @@ fn update() {
 
             // keep going till the timer hits
             if game_state.total_npcs_to_find == current_found_npcs {
-                layertext("You found them!! :D", 0, TOP_UI_TEXT_Y);
+                // layertext("You found them!! :D", 0, TOP_UI_TEXT_Y);
                 // game_state.difficulty_level += 1;
             } else {
                 // layertext("find the kitties...", 0, BOTTOM_UI_TEXT_Y);
                 layertext(
                     &format![
-                        "found {}/{} Time: {:.2}",
+                        "{}/{} {:.2}",
                         current_found_npcs, game_state.total_npcs_to_find, *game_state.countdown_timer_msec.borrow() as u32 / 60
                     ],
                     0,
@@ -553,6 +553,53 @@ fn update() {
                         }
                     }
                 }
+            }
+
+            // use ability cards
+            match &mut (*game_state.players.borrow_mut())[player_idx as usize] {
+                OptionallyEnabledPlayer::Enabled(p) => {
+                    if !showing_modal && btns_pressed_this_frame[player_idx as usize] & BUTTON_2 != 0 {
+                        let res = p.card_stack.try_use_cards();
+                        match res {
+                            game::ability_cards::AbilityCardUsageResult::NothingHappened => {},
+                            game::ability_cards::AbilityCardUsageResult::GainedTime(t) => {
+                                *game_state.countdown_timer_msec.borrow_mut() += t * 60;
+                                *game_state.score.borrow_mut() += t * 60;
+                                game_state.popup_text_ringbuffer.borrow_mut().add_new_popup(p.character.x_pos, p.character.y_pos, format!["+{}", t])
+                            },
+                        }
+                    }
+                },
+                OptionallyEnabledPlayer::Disabled => {},
+            }
+
+            // draw ability cards
+            unsafe { *DRAW_COLORS = spritesheet::KITTY_SPRITESHEET_DRAW_COLORS }
+            match &(*game_state.players.borrow())[player_idx as usize] {
+                OptionallyEnabledPlayer::Enabled(p) => {
+                    for (i, card) in p.card_stack.cards.iter().enumerate() {
+                        match &card {
+                            
+                            Some(c) => {
+                                // trace(&format!["{}", i]);
+                                blit_sub(
+                                    &game_state.spritesheet,
+                                    80 + 15 * i as i32,
+                                    1,
+                                    c.sprite.frames[0].width as u32,
+                                    c.sprite.frames[0].height as u32,
+                                    c.sprite.frames[0].start_x as u32,
+                                    c.sprite.frames[0].start_y as u32,
+                                    (game_state.spritesheet_stride) as u32,
+                                    spritesheet::KITTY_SPRITESHEET_FLAGS,
+                                );
+                            },
+                            None => {},
+                        }
+                        
+                    }
+                },
+                OptionallyEnabledPlayer::Disabled => todo!(),
             }
 
 

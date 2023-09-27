@@ -1,7 +1,14 @@
 use crate::spritesheet;
 
+use super::ability_cards::AbilityCardStack;
+
+pub struct Player {
+    pub character: Character,
+    pub card_stack: AbilityCardStack,
+}
+
 pub enum OptionallyEnabledPlayer {
-    Enabled(Character),
+    Enabled(Player),
     Disabled
 }
 

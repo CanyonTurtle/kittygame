@@ -1,5 +1,6 @@
 use core::cell::RefCell;
 
+use super::entities::Player;
 use super::game_constants::COUNTDOWN_TIMER_START;
 use super::menus::GameMode;
 use super::popup_text::PopTextRingbuffer;
@@ -14,6 +15,7 @@ use super::{
     mapchunk::{MapChunk, TileAlignedBoundingBox},
     rng::Rng,
 };
+use crate::game::ability_cards::AbilityCardStack;
 use crate::game::music::SONGS;
 use crate::kitty_ss;
 use crate::spritesheet;
@@ -43,7 +45,10 @@ pub struct GameState<'a> {
 impl GameState<'static> {
     pub fn new() -> GameState<'static> {
         let characters = [
-            OptionallyEnabledPlayer::Enabled(Character::new(spritesheet::PresetSprites::MainCat)),
+            OptionallyEnabledPlayer::Enabled(Player {
+                character: Character::new(spritesheet::PresetSprites::MainCat),
+                card_stack: AbilityCardStack { cards: Vec::new() },
+            }),
             OptionallyEnabledPlayer::Disabled,
             OptionallyEnabledPlayer::Disabled,
             OptionallyEnabledPlayer::Disabled,
@@ -107,9 +112,9 @@ impl GameState<'static> {
             difficulty_level: 1,
             total_npcs_to_find: 3,
             score: RefCell::new(0),
-            popup_text_ringbuffer: RefCell::new(PopTextRingbuffer { texts: [
-                None, None, None, None, None, None, None, None, None, None,
-            ], next_avail_idx: 0
+            popup_text_ringbuffer: RefCell::new(PopTextRingbuffer {
+                texts: [None, None, None, None, None, None, None, None, None, None],
+                next_avail_idx: 0,
             }),
         }
     }
@@ -142,8 +147,8 @@ impl GameState<'static> {
         for optional_player in game_state.players.borrow_mut().iter_mut() {
             match optional_player {
                 OptionallyEnabledPlayer::Enabled(p) => {
-                    p.x_pos = 10.0;
-                    p.y_pos = 10.0;
+                    p.character.x_pos = 10.0;
+                    p.character.y_pos = 10.0;
                 }
                 OptionallyEnabledPlayer::Disabled => {}
             }
@@ -156,8 +161,7 @@ impl GameState<'static> {
         game_state.total_npcs_to_find =
             (1 + (game_state.difficulty_level / 3) + rng.next() as u32 % 3).min(MAX_N_NPCS as u32);
 
-        let countdown_and_score_bonus =
-            (10 + game_state.difficulty_level.min(20) * 2) * 60;
+        let countdown_and_score_bonus = (10 + game_state.difficulty_level.min(20) * 2) * 60;
 
         let cdt: &mut u32 = &mut game_state.countdown_timer_msec.borrow_mut();
         *cdt += countdown_and_score_bonus;
