@@ -131,6 +131,10 @@ pub enum PresetSprites {
     LineTop,
     LineRight,
     LineBottom,
+    KittyCard,
+    PiggyCard,
+    LizardCard,
+    BirdCard
 }
 
 static mut SPRITES: Option<Vec<Sprite>> = None;
@@ -244,8 +248,8 @@ impl Sprite {
             [1, 16, 8, 10, 8],
         ]));
 
+        // tiles
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![[0, 0, 0, 5, 5]]));
-
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![[0, 5, 0, 5, 5]]));
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![[0, 10, 0, 5, 5]]));
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![[0, 5, 0, 5, 5]]));
@@ -259,6 +263,17 @@ impl Sprite {
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![[0, 5, 15, 5, 5]]));
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![[0, 10, 15, 5, 5]]));
 
+        // kitty card
+        the_sprites.push(Sprite::from_page_x_y_w_h(vec![[3, 0, 0, 12, 12]]));
+
+        // pig card
+        the_sprites.push(Sprite::from_page_x_y_w_h(vec![[3, 12, 0, 12, 12]]));
+
+        // lizard card
+        the_sprites.push(Sprite::from_page_x_y_w_h(vec![[3, 0, 12, 12, 12]]));
+
+        // bird card
+        the_sprites.push(Sprite::from_page_x_y_w_h(vec![[3, 12, 12, 12, 12]]));
     }
 
     pub fn from_page_x_y_w_h(spriteframe_indecies: Vec<[u8; 5]>) -> Sprite {
@@ -305,6 +320,10 @@ impl Sprite {
             PresetSprites::LineTop => &sprites_vec[18],
             PresetSprites::LineRight => &sprites_vec[19],
             PresetSprites::LineBottom => &sprites_vec[20],
+            PresetSprites::KittyCard => &sprites_vec[21],
+            PresetSprites::PiggyCard => &sprites_vec[22],
+            PresetSprites::LizardCard => &sprites_vec[23],
+            PresetSprites::BirdCard => &sprites_vec[24],
         }
     }
 }
