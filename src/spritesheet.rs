@@ -288,7 +288,7 @@ impl Sprite {
         }
     }
 
-    pub fn from_preset(preset_sprite: PresetSprites) -> &'static Sprite {
+    pub fn from_preset(preset_sprite: &PresetSprites) -> &'static Sprite {
         let sprites_vec;
         unsafe {
             match &mut SPRITES {

@@ -157,7 +157,14 @@ pub fn check_entity_collisions(game_state: &GameState) {
                     popup_texts_rb.add_new_popup(pop_x, pop_y, format!["+{}", 1].to_string());
 
                     // add card
-                    p.card_stack.try_push_card(AbilityCardTypes::Kitty);
+                    let abil_card_type = match npc.sprite_type {
+                        spritesheet::PresetSprites::Kitty1 | spritesheet::PresetSprites::Kitty2 | spritesheet::PresetSprites::Kitty3 | spritesheet::PresetSprites::Kitty4 => AbilityCardTypes::Kitty,
+                        spritesheet::PresetSprites::Pig => AbilityCardTypes::Piggy,
+                        spritesheet::PresetSprites::Lizard => AbilityCardTypes::Lizard,
+                        spritesheet::PresetSprites::BirdIsntReal => AbilityCardTypes::Bird,
+                        _ => AbilityCardTypes::Kitty,
+                    };
+                    p.card_stack.try_push_card(abil_card_type);
 
                     let game_state_cd_timer: &mut u32 =
                         &mut game_state.countdown_timer_msec.borrow_mut();
@@ -395,6 +402,11 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
             },
             _ => {}
         }
+
+        if the_char.can_fly {
+            allow_jump = true;
+        }
+
         if allow_jump {
             if input & BUTTON_1 != 0 {
                 the_char.state = KittyStates::JumpingUp(0);

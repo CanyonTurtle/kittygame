@@ -567,6 +567,10 @@ fn update() {
                                 *game_state.score.borrow_mut() += t * 60;
                                 game_state.popup_text_ringbuffer.borrow_mut().add_new_popup(p.character.x_pos, p.character.y_pos, format!["+{}", t])
                             },
+                            game::ability_cards::AbilityCardUsageResult::EnabledFlyForTime(_) => {
+                                p.character.can_fly = true;
+                                game_state.popup_text_ringbuffer.borrow_mut().add_new_popup(p.character.x_pos, p.character.y_pos, "+Fly!".to_string())
+                            }
                         }
                     }
                 },

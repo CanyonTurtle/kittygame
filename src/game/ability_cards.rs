@@ -4,9 +4,9 @@ use crate::spritesheet::{Sprite, PresetSprites};
 #[derive(PartialEq)]
 pub enum AbilityCardTypes {
     Kitty,
-    // Piggy,
-    // Lizard,
-    // Bird
+    Piggy,
+    Lizard,
+    Bird
 }
 
 pub struct AbilityCard {
@@ -24,19 +24,19 @@ impl AbilityCard {
     pub fn new(card: AbilityCardTypes) -> AbilityCard {
         let preset_sprite_type = match card {
             AbilityCardTypes::Kitty => PresetSprites::KittyCard,
-            // AbilityCardTypes::Piggy => PresetSprites::PiggyCard,
-            // AbilityCardTypes::Lizard => PresetSprites::LizardCard,
-            // AbilityCardTypes::Bird => PresetSprites::BirdCard,
+            AbilityCardTypes::Piggy => PresetSprites::PiggyCard,
+            AbilityCardTypes::Lizard => PresetSprites::LizardCard,
+            AbilityCardTypes::Bird => PresetSprites::BirdCard,
         };
         
-        AbilityCard { card_type: card, sprite: Sprite::from_preset(preset_sprite_type) }
+        AbilityCard { card_type: card, sprite: Sprite::from_preset(&preset_sprite_type) }
     }
 }
 
 pub enum AbilityCardUsageResult {
     NothingHappened,
     GainedTime(u32),
-    // EnabledFlyForTime(u32),
+    EnabledFlyForTime(u32),
     // TeleportationEnabled,
 }
 
@@ -76,15 +76,13 @@ impl AbilityCardStack {
                 }
 
                 // apply ability of card
-                let abil_card;
-                match &active_card_type {
+                let abil_card =match &active_card_type {
                     AbilityCardTypes::Kitty => {
-                        abil_card = AbilityCardUsageResult::GainedTime((n_consumed as f32 * (n_consumed as f32 + 1.0) / 2.0) as u32)
+                        AbilityCardUsageResult::GainedTime((n_consumed as f32 * (n_consumed as f32 + 1.0) / 2.0) as u32)
                     },
-                    // AbilityCardTypes::Piggy => {},
-                    // AbilityCardTypes::Lizard => {},
-                    // AbilityCardTypes::Bird => {},
-                }
+                    AbilityCardTypes::Piggy | AbilityCardTypes::Lizard => AbilityCardUsageResult::GainedTime(10),
+                    AbilityCardTypes::Bird => AbilityCardUsageResult::EnabledFlyForTime(0),
+                };
 
                 // remove cards off the end (to ensure correct ordering)
                 for i in (0..cards_to_consume.len()).rev() {

@@ -78,21 +78,21 @@ impl GameState<'static> {
             spritesheet: kitty_ss::KITTY_SPRITESHEET,
             spritesheet_stride: spritesheet::KITTY_SPRITESHEET_STRIDE as usize,
             background_tiles: vec![
-                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::LineTop),
-                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::LineLeft),
-                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::LineRight),
-                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::LineBottom),
-                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::SolidWhite),
-                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::SeethroughWhite),
-                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::TopleftSolidCorner),
-                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::ToprightSolidCorner),
-                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::BottomleftSolidCorner),
+                spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::LineTop),
+                spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::LineLeft),
+                spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::LineRight),
+                spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::LineBottom),
+                spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::SolidWhite),
+                spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::SeethroughWhite),
+                spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::TopleftSolidCorner),
+                spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::ToprightSolidCorner),
+                spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::BottomleftSolidCorner),
                 spritesheet::Sprite::from_preset(
-                    spritesheet::PresetSprites::BottomrightSolidCorner,
+                    &spritesheet::PresetSprites::BottomrightSolidCorner,
                 ),
-                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::ColumnTop),
-                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::ColumnMiddle),
-                spritesheet::Sprite::from_preset(spritesheet::PresetSprites::ColumnBottom),
+                spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::ColumnTop),
+                spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::ColumnMiddle),
+                spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::ColumnBottom),
             ],
             map: GameMap::create_map(),
             camera: RefCell::new(Camera {
@@ -161,7 +161,7 @@ impl GameState<'static> {
         game_state.total_npcs_to_find =
             (1 + (game_state.difficulty_level / 3) + rng.next() as u32 % 3).min(MAX_N_NPCS as u32);
 
-        let countdown_and_score_bonus = (10 + game_state.difficulty_level.min(20) * 2) * 60;
+        let countdown_and_score_bonus = (5 + game_state.difficulty_level.min(20)) * 60;
 
         let cdt: &mut u32 = &mut game_state.countdown_timer_msec.borrow_mut();
         *cdt += countdown_and_score_bonus;

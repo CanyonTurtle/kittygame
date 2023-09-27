@@ -1,4 +1,4 @@
-use crate::spritesheet;
+use crate::spritesheet::{self, PresetSprites};
 
 use super::ability_cards::AbilityCardStack;
 
@@ -31,6 +31,8 @@ pub struct Character {
     pub current_sprite_i: i32,
     pub sprite: &'static spritesheet::Sprite,
     pub following_i: Option<u8>,
+    pub can_fly: bool,
+    pub sprite_type: PresetSprites,
 }
 
 #[derive(PartialEq, Eq, Hash)]
@@ -46,7 +48,7 @@ pub enum KittyStates {
 
 
 impl Character {
-    pub fn new(sprite_type: spritesheet::PresetSprites) -> Character {
+    pub fn new(sprite_type: PresetSprites) -> Character {
         Character {
             x_pos: 10 as f32,
             y_pos: 10.0,
@@ -58,8 +60,10 @@ impl Character {
             is_facing_right: true,
             state: KittyStates::JumpingUp(200),
             current_sprite_i: 0,
-            sprite: &spritesheet::Sprite::from_preset(sprite_type),
-            following_i: None
+            sprite: &spritesheet::Sprite::from_preset(&sprite_type),
+            following_i: None,
+            can_fly: false,
+            sprite_type: sprite_type
         }
     }
 }
