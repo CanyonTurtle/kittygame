@@ -556,10 +556,10 @@ fn update() {
             }
 
             // use ability cards
-            for pr in (*game_state.players.borrow_mut()).iter_mut() {
+            for (p_i, pr) in (*game_state.players.borrow_mut()).iter_mut().enumerate() {
                 match pr {
                     OptionallyEnabledPlayer::Enabled(p) => {
-                        if !showing_modal && btns_pressed_this_frame[player_idx as usize] & BUTTON_2 != 0 {
+                        if !showing_modal && btns_pressed_this_frame[p_i] & BUTTON_2 != 0 {
                             let res = p.card_stack.try_use_cards();
                             match res {
                                 game::ability_cards::AbilityCardUsageResult::NothingHappened => {},
