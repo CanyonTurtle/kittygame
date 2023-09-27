@@ -556,26 +556,29 @@ fn update() {
             }
 
             // use ability cards
-            match &mut (*game_state.players.borrow_mut())[player_idx as usize] {
-                OptionallyEnabledPlayer::Enabled(p) => {
-                    if !showing_modal && btns_pressed_this_frame[player_idx as usize] & BUTTON_2 != 0 {
-                        let res = p.card_stack.try_use_cards();
-                        match res {
-                            game::ability_cards::AbilityCardUsageResult::NothingHappened => {},
-                            game::ability_cards::AbilityCardUsageResult::GainedTime(t) => {
-                                *game_state.countdown_timer_msec.borrow_mut() += t * 60;
-                                *game_state.score.borrow_mut() += t * 60;
-                                game_state.popup_text_ringbuffer.borrow_mut().add_new_popup(p.character.x_pos, p.character.y_pos, format!["+{}", t])
-                            },
-                            game::ability_cards::AbilityCardUsageResult::EnabledFlyForTime(_) => {
-                                p.character.can_fly = true;
-                                game_state.popup_text_ringbuffer.borrow_mut().add_new_popup(p.character.x_pos, p.character.y_pos, "+Fly!".to_string())
+            for pr in (*game_state.players.borrow_mut()).iter_mut() {
+                match pr {
+                    OptionallyEnabledPlayer::Enabled(p) => {
+                        if !showing_modal && btns_pressed_this_frame[player_idx as usize] & BUTTON_2 != 0 {
+                            let res = p.card_stack.try_use_cards();
+                            match res {
+                                game::ability_cards::AbilityCardUsageResult::NothingHappened => {},
+                                game::ability_cards::AbilityCardUsageResult::GainedTime(t) => {
+                                    *game_state.countdown_timer_msec.borrow_mut() += t * 60;
+                                    *game_state.score.borrow_mut() += t * 60;
+                                    game_state.popup_text_ringbuffer.borrow_mut().add_new_popup(p.character.x_pos, p.character.y_pos, format!["+{}", t])
+                                },
+                                game::ability_cards::AbilityCardUsageResult::EnabledFlyForTime(_) => {
+                                    p.character.can_fly = true;
+                                    game_state.popup_text_ringbuffer.borrow_mut().add_new_popup(p.character.x_pos, p.character.y_pos, "+Fly!".to_string())
+                                }
                             }
                         }
-                    }
-                },
-                OptionallyEnabledPlayer::Disabled => {},
+                    },
+                    OptionallyEnabledPlayer::Disabled => {},
+                }
             }
+            
 
             // draw ability cards
             unsafe { *DRAW_COLORS = spritesheet::KITTY_SPRITESHEET_DRAW_COLORS }
