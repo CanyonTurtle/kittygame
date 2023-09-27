@@ -149,6 +149,7 @@ impl GameState<'static> {
                 OptionallyEnabledPlayer::Enabled(p) => {
                     p.character.x_pos = 10.0;
                     p.character.y_pos = 10.0;
+                    p.character.can_fly = false;
                 }
                 OptionallyEnabledPlayer::Disabled => {}
             }

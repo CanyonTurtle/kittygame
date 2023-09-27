@@ -603,7 +603,7 @@ fn update() {
                         
                     }
                 },
-                OptionallyEnabledPlayer::Disabled => todo!(),
+                OptionallyEnabledPlayer::Disabled => {},
             }
 
 
