@@ -138,8 +138,8 @@ fn get_inputs_this_frame() -> [[u8; 4]; 2] {
         let previous = unsafe { PREVIOUS_GAMEPAD[i] };
         let pressed_this_frame = gamepad & (gamepad ^ previous);
         btns_pressed_this_frame[i] = pressed_this_frame;
-        unsafe { PREVIOUS_GAMEPAD.copy_from_slice(&gamepads[..]) };
     }
+    unsafe { PREVIOUS_GAMEPAD.copy_from_slice(&gamepads[0..4]) };
     [btns_pressed_this_frame, gamepads]
 }
 
@@ -556,11 +556,17 @@ fn update() {
             }
 
             // use ability cards
-            for (p_i, pr) in (*game_state.players.borrow_mut()).iter_mut().enumerate() {
+            for (p_i, pr) in game_state.players.borrow_mut().iter_mut().enumerate() {
+                // if btns_pressed_this_frame[p_i] != 0 {
+                //     trace(format!["check p{}: {}", p_i, btns_pressed_this_frame[p_i]]);
+                // }
+                
+                
                 match pr {
                     OptionallyEnabledPlayer::Enabled(p) => {
                         if !showing_modal && btns_pressed_this_frame[p_i] & BUTTON_2 != 0 {
                             let res = p.card_stack.try_use_cards();
+                            // trace("tried");
                             match res {
                                 game::ability_cards::AbilityCardUsageResult::NothingHappened => {},
                                 game::ability_cards::AbilityCardUsageResult::GainedTime(t) => {
