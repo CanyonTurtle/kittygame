@@ -10,7 +10,7 @@ impl GameMap {
         let new_tile_size = width * height;
         let new_prospective_size = self.num_tiles + new_tile_size;
         if new_prospective_size <= TOTAL_TILES_IN_MAP {
-            self.num_tiles = new_prospective_size;
+            // self.num_tiles = new_prospective_size;
             // crate::trace(self.num_tiles.to_string());
             return true;
         }

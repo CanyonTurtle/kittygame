@@ -13,7 +13,7 @@ pub const MAP_CHUNK_MAX_SIDE_LEN: usize = 50;
 
 pub const MAP_CHUNK_MAX_N_TILES: usize = 400;
 
-pub const TOTAL_TILES_IN_MAP: usize = 200 * 1024;
+pub const TOTAL_TILES_IN_MAP: usize = 50 * 1024;
 
 pub const MAX_N_NPCS: usize = 20;
   
@@ -26,3 +26,5 @@ pub const Y_LOWER_BOUND: i32 = -5000;
 pub const Y_UPPER_BOUND: i32 = 5000;
 
 pub const COUNTDOWN_TIMER_START: u32 = 60 * 60;
+
+pub const START_DIFFICULTY_LEVEL: u32 = 1;

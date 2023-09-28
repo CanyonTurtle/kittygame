@@ -1,7 +1,7 @@
 use core::cell::RefCell;
 
 use super::entities::Player;
-use super::game_constants::COUNTDOWN_TIMER_START;
+use super::game_constants::{COUNTDOWN_TIMER_START, START_DIFFICULTY_LEVEL};
 use super::menus::GameMode;
 use super::popup_text::PopTextRingbuffer;
 use super::{
@@ -109,7 +109,7 @@ impl GameState<'static> {
             pallette_idx: 0,
             song_idx: 0,
             song_timer: 0,
-            difficulty_level: 1,
+            difficulty_level: START_DIFFICULTY_LEVEL,
             total_npcs_to_find: 3,
             score: RefCell::new(0),
             popup_text_ringbuffer: RefCell::new(PopTextRingbuffer {
@@ -354,6 +354,7 @@ impl GameState<'static> {
                         Ok(_) => {
                             current_chunk_locations.push(new_chunk_location);
                             chunk_count += 1;
+                            map.num_tiles += chunk_hei * chunk_wid;
                             break 'generate_one_chunk;
                         }
                         Err(_) => {

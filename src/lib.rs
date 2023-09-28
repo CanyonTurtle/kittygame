@@ -35,7 +35,7 @@ use crate::{
     game::{
         collision::{get_bound_of_character, AbsoluteBoundingBox},
         entities::OptionallyEnabledPlayer,
-        menus::{Modal, NormalPlayModes, MenuTypes}, game_constants::COUNTDOWN_TIMER_START, popup_text::PopTextRingbuffer,
+        menus::{Modal, NormalPlayModes, MenuTypes}, game_constants::{COUNTDOWN_TIMER_START, START_DIFFICULTY_LEVEL}, popup_text::PopTextRingbuffer,
     },
     spritesheet::KITTY_SPRITESHEET_PALLETES,
 };
@@ -763,7 +763,7 @@ fn update() {
 
                                     match option_selected {
                                         0 => {
-                                            game_state.difficulty_level = 1;
+                                            game_state.difficulty_level = START_DIFFICULTY_LEVEL;
                                             game_state.game_mode = GameMode::StartScreen;
                                         }
                                         10 => {}
