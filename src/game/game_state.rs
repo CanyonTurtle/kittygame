@@ -18,7 +18,7 @@ use super::{
 use crate::game::ability_cards::AbilityCardStack;
 use crate::game::music::SONGS;
 use crate::kitty_ss;
-use crate::spritesheet;
+use crate::spritesheet::{self, KITTY_SPRITESHEET_PALLETES};
 
 pub struct GameState<'a> {
     pub players: RefCell<[OptionallyEnabledPlayer; 4]>,
@@ -143,9 +143,12 @@ impl GameState<'static> {
 
         let game_state: &mut GameState = self;
 
-        const LEVELS_PER_SONG: usize = 5;
+        const LEVELS_PER_MOOD: usize = 5;
         let new_song_idx =
-            1 + ((game_state.difficulty_level as usize - 1) / LEVELS_PER_SONG) % (SONGS.len() - 1);
+            1 + ((game_state.difficulty_level as usize - 1) / LEVELS_PER_MOOD) % (SONGS.len() - 1);
+
+        let new_pallete_idx = ((game_state.difficulty_level as usize - 1) / LEVELS_PER_MOOD) % KITTY_SPRITESHEET_PALLETES.len();
+        game_state.pallette_idx = new_pallete_idx;
 
         if new_song_idx != game_state.song_idx {
             game_state.song_timer = 0;
