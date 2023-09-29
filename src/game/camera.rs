@@ -19,4 +19,8 @@ impl Camera {
         self.current_viewing_x_offset += KP * x_err;
         self.current_viewing_y_offset += KP * y_err;
     }
+
+    pub fn cvt_world_to_screen_coords(self: &Self, x_pos: f32, y_pos: f32) -> (f32, f32) {
+        (x_pos - self.current_viewing_x_offset, y_pos - self.current_viewing_y_offset)
+    }
 }

@@ -164,7 +164,8 @@ pub fn check_entity_collisions(game_state: &GameState) {
                         spritesheet::PresetSprites::BirdIsntReal => AbilityCardTypes::Bird,
                         _ => AbilityCardTypes::Kitty,
                     };
-                    p.card_stack.try_push_card(abil_card_type);
+                    let npc_p = game_state.camera.borrow().cvt_world_to_screen_coords(npc.x_pos, npc.y_pos);
+                    p.card_stack.try_push_card(abil_card_type, npc_p.0, npc_p.1);
 
                     let game_state_cd_timer: &mut u32 =
                         &mut game_state.countdown_timer_msec.borrow_mut();
@@ -567,11 +568,13 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
         character.current_sprite_i =
             get_sprite_i_from_anim_state(&character.state, discretized_y_displacement_this_frame);
         let char_bound = get_bound_of_character(&character);
+        let mut inside_at_least_one_chunk = false;
         for chunk in map.chunks.iter() {
             // trace("checking chn");
 
             // if the sprite is inside this chunk, we now need to check to see if moving along our velocity
             if check_absolue_bound_partially_inside_tile_aligned_bound(&char_bound, &chunk.bound) {
+                inside_at_least_one_chunk = true;
                 // text(format!["Player in ch {i}"], 10, 10);
 
                 // VERTICAL COLLISION
@@ -819,6 +822,12 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
                 //     }
                 // }
             }
+        }
+
+        // if anyone makes it out of bounds, drop them in the center of the map
+        if !inside_at_least_one_chunk {
+            character.x_pos = 10.0;
+            character.y_pos = 10.0;
         }
     }
 

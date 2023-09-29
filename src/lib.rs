@@ -586,19 +586,36 @@ fn update() {
             }
             
 
+            // move ability cards
+            match &mut (*game_state.players.borrow_mut())[player_idx as usize] {
+                OptionallyEnabledPlayer::Enabled(p) => {
+                    for (i, card) in p.card_stack.cards.iter_mut().enumerate() {
+                        match card {
+                            Some(c) => {
+                                c.target_x = (80 + 15 * i) as f32;
+                                c.target_y = 1.0;
+                            },
+                            None => {}
+                        }
+                    }
+                    p.card_stack.move_cards();
+                },
+                OptionallyEnabledPlayer::Disabled => {}
+            }
+            
             // draw ability cards
             unsafe { *DRAW_COLORS = spritesheet::KITTY_SPRITESHEET_DRAW_COLORS }
             match &(*game_state.players.borrow())[player_idx as usize] {
                 OptionallyEnabledPlayer::Enabled(p) => {
-                    for (i, card) in p.card_stack.cards.iter().enumerate() {
+                    for card in p.card_stack.cards.iter() {
                         match &card {
                             
                             Some(c) => {
                                 // trace(&format!["{}", i]);
                                 blit_sub(
                                     &game_state.spritesheet,
-                                    80 + 15 * i as i32,
-                                    1,
+                                    c.x_pos as i32,
+                                    c.y_pos as i32,
                                     c.sprite.frames[0].width as u32,
                                     c.sprite.frames[0].height as u32,
                                     c.sprite.frames[0].start_x as u32,
@@ -680,7 +697,7 @@ fn update() {
                                     text("-- PAUSED --", 30, 20);
                                     // line(30, 110, 130, 110);
                                     text("< > to move,", 34, 124); 
-                                    text("x=jump, z=opt", 30, 136);
+                                    text("x=jump, z=card", 25, 136);
                                     text("back", MENU_X, MENU_TOP_Y + MENU_SPACING * 0);
                                     text("pallette", MENU_X, MENU_TOP_Y + MENU_SPACING * 1);
 
@@ -778,7 +795,7 @@ fn update() {
                                     text("kitties in time!", 20, 65);
                                     text("-- CONTROLS --", 24, 110);
                                     text("< > to move,", 34, 124); 
-                                    text("x=jump, z=opt", 30, 136);
+                                    text("x=jump, z=card", 26, 136);
                                     match option_selected {
                                         0 => {
                                             game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::MainGameplay);

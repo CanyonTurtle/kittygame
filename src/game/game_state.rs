@@ -139,7 +139,7 @@ impl GameState<'static> {
     pub fn regenerate_map(self: &mut Self) {
         self.godmode = false;
 
-        let max_n_chunks: u8 = 8 + self.get_n_enabled_players() * 2;
+        let max_n_chunks: u8 = 8 + self.difficulty_level as u8 * self.get_n_enabled_players() * 2;
 
         let game_state: &mut GameState = self;
 

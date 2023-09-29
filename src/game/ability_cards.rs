@@ -1,35 +1,45 @@
-use crate::spritesheet::{Sprite, PresetSprites};
-
+use crate::spritesheet::{PresetSprites, Sprite};
 
 #[derive(PartialEq)]
 pub enum AbilityCardTypes {
     Kitty,
     Piggy,
     Lizard,
-    Bird
+    Bird,
 }
 
 pub struct AbilityCard {
     pub card_type: AbilityCardTypes,
     pub sprite: &'static Sprite,
+    pub target_x: f32,
+    pub target_y: f32,
+    pub x_pos: f32,
+    pub y_pos: f32,
 }
 
 pub const N_CARDS: usize = 5;
 
 pub struct AbilityCardStack {
-    pub cards: Vec<Option<AbilityCard>>
+    pub cards: Vec<Option<AbilityCard>>,
 }
 
 impl AbilityCard {
-    pub fn new(card: AbilityCardTypes) -> AbilityCard {
+    pub fn new(card: AbilityCardTypes, x_pos: f32, y_pos: f32) -> AbilityCard {
         let preset_sprite_type = match card {
             AbilityCardTypes::Kitty => PresetSprites::KittyCard,
             AbilityCardTypes::Piggy => PresetSprites::PiggyCard,
             AbilityCardTypes::Lizard => PresetSprites::LizardCard,
             AbilityCardTypes::Bird => PresetSprites::BirdCard,
         };
-        
-        AbilityCard { card_type: card, sprite: Sprite::from_preset(&preset_sprite_type) }
+
+        AbilityCard {
+            card_type: card,
+            sprite: Sprite::from_preset(&preset_sprite_type),
+            target_x: 0.0,
+            target_y: 0.0,
+            x_pos,
+            y_pos,
+        }
     }
 }
 
@@ -41,9 +51,22 @@ pub enum AbilityCardUsageResult {
 }
 
 impl AbilityCardStack {
-    pub fn try_push_card(self: &mut Self, card: AbilityCardTypes) {
+    pub fn try_push_card(self: &mut Self, card: AbilityCardTypes, x_pos: f32, y_pos: f32) {
         if self.cards.len() < N_CARDS {
-            self.cards.push(Some(AbilityCard::new(card)));
+            self.cards.push(Some(AbilityCard::new(card, x_pos, y_pos)));
+        }
+    }
+
+    pub fn move_cards(self: &mut Self) {
+        for card in &mut self.cards.iter_mut() {
+            match card {
+                Some(c) => {
+                    const CARD_PID_P: f32 = 0.125;
+                    c.x_pos += CARD_PID_P * (c.target_x - c.x_pos);
+                    c.y_pos += CARD_PID_P * (c.target_y - c.y_pos);
+                },
+                None => {},
+            }
         }
     }
 
@@ -53,14 +76,15 @@ impl AbilityCardStack {
             return AbilityCardUsageResult::NothingHappened;
         }
         match &self.cards[self.cards.len() - 1] {
-            None => {},
+            None => {}
             Some(card) => {
                 let active_card_type = &card.card_type;
                 let mut cards_to_consume = [false; N_CARDS];
                 cards_to_consume[self.cards.len() - 1] = true;
                 let mut n_consumed = 1;
                 // consume all adjacent cards of same type
-                for (i, other_card) in self.cards[0..self.cards.len() - 1].iter().enumerate().rev() {
+                for (i, other_card) in self.cards[0..self.cards.len() - 1].iter().enumerate().rev()
+                {
                     match other_card {
                         Some(oc) => {
                             if oc.card_type == card.card_type {
@@ -69,19 +93,19 @@ impl AbilityCardStack {
                             } else {
                                 break;
                             }
-                        },
-                        None => {
-
                         }
+                        None => {}
                     }
                 }
 
                 // apply ability of card
-                let abil_card =match &active_card_type {
-                    AbilityCardTypes::Kitty => {
-                        AbilityCardUsageResult::GainedTime((n_consumed as f32 * (n_consumed as f32 + 1.0) / 2.0) as u32)
-                    },
-                    AbilityCardTypes::Piggy | AbilityCardTypes::Lizard => AbilityCardUsageResult::GainedTime(10),
+                let abil_card = match &active_card_type {
+                    AbilityCardTypes::Kitty => AbilityCardUsageResult::GainedTime(
+                        (n_consumed as f32 * (n_consumed as f32 + 1.0) / 2.0) as u32,
+                    ),
+                    AbilityCardTypes::Piggy | AbilityCardTypes::Lizard => {
+                        AbilityCardUsageResult::GainedTime(10)
+                    }
                     AbilityCardTypes::Bird => AbilityCardUsageResult::EnabledFlyForTime(0),
                 };
 
@@ -93,8 +117,6 @@ impl AbilityCardStack {
                 }
                 // self.cards.remove(self.cards.len() - 1);
                 return abil_card;
-
-                
             }
         }
         AbilityCardUsageResult::NothingHappened
