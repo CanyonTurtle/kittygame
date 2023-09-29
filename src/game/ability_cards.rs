@@ -52,14 +52,15 @@ impl AbilityCardStack {
         if self.cards.is_empty() {
             return AbilityCardUsageResult::NothingHappened;
         }
-        match &self.cards[0] {
+        match &self.cards[self.cards.len() - 1] {
             None => {},
             Some(card) => {
                 let active_card_type = &card.card_type;
                 let mut cards_to_consume = [false; N_CARDS];
+                cards_to_consume[self.cards.len() - 1] = true;
                 let mut n_consumed = 1;
                 // consume all adjacent cards of same type
-                for (i, other_card) in self.cards[1..].iter().enumerate() {
+                for (i, other_card) in self.cards[0..self.cards.len() - 1].iter().enumerate().rev() {
                     match other_card {
                         Some(oc) => {
                             if oc.card_type == card.card_type {
@@ -90,7 +91,7 @@ impl AbilityCardStack {
                         self.cards.remove(i);
                     }
                 }
-                self.cards.remove(0);
+                // self.cards.remove(self.cards.len() - 1);
                 return abil_card;
 
                 

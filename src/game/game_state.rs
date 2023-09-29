@@ -125,8 +125,22 @@ impl GameState<'static> {
         *self.score.borrow_mut() = 0;
     }
 
+    pub fn get_n_enabled_players(self: &Self) -> u8 {
+        let mut sum = 0;
+        for op in self.players.borrow().iter() {
+            sum += match &op {
+                OptionallyEnabledPlayer::Enabled(_) => 1,
+                OptionallyEnabledPlayer::Disabled => 0,
+            };
+        }
+        sum
+    }
+
     pub fn regenerate_map(self: &mut Self) {
         self.godmode = false;
+
+        let max_n_chunks: u8 = 8 + self.get_n_enabled_players() * 2;
+
         let game_state: &mut GameState = self;
 
         const LEVELS_PER_SONG: usize = 5;
@@ -206,7 +220,10 @@ impl GameState<'static> {
         }
         // place the chunks randomly.
         let mut chunk_count = 0;
-        let max_n_chunks = 8 + game_state.difficulty_level * 4;
+
+        
+
+        // let max_n_chunks = 8 + game_state.difficulty_level * 4;
         'generate_chunks: loop {
             if chunk_count >= max_n_chunks {
                 break 'generate_chunks;
