@@ -16,6 +16,7 @@ use super::{
     rng::Rng,
 };
 use crate::game::ability_cards::AbilityCardStack;
+use crate::game::game_map::MAP_TILESETS;
 use crate::game::music::SONGS;
 use crate::kitty_ss;
 use crate::spritesheet::{self, KITTY_SPRITESHEET_PALLETES};
@@ -40,6 +41,7 @@ pub struct GameState<'a> {
     pub total_npcs_to_find: u32,
     pub score: RefCell<u32>,
     pub popup_text_ringbuffer: RefCell<PopTextRingbuffer>,
+    pub tileset_idx: RefCell<usize>,
 }
 
 impl GameState<'static> {
@@ -77,23 +79,7 @@ impl GameState<'static> {
 
             spritesheet: kitty_ss::KITTY_SPRITESHEET,
             spritesheet_stride: spritesheet::KITTY_SPRITESHEET_STRIDE as usize,
-            background_tiles: vec![
-                spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::LineTop),
-                spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::LineLeft),
-                spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::LineRight),
-                spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::LineBottom),
-                spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::SolidWhite),
-                spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::SeethroughWhite),
-                spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::TopleftSolidCorner),
-                spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::ToprightSolidCorner),
-                spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::BottomleftSolidCorner),
-                spritesheet::Sprite::from_preset(
-                    &spritesheet::PresetSprites::BottomrightSolidCorner,
-                ),
-                spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::ColumnTop),
-                spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::ColumnMiddle),
-                spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::ColumnBottom),
-            ],
+            background_tiles: (0..25).map(|i| spritesheet::Sprite::from_idx(i)).collect(),
             map: GameMap::create_map(),
             camera: RefCell::new(Camera {
                 current_viewing_x_offset: 0.0,
@@ -116,6 +102,7 @@ impl GameState<'static> {
                 texts: [None, None, None, None, None, None, None, None, None, None],
                 next_avail_idx: 0,
             }),
+            tileset_idx: RefCell::new(0),
         }
     }
 
@@ -154,6 +141,11 @@ impl GameState<'static> {
             game_state.song_timer = 0;
         }
         game_state.song_idx = new_song_idx;
+
+        // set the tileset
+        {
+            *game_state.tileset_idx.borrow_mut() = ((game_state.difficulty_level as usize - 1) / LEVELS_PER_MOOD) % MAP_TILESETS.len();
+        }
 
         // game_state.timer = 0;
         let map = &mut game_state.map;
@@ -404,7 +396,8 @@ impl GameState<'static> {
             //const CHUNK_BORDER_MATERIAL: u8 = 6;
 
             // const POSSIBLE_BUILDING_MATERIALS: [u8; 1] = [6];
-            const CORRUPT_MATERIALS: [u8; 7] = [7, 8, 9, 10, 11, 12, 13];
+
+            let corrupt_materials: [u8; 8] = [8, 9, 10, 11, 12, 13, 14, 15];
             const CORRUPT_CHANCE: f32 = 0.2;
 
             fn get_material(normal: u8, corrupt: u8, chance: f32, rng: &mut Rng) -> u8 {
@@ -417,9 +410,9 @@ impl GameState<'static> {
             // left and right walls
             for row in 1..chunk.bound.height - 1 as usize {
                 let corrupt_material: u8 =
-                    CORRUPT_MATERIALS[rng.next() as usize % CORRUPT_MATERIALS.len()];
-                let left_material = get_material(3, corrupt_material, CORRUPT_CHANCE, rng);
-                let right_material = get_material(2, corrupt_material, CORRUPT_CHANCE, rng);
+                    corrupt_materials[rng.next() as usize % corrupt_materials.len()];
+                let left_material = get_material(7, corrupt_material, CORRUPT_CHANCE, rng);
+                let right_material = get_material(3, corrupt_material, CORRUPT_CHANCE, rng);
 
                 chunk.set_tile(0, row, left_material);
                 chunk.set_tile(chunk.bound.width as usize - 1, row, right_material);
@@ -428,9 +421,9 @@ impl GameState<'static> {
             // top and bottom walls
             for col in 1..chunk.bound.width - 1 as usize {
                 let corrupt_material: u8 =
-                    CORRUPT_MATERIALS[rng.next() as usize % CORRUPT_MATERIALS.len()];
-                let top_material = get_material(4, corrupt_material, CORRUPT_CHANCE, rng);
-                let bottom_material = get_material(1, corrupt_material, CORRUPT_CHANCE, rng);
+                    corrupt_materials[rng.next() as usize % corrupt_materials.len()];
+                let top_material = get_material(1, corrupt_material, CORRUPT_CHANCE, rng);
+                let bottom_material = get_material(5, corrupt_material, CORRUPT_CHANCE, rng);
                 chunk.set_tile(col, 0, top_material);
                 chunk.set_tile(col, chunk.bound.height as usize - 1, bottom_material);
             }

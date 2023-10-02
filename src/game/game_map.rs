@@ -5,6 +5,34 @@ pub struct GameMap {
     pub num_tiles: usize
 }
 
+pub struct MapTileSet {
+    pub top: u8,
+    pub top_right: u8,
+    pub right: u8,
+    pub bottom_right: u8,
+    pub bottom: u8,
+    pub bottom_left: u8,
+    pub left: u8,
+    pub topleft: u8,
+    pub middle: u8,
+    pub corrupt_materials: [u8; 8],
+}
+
+// nothing     top      topright   right 
+// bottomright bottom   bottomleft left
+// topleft     middle   corrupt1   c2
+// c3          c4       c5         c6  
+pub const MAP_TILESETS: [[u8; 16]; 1] = [
+    [
+        0, 17, 0, 20,
+        0, 18, 0, 19,
+        0, 12, 8, 9,
+        10, 11, 12, 13
+    ]
+];
+
+
+
 impl GameMap {
     pub fn try_fit_chunk_into(self: &mut Self, width: usize, height: usize) -> bool {
         let new_tile_size = width * height;

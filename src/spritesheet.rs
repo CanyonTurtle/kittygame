@@ -127,10 +127,10 @@ pub enum PresetSprites {
     ColumnTop,
     ColumnMiddle,
     ColumnBottom,
-    LineLeft,
-    LineTop,
-    LineRight,
-    LineBottom,
+    Left,
+    Top,
+    Right,
+    Bottom,
     KittyCard,
     PiggyCard,
     LizardCard,
@@ -167,8 +167,9 @@ impl Sprite {
             }
         }
 
+        //  ---------- TILESET ------------
 
-        // main kitty
+        // 0: main kitty
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![
             [0, 16, 55, 14, 9],
             [1, 16, 55, 13, 9],
@@ -178,7 +179,7 @@ impl Sprite {
             [5, 16, 54, 12, 10]
         ]));
 
-        // lil kitty 1
+        // 1: lil kitty 1
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![
             [0, 0, 43, 9, 5],
             [1, 0, 42, 10, 6],
@@ -188,7 +189,7 @@ impl Sprite {
             [5, 0, 41, 7, 7],
         ]));
 
-        // lil kitty 2
+        // 2: lil kitty 2
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![
             [0, 0, 52, 9, 4],
             [1, 0, 51, 9, 5],
@@ -198,7 +199,7 @@ impl Sprite {
             [5, 0, 50, 8, 7]
         ]));
 
-        // lil kitty 3
+        // 3: lil kitty 3
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![
             [0, 0, 60, 10, 4],
             [1, 0, 59, 10, 5],
@@ -208,7 +209,7 @@ impl Sprite {
             [5, 0, 57, 8, 7]
         ]));
 
-        // lil kitty 4
+        // 4: lil kitty 4
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![
             [0, 16, 44, 10, 4],
             [1, 16, 43, 10, 5],
@@ -218,7 +219,7 @@ impl Sprite {
             [5, 16, 41, 8, 7]
         ]));
 
-        // pig
+        // 5: pig
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![
             [0, 16, 35, 8, 5],
             [1, 16, 35, 8, 5],
@@ -228,7 +229,7 @@ impl Sprite {
             [1, 16, 35, 8, 5],
         ]));
 
-        // lizard
+        // 6: lizard
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![
             [0, 16, 23, 10, 9],
             [1, 16, 24, 10, 8],
@@ -238,7 +239,7 @@ impl Sprite {
             [1, 16, 24, 10, 8]
         ]));
 
-        // bird
+        // 7: bird
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![
             [0, 16, 9, 10, 7],
             [1, 16, 8, 10, 8],
@@ -248,31 +249,64 @@ impl Sprite {
             [1, 16, 8, 10, 8],
         ]));
 
-        // tiles
+        // -------- tiles ---------
+
+        // --- filled tiles ---
+
+        // 8: top left corner
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![[0, 0, 0, 5, 5]]));
+
+        // 9: solid block
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![[0, 5, 0, 5, 5]]));
+
+        // 10: top right corner
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![[0, 10, 0, 5, 5]]));
+
+        // 11: bottom right corner
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![[0, 5, 0, 5, 5]]));
+
+        // 12: see through bubble block
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![[0, 5, 5, 5, 5]]));
+
+        // 13: bottom right corner
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![[0, 10, 5, 5, 5]]));
+
+
+        // --- Columns ---
+
+        // 14: column top
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![[0, 0, 10, 5, 5]]));
+
+        // 15: column middle
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![[0, 0, 15, 5, 5]]));
+
+        // 16: column bottom
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![[0, 0, 20, 5, 5]]));
+
+        // --- The regular Line wall sprites -----
+
+        // 17: top
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![[0, 5, 10, 5, 5]]));
+
+        // 18: bottom
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![[0, 10, 10, 5, 5]]));
+
+        // 19: left
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![[0, 5, 15, 5, 5]]));
+
+        // 20: right
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![[0, 10, 15, 5, 5]]));
 
-        // kitty card
+        // 21: kitty card
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![[3, 0, 0, 12, 12]]));
 
-        // pig card
+        // 22: pig card
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![[3, 12, 0, 12, 12]]));
 
-        // lizard card
+        // 23: lizard card
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![[3, 0, 12, 12, 12]]));
 
-        // bird card
+        // 24: bird card
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![[3, 12, 12, 12, 12]]));
     }
 
@@ -286,6 +320,19 @@ impl Sprite {
             
             }).collect::<Vec<_>>()
         }
+    }
+
+    pub fn from_idx(idx: usize) -> &'static Sprite {
+        let sprites_vec;
+        unsafe {
+            match &mut SPRITES {
+                Some(s) => {
+                    sprites_vec = s;
+                },
+                None => unreachable!()
+            }
+        }
+        &sprites_vec[idx]
     }
 
     pub fn from_preset(preset_sprite: &PresetSprites) -> &'static Sprite {
@@ -316,10 +363,10 @@ impl Sprite {
             PresetSprites::ColumnTop => &sprites_vec[14],
             PresetSprites::ColumnMiddle => &sprites_vec[15],
             PresetSprites::ColumnBottom => &sprites_vec[16],
-            PresetSprites::LineLeft => &sprites_vec[17],
-            PresetSprites::LineTop => &sprites_vec[18],
-            PresetSprites::LineRight => &sprites_vec[19],
-            PresetSprites::LineBottom => &sprites_vec[20],
+            PresetSprites::Left => &sprites_vec[17],
+            PresetSprites::Top => &sprites_vec[18],
+            PresetSprites::Right => &sprites_vec[19],
+            PresetSprites::Bottom => &sprites_vec[20],
             PresetSprites::KittyCard => &sprites_vec[21],
             PresetSprites::PiggyCard => &sprites_vec[22],
             PresetSprites::LizardCard => &sprites_vec[23],

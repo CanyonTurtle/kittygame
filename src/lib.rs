@@ -24,7 +24,7 @@ use game::{
     },
     game_state::GameState,
     menus::GameMode,
-    music::{play_bgm, SONGS},
+    music::{play_bgm, SONGS}, game_map::MAP_TILESETS,
 };
 use num;
 mod game;
@@ -46,6 +46,8 @@ fn drawmap(game_state: &GameState) {
     let map = &game_state.map;
     let camera = &game_state.camera;
 
+    let tileset = &MAP_TILESETS[*game_state.tileset_idx.borrow()];
+
     for chunk in &map.chunks {
         for row in 0..chunk.bound.height {
             for col in 0..chunk.bound.width {
@@ -53,8 +55,10 @@ fn drawmap(game_state: &GameState) {
                 match map_tile_i {
                     0 => {}
                     tile_idx => {
-                        let tile_i: usize = tile_idx as usize - 1; // *tile_idx as usize;
-                                                                   // trace(format!("Tile {tile_i}"));
+                        let tile_i: usize = tileset[tile_idx as usize] as usize; // *tile_idx as usize;
+                        if tile_i == 0 {
+                            continue
+                        }                                   // trace(format!("Tile {tile_i}"));
                         let chunk_x_offset: i32 = (TILE_WIDTH_PX) as i32 * chunk.bound.x;
                         let chunk_y_offset: i32 = (TILE_HEIGHT_PX) as i32 * chunk.bound.y;
                         let x_loc = (chunk_x_offset + col as i32 * TILE_HEIGHT_PX as i32)
