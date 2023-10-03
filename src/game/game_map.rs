@@ -1,34 +1,46 @@
-use super::{mapchunk::MapChunk, game_constants::TOTAL_TILES_IN_MAP};
+use super::{mapchunk::MapChunk, game_constants::MAX_N_TILES_IN_WHOLE_MAP};
 
 pub struct GameMap {
     pub chunks: Vec<MapChunk>,
     pub num_tiles: usize
 }
 
-pub struct MapTileSet {
-    pub top: u8,
-    pub top_right: u8,
-    pub right: u8,
-    pub bottom_right: u8,
-    pub bottom: u8,
-    pub bottom_left: u8,
-    pub left: u8,
-    pub topleft: u8,
-    pub middle: u8,
-    pub corrupt_materials: [u8; 8],
-}
+// pub struct MapTileSet {
+//     pub top: u8,
+//     pub top_right: u8,
+//     pub right: u8,
+//     pub bottom_right: u8,
+//     pub bottom: u8,
+//     pub bottom_left: u8,
+//     pub left: u8,
+//     pub topleft: u8,
+//     pub middle: u8,
+//     pub corrupt_materials: [u8; 8],
+// }
 
 // nothing     top      topright   right 
 // bottomright bottom   bottomleft left
 // topleft     middle   corrupt1   c2
 // c3          c4       c5         c6  
-pub const MAP_TILESETS: [[u8; 16]; 1] = [
+pub const MAP_TILESETS: [[u8; 16]; 3] = [
     [
         0, 20, 0, 17,
         0, 18, 0, 19,
         0, 12, 9, 10,
         11, 12, 13, 14
-    ]
+    ],
+    [
+        0, 20, 10, 9,
+        13, 18, 11, 9,
+        8, 9, 9, 10,
+        11, 12, 13, 14
+    ],
+    [
+        0, 12, 10, 12,
+        13, 9, 11, 9,
+        8, 9, 9, 10,
+        11, 12, 13, 14
+    ],
 ];
 
 
@@ -37,7 +49,7 @@ impl GameMap {
     pub fn try_fit_chunk_into(self: &mut Self, width: usize, height: usize) -> bool {
         let new_tile_size = width * height;
         let new_prospective_size = self.num_tiles + new_tile_size;
-        if new_prospective_size <= TOTAL_TILES_IN_MAP {
+        if new_prospective_size <= MAX_N_TILES_IN_WHOLE_MAP {
             // self.num_tiles = new_prospective_size;
             // crate::trace(self.num_tiles.to_string());
             return true;

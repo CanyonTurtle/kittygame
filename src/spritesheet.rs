@@ -262,8 +262,8 @@ impl Sprite {
         // 10: top right corner
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![[0, 10, 0, 5, 5]]));
 
-        // 11: bottom right corner
-        the_sprites.push(Sprite::from_page_x_y_w_h(vec![[0, 5, 0, 5, 5]]));
+        // 11: bottom left corner
+        the_sprites.push(Sprite::from_page_x_y_w_h(vec![[0, 0, 5, 5, 5]]));
 
         // 12: see through bubble block
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![[0, 5, 5, 5, 5]]));

@@ -1,14 +1,15 @@
 use core::cell::RefCell;
 
 use super::entities::Player;
-use super::game_constants::{COUNTDOWN_TIMER_START, START_DIFFICULTY_LEVEL};
+use super::game_constants::{COUNTDOWN_TIMER_START, START_DIFFICULTY_LEVEL, LEVELS_PER_MOOD, MAP_GEN_SETTINGS};
 use super::menus::GameMode;
 use super::popup_text::PopTextRingbuffer;
 use super::{
     camera::Camera,
     entities::{Character, OptionallyEnabledPlayer},
     game_constants::{
-        MAP_CHUNK_MAX_N_TILES, MAP_CHUNK_MAX_SIDE_LEN, MAP_CHUNK_MIN_SIDE_LEN, MAX_N_NPCS,
+        // MAX_N_TILES_IN_CHUNK, MAP_CHUNK_MAX_SIDE_LEN, MAP_CHUNK_MIN_SIDE_LEN,
+        MAX_N_NPCS,
         TILE_HEIGHT_PX, TILE_WIDTH_PX,
     },
     game_map::GameMap,
@@ -42,6 +43,7 @@ pub struct GameState<'a> {
     pub score: RefCell<u32>,
     pub popup_text_ringbuffer: RefCell<PopTextRingbuffer>,
     pub tileset_idx: RefCell<usize>,
+    pub map_gen_settings_idx: RefCell<usize>,
 }
 
 impl GameState<'static> {
@@ -103,6 +105,7 @@ impl GameState<'static> {
                 next_avail_idx: 0,
             }),
             tileset_idx: RefCell::new(0),
+            map_gen_settings_idx: RefCell::new(0),
         }
     }
 
@@ -130,7 +133,7 @@ impl GameState<'static> {
 
         let game_state: &mut GameState = self;
 
-        const LEVELS_PER_MOOD: usize = 5;
+        
         let new_song_idx =
             1 + ((game_state.difficulty_level as usize - 1) / LEVELS_PER_MOOD) % (SONGS.len() - 1);
 
@@ -147,6 +150,16 @@ impl GameState<'static> {
             *game_state.tileset_idx.borrow_mut() = ((game_state.difficulty_level as usize - 1) / LEVELS_PER_MOOD) % MAP_TILESETS.len();
         }
 
+        // set the map generation settings
+        {
+            *game_state.map_gen_settings_idx.borrow_mut() = ((game_state.difficulty_level as usize - 1) / LEVELS_PER_MOOD) % MAP_GEN_SETTINGS.len();
+        }
+
+        let map_gen_setting = &MAP_GEN_SETTINGS[*game_state.map_gen_settings_idx.borrow()];
+        let map_chunk_min_side_len = map_gen_setting.chunk_min_side_len;
+        let map_chunk_max_side_len = map_gen_setting.chunk_max_side_len;
+        let max_n_tiles_in_chunk = map_gen_setting.max_n_tiles_per_chunk;
+        
         // game_state.timer = 0;
         let map = &mut game_state.map;
         map.num_tiles = 0;
@@ -232,12 +245,12 @@ impl GameState<'static> {
                 let mut chunk_wid: usize;
                 let mut chunk_hei: usize;
                 'find_place_for_chunk: loop {
-                    chunk_wid = MAP_CHUNK_MIN_SIDE_LEN
-                        + (rng.next() as usize % (MAP_CHUNK_MAX_SIDE_LEN - MAP_CHUNK_MIN_SIDE_LEN));
-                    chunk_hei = MAP_CHUNK_MIN_SIDE_LEN
-                        + (rng.next() as usize % (MAP_CHUNK_MAX_SIDE_LEN - MAP_CHUNK_MIN_SIDE_LEN));
+                    chunk_wid = map_chunk_min_side_len
+                        + (rng.next() as usize % (map_chunk_max_side_len - map_chunk_min_side_len));
+                    chunk_hei = map_chunk_min_side_len
+                        + (rng.next() as usize % (map_chunk_max_side_len - map_chunk_min_side_len));
                     // trace(format!("{chunk_wid} {chunk_hei}"));
-                    if chunk_hei * chunk_wid <= MAP_CHUNK_MAX_N_TILES {
+                    if chunk_hei * chunk_wid <= max_n_tiles_in_chunk {
                         if map.try_fit_chunk_into(chunk_wid, chunk_hei) {
                             break 'find_place_for_chunk;
                         } else {
@@ -250,8 +263,8 @@ impl GameState<'static> {
                     }
                 }
 
-                let r_offs_1: i32 = rng.next() as i32 % MAP_CHUNK_MIN_SIDE_LEN as i32
-                    - (MAP_CHUNK_MIN_SIDE_LEN as f32 / 2.0) as i32;
+                let r_offs_1: i32 = rng.next() as i32 % map_chunk_min_side_len as i32
+                    - (map_chunk_min_side_len as f32 / 2.0) as i32;
 
                 let random_chunk_from_list_i =
                     (rng.next() % current_chunk_locations.len() as u64) as usize;
@@ -303,6 +316,7 @@ impl GameState<'static> {
                 fn shares_enough_axes_with_other_bounds(
                     potential_bound: &TileAlignedBoundingBox,
                     source_bound: &TileAlignedBoundingBox,
+                    side_len: usize,
                 ) -> bool {
                     let b1: &TileAlignedBoundingBox = potential_bound;
                     let b2: &TileAlignedBoundingBox = source_bound;
@@ -310,10 +324,11 @@ impl GameState<'static> {
                     fn do_for_one_side(
                         b1: &TileAlignedBoundingBox,
                         b2: &TileAlignedBoundingBox,
+                        side_len: usize,
                     ) -> bool {
                         if b1.y + b1.height as i32 == b2.y {
                             if (b1.x + b1.width as i32 - b2.x).min(b2.x + b2.width as i32 - b1.x)
-                                >= MAP_CHUNK_MIN_SIDE_LEN as i32
+                                >= side_len as i32
                             {
                                 return true;
                             } else {
@@ -323,7 +338,7 @@ impl GameState<'static> {
 
                         if b1.x + b1.width as i32 == b2.x {
                             if (b1.y + b1.height as i32 - b2.y).min(b2.y + b2.height as i32 - b1.y)
-                                >= MAP_CHUNK_MIN_SIDE_LEN as i32
+                                >= side_len as i32
                             {
                                 return true;
                             } else {
@@ -333,11 +348,11 @@ impl GameState<'static> {
                         true
                     }
 
-                    do_for_one_side(&b1, &b2) && do_for_one_side(&b2, b1)
+                    do_for_one_side(&b1, &b2, side_len) && do_for_one_side(&b2, b1, side_len)
                 }
 
                 // ensure it shares enough adjacency with source chunk
-                if !shares_enough_axes_with_other_bounds(&rand_bound, &new_chunk_location) {
+                if !shares_enough_axes_with_other_bounds(&rand_bound, &new_chunk_location, map_chunk_min_side_len) {
                     is_viable_spot = false;
                 }
 
@@ -355,7 +370,7 @@ impl GameState<'static> {
                         }
                     }
                     // if it doesn't collide, but it share too little with any adjacent chunks, it's also invalid
-                    if !shares_enough_axes_with_other_bounds(&other_bound, &new_chunk_location) {
+                    if !shares_enough_axes_with_other_bounds(&other_bound, &new_chunk_location, map_chunk_min_side_len) {
                         is_viable_spot = false;
                     }
                 }
@@ -427,6 +442,12 @@ impl GameState<'static> {
                 chunk.set_tile(col, 0, top_material);
                 chunk.set_tile(col, chunk.bound.height as usize - 1, bottom_material);
             }
+
+            // corners
+            chunk.set_tile(0, 0, 8);
+            chunk.set_tile(chunk.bound.width as usize - 1, chunk.bound.height as usize - 1, 4);
+            chunk.set_tile(chunk.bound.width as usize - 1, 0, 2);
+            chunk.set_tile(0, chunk.bound.height as usize - 1, 6);
 
             // fn spawn_rectangular_structures(chunk: &mut MapChunk, rng: &mut Rng) {
             //     // trace(format!("spawning structure with {chunk_width} {chunk_height}"));
