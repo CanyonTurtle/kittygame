@@ -397,7 +397,7 @@ impl GameState<'static> {
 
             // const POSSIBLE_BUILDING_MATERIALS: [u8; 1] = [6];
 
-            let corrupt_materials: [u8; 8] = [8, 9, 10, 11, 12, 13, 14, 15];
+            let corrupt_materials: [u8; 7] = [9, 10, 11, 12, 13, 14, 15];
             const CORRUPT_CHANCE: f32 = 0.2;
 
             fn get_material(normal: u8, corrupt: u8, chance: f32, rng: &mut Rng) -> u8 {

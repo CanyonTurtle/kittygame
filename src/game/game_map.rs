@@ -24,10 +24,10 @@ pub struct MapTileSet {
 // c3          c4       c5         c6  
 pub const MAP_TILESETS: [[u8; 16]; 1] = [
     [
-        0, 17, 0, 20,
+        0, 20, 0, 17,
         0, 18, 0, 19,
-        0, 12, 8, 9,
-        10, 11, 12, 13
+        0, 12, 9, 10,
+        11, 12, 13, 14
     ]
 ];
 
@@ -70,8 +70,8 @@ impl GameMap {
                             other_chunk.set_tile(rel_other_chunk_x as usize, other_chunk.bound.height as usize - 1, 0)
                         }
                         if rel_other_chunk_x == 0 || rel_other_chunk_x == other_chunk.bound.width as i32 - 1 || rel_chunk_x == 0 || rel_chunk_x == chunk.bound.width as i32 - 1 {
-                            chunk.set_tile(rel_chunk_x as usize, 0 as usize, 6);
-                            other_chunk.set_tile(rel_other_chunk_x as usize, other_chunk.bound.height as usize - 1, 6)
+                            chunk.set_tile(rel_chunk_x as usize, 0 as usize, 9);
+                            other_chunk.set_tile(rel_other_chunk_x as usize, other_chunk.bound.height as usize - 1, 9)
                         }
                     }
                 }
@@ -99,8 +99,8 @@ impl GameMap {
                             other_chunk.set_tile(other_chunk.bound.width as usize - 1, rel_other_chunk_y as usize, 0)
                         }
                         if rel_other_chunk_y == 0 || rel_other_chunk_y == other_chunk.bound.height as i32 - 1 || rel_chunk_y == 0 || rel_chunk_y == chunk.bound.height as i32 - 1 {
-                            chunk.set_tile(0, rel_chunk_y as usize, 6);
-                            other_chunk.set_tile(other_chunk.bound.width as usize - 1, rel_other_chunk_y as usize, 6)
+                            chunk.set_tile(0, rel_chunk_y as usize, 9);
+                            other_chunk.set_tile(other_chunk.bound.width as usize - 1, rel_other_chunk_y as usize, 9)
                         }
                     }
                 }

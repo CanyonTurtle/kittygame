@@ -285,13 +285,13 @@ impl Sprite {
 
         // --- The regular Line wall sprites -----
 
-        // 17: top
+        // 17: left
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![[0, 5, 10, 5, 5]]));
 
         // 18: bottom
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![[0, 10, 10, 5, 5]]));
 
-        // 19: left
+        // 19: top
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![[0, 5, 15, 5, 5]]));
 
         // 20: right
