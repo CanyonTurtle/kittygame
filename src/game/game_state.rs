@@ -27,7 +27,7 @@ pub struct GameState<'a> {
     pub npcs: RefCell<Vec<Character>>,
     pub spritesheet: &'a [u8],
     pub spritesheet_stride: usize,
-    pub background_tiles: Vec<&'static spritesheet::Sprite>,
+    pub background_tiles: &'static Vec<spritesheet::Sprite>,
     pub map: GameMap,
     pub camera: RefCell<Camera>,
     pub rng: RefCell<Rng>,
@@ -81,7 +81,7 @@ impl GameState<'static> {
 
             spritesheet: kitty_ss::KITTY_SPRITESHEET,
             spritesheet_stride: spritesheet::KITTY_SPRITESHEET_STRIDE as usize,
-            background_tiles: (0..25).map(|i| spritesheet::Sprite::from_idx(i)).collect(),
+            background_tiles: spritesheet::Sprite::get_spritesheet(),
             map: GameMap::create_map(),
             camera: RefCell::new(Camera {
                 current_viewing_x_offset: 0.0,
@@ -129,7 +129,7 @@ impl GameState<'static> {
     pub fn regenerate_map(self: &mut Self) {
         self.godmode = false;
 
-        let max_n_chunks: u8 = 8 + self.difficulty_level as u8 * self.get_n_enabled_players() * 2;
+        let max_n_tiles_in_map: u32 = (0.7 * 2048.0) as u32 + self.difficulty_level * self.get_n_enabled_players() as u32 * (0.3 * 2048.0) as u32;
 
         let game_state: &mut GameState = self;
 
@@ -227,13 +227,13 @@ impl GameState<'static> {
             }
         }
         // place the chunks randomly.
-        let mut chunk_count = 0;
+        let mut tile_count = 0;
 
         
 
         // let max_n_chunks = 8 + game_state.difficulty_level * 4;
         'generate_chunks: loop {
-            if chunk_count >= max_n_chunks {
+            if tile_count >= max_n_tiles_in_map {
                 break 'generate_chunks;
             }
             // attempt to place a new chunk
@@ -380,7 +380,7 @@ impl GameState<'static> {
                     match current_chunk_locations.try_reserve(1) {
                         Ok(_) => {
                             current_chunk_locations.push(new_chunk_location);
-                            chunk_count += 1;
+                            tile_count += (chunk_hei * chunk_wid) as u32;
                             map.num_tiles += chunk_hei * chunk_wid;
                             break 'generate_one_chunk;
                         }

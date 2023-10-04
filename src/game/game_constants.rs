@@ -14,17 +14,22 @@ pub struct MapGenSetting {
     pub max_n_tiles_per_chunk: usize,
 }
 
-pub const MAP_GEN_SETTINGS: [MapGenSetting; 1] = [
+pub const MAP_GEN_SETTINGS: [MapGenSetting; 3] = [
     MapGenSetting{
         chunk_min_side_len: 6,
         chunk_max_side_len: 50,
         max_n_tiles_per_chunk: 400,
     },
-    // MapGenSetting{
-    //     chunk_min_side_len: 5,
-    //     chunk_max_side_len: 100,
-    //     max_n_tiles_per_chunk: 800,
-    // },
+    MapGenSetting{
+        chunk_min_side_len: 6,
+        chunk_max_side_len: 25,
+        max_n_tiles_per_chunk: 2000,
+    },
+    MapGenSetting{
+        chunk_min_side_len: 6,
+        chunk_max_side_len: 12,
+        max_n_tiles_per_chunk: 800,
+    },
 ];
 
 // pub const MAP_CHUNK_MIN_SIDE_LEN: usize = 6;
