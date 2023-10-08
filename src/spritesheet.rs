@@ -1,94 +1,84 @@
-
-
-
 // KITTY_SPRITESHEET
 
-pub const KITTY_SPRITESHEET_PALLETES: [[u32; 4]; 5] = [
-    // [ // Spring Bloom Palette
-    //     0x86c8bc, // Bright Blue-Green (Ball/Overlay/Smoke)
-    //     0xceedc7, // Light Orange (Background)
-    //     0xffd4b2, // Medium Orange-Pink (Alternate Text)
-    //     0xfff6bd, // Bright Blue-Green (Paddles) 
-    // ],
-    [ // Spring Bloom Palette
-        0x0d4c92,
-         // Bright Blue-Green (Ball/Overlay/Smoke)
-        0xeff5e7, // Light Orange (Background)
-        0xf9316d, // Medium Orange-Pink (Alternate Text)
-        0xa0ff9b, // Bright Blue-Green (Paddles) 
+pub const KITTY_SPRITESHEET_DRAW_COLORS: u16 = 0x3420;
+
+pub const KITTY_SPRITESHEET_PAGE_WIDTH: u8 = 32;
+
+pub const KITTY_SPRITESHEET_STRIDE: u8 = KITTY_SPRITESHEET_PAGE_WIDTH * 6;
+
+pub const KITTY_SPRITESHEET_PALETTES: [[u32; 4]; 10] = [
+    [
+        // Teal & Gold Palette
+        0x00a080, // background (Cool Teal)
+        0xffe4b5, // foreground (Warm Wheat)
+        0xff8080, // pig (Cool Teal)
+        0xeaf520, // lizard (Warm Goldenrod)
     ],
-    // [ // RGB
-    //     0x000000, // Black
-    //     0xFFFFFF, // White
-    //     0xFF0000, // R
-    //     0x00FF00, // G
-    // ],
-    [ // Pinky
+    [
+        // Pinky
         0x4B0082, // Indigo
         0xFF69B4, // Hot Pink
         0xFFA500, // Orange
-        0x90EE90, // Light Green   
+        0x90EE90, // Light Green
     ],
-
-    [ // Midnight Serenade
+    [
+        // Midnight Serenade
         0x050540, // Midnight Blue
         0xFFFFFF, // White
         0xFF3311, // Red
         0xf6f666, // Gold
     ],
-
-    [ // red and golden
+    [
+        // red and golden
         0x440000, // Dark Red
         0xFFF7D9, // Cream
         0xFF6347, // Tomato
         0x99E64E, // Light Green
     ],
-
-    // [ // modified og
-    //     0x000000, // Black
-    //     0xFFFFFF, // White
-    //     0xFFA07A, // Medium Orange-Pink (Alternate Text)
-    //     0x96EB91, // Mint Green
-    // ],
-
-    // [ // Enchanted Forest
-    //     0x112211, // Dark Green
-    //     0xFFd3e3, // pink
-    //     0x8A2BE2, // Blue Violet
-    //     0x3CB371, // Medium Sea Green
-    // ],
-
-
-    [ // very cool: Black, Orange Red, Gold, Dark Turquoise
-        0x000000,
-        0xFF4500,
-        0xFFD700,
-        0x00CED1
-    ], 
-    // [ // another cool purpley: Blue Violet, Tomato, Chartreuse, Royal Blue
-    //     0x8A2BE2,
-    //     0xFF6347,
-    //     0xFFD700,
-    //     0x32CD32
-    // ], 
-    // [ // interesting red: Maroon, Tomato, Lime Green, Blue Violet
-    //     0xFF6347,
-    //     0x800000,
-    //     0x8A2BE2,
-    //     0xffbbaa
-    // ]  
-
+    [
+        // Pine & Rose Palette
+        0x0b4221, // background (Dark Pine Green)
+        0xffaac8, // foreground (Light Rose)
+        0xff69b4, // pig (Cool Pink)
+        0x00ff88, // lizard
+    ],
+    [
+        // Maroon & Turquoise Palette
+        0x800000, // background (Warm Maroon)
+        0x40e0d0, // foreground (Cool Turquoise)
+        0xff4500, // pig (Warm Red-Orange)
+        0x00f080, // lizard (Cool Teal)
+    ],
+    [
+        // Slate & Peach Palette
+        0x3a4c52, // background (Dark Slate Blue)
+        0xffdab9, // foreground (Light Peach)
+        0xff69b4, // pig (Cool Pink)
+        0x00ffaa, // lizard
+    ],
+    [
+        // Spring Bloom Palette
+        0x56b88c, // Bright Blue-Green (Ball/Overlay/Smoke)
+        0xceedc7, // Light Orange (Background)
+        0xffd4b2, // Medium Orange-Pink (Alternate Text)
+        0xfff6bd, // Bright Blue-Green (Paddles)
+    ],
+    [
+        // very cool: Black, Orange Red, Gold, Dark Turquoise
+        0x000000, // bg: black
+        0xFF4500, // fg: red
+        0xFFD700, // pig: yellow
+        0x00CED1, // lizard: teal
+    ],
+    [
+        // RGB
+        0x000000, // Black
+        0xFFFFFF, // White
+        0xFF0000, // R
+        0x00FF00, // G
+    ],
 ];
 
-
-pub const KITTY_SPRITESHEET_DRAW_COLORS: u16 = 0x3420;
-
-
-
-
-pub const KITTY_SPRITESHEET_PAGE_WIDTH: u8 = 32;
-
-pub const KITTY_SPRITESHEET_STRIDE: u8 = KITTY_SPRITESHEET_PAGE_WIDTH * 6;
 // KITTY_SPRITESHEET
 
 // kitty_ss
@@ -98,15 +88,6 @@ pub const KITTY_SPRITESHEET_STRIDE: u8 = KITTY_SPRITESHEET_PAGE_WIDTH * 6;
 
 pub const KITTY_SPRITESHEET_FLAGS: u32 = 1; // BLIT_2BPP
 
-
-
-
-
-
-
-
-
-
 #[derive(Clone, Copy)]
 pub struct SpriteFrame {
     pub width: u8,
@@ -115,7 +96,7 @@ pub struct SpriteFrame {
     pub start_y: u8,
 }
 pub struct Sprite {
-    pub frames: Vec<SpriteFrame>
+    pub frames: Vec<SpriteFrame>,
 }
 
 #[allow(dead_code)]
@@ -144,20 +125,18 @@ pub enum PresetSprites {
     KittyCard,
     PiggyCard,
     LizardCard,
-    BirdCard
+    BirdCard,
 }
 
 static mut SPRITES: Option<Vec<Sprite>> = None;
 
 impl Sprite {
-
     pub fn init_all_sprites() {
-        
         unsafe {
             match &mut SPRITES {
                 Some(_) => {
                     unreachable!();
-                },
+                }
                 None => {
                     SPRITES = Some(Vec::with_capacity(30));
                 }
@@ -170,7 +149,7 @@ impl Sprite {
             match &mut SPRITES {
                 Some(s) => {
                     the_sprites = s;
-                },
+                }
                 None => {
                     unreachable!()
                 }
@@ -186,7 +165,7 @@ impl Sprite {
             [2, 16, 55, 14, 9],
             [3, 16, 50, 11, 14],
             [4, 16, 52, 6, 12],
-            [5, 16, 54, 12, 10]
+            [5, 16, 54, 12, 10],
         ]));
 
         // 1: lil kitty 1
@@ -206,7 +185,7 @@ impl Sprite {
             [2, 0, 51, 9, 5],
             [3, 0, 48, 10, 8],
             [4, 0, 48, 5, 8],
-            [5, 0, 50, 8, 7]
+            [5, 0, 50, 8, 7],
         ]));
 
         // 3: lil kitty 3
@@ -216,7 +195,7 @@ impl Sprite {
             [2, 0, 59, 10, 5],
             [3, 0, 57, 10, 7],
             [4, 0, 56, 5, 8],
-            [5, 0, 57, 8, 7]
+            [5, 0, 57, 8, 7],
         ]));
 
         // 4: lil kitty 4
@@ -226,7 +205,7 @@ impl Sprite {
             [2, 16, 43, 10, 5],
             [3, 16, 40, 10, 8],
             [4, 16, 40, 5, 8],
-            [5, 16, 41, 8, 7]
+            [5, 16, 41, 8, 7],
         ]));
 
         // 5: pig
@@ -246,7 +225,7 @@ impl Sprite {
             [0, 16, 23, 10, 9],
             [1, 16, 24, 10, 8],
             [0, 16, 23, 10, 9],
-            [1, 16, 24, 10, 8]
+            [1, 16, 24, 10, 8],
         ]));
 
         // 7: bird
@@ -280,7 +259,6 @@ impl Sprite {
 
         // 13: bottom right corner
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![[0, 10, 5, 5, 5]]));
-
 
         // --- Columns ---
 
@@ -319,7 +297,6 @@ impl Sprite {
         // 24: bird card
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![[3, 12, 12, 12, 12]]));
 
-
         // ------- SOLID TILESET ----------
 
         // 25: solid tileset top left
@@ -336,19 +313,12 @@ impl Sprite {
 
         // 29: bottom right
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![[0, 10, 30, 5, 5]]));
-
-        
-
-
-
     }
 
     pub fn get_spritesheet() -> &'static Vec<Sprite> {
         unsafe {
             match &SPRITES {
-                Some(s) => {
-                    s
-                },
+                Some(s) => s,
                 None => {
                     unreachable!()
                 }
@@ -358,13 +328,15 @@ impl Sprite {
 
     pub fn from_page_x_y_w_h(spriteframe_indecies: Vec<[u8; 5]>) -> Sprite {
         Sprite {
-            frames: spriteframe_indecies.iter().map(|pos| SpriteFrame {
-                width: pos[3],
-                height: pos[4],
-                start_x: pos[0] * KITTY_SPRITESHEET_PAGE_WIDTH + pos[1],
-                start_y: pos[2]
-            
-            }).collect::<Vec<_>>()
+            frames: spriteframe_indecies
+                .iter()
+                .map(|pos| SpriteFrame {
+                    width: pos[3],
+                    height: pos[4],
+                    start_x: pos[0] * KITTY_SPRITESHEET_PAGE_WIDTH + pos[1],
+                    start_y: pos[2],
+                })
+                .collect::<Vec<_>>(),
         }
     }
 
@@ -387,8 +359,8 @@ impl Sprite {
             match &mut SPRITES {
                 Some(s) => {
                     sprites_vec = s;
-                },
-                None => unreachable!()
+                }
+                None => unreachable!(),
             }
         }
         match preset_sprite {

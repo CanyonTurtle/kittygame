@@ -37,7 +37,7 @@ use crate::{
         entities::OptionallyEnabledPlayer,
         menus::{Modal, NormalPlayModes, MenuTypes}, game_constants::{COUNTDOWN_TIMER_START, START_DIFFICULTY_LEVEL}, popup_text::PopTextRingbuffer,
     },
-    spritesheet::KITTY_SPRITESHEET_PALLETES,
+    spritesheet::KITTY_SPRITESHEET_PALETTES,
 };
 
 // const MIN_BUILDING_DIM: i32 = 4;
@@ -200,7 +200,7 @@ fn update() {
             
 
             unsafe {
-                *PALETTE = spritesheet::KITTY_SPRITESHEET_PALLETES[game_state.pallette_idx];
+                *PALETTE = spritesheet::KITTY_SPRITESHEET_PALETTES[game_state.pallette_idx];
             }
             unsafe { *DRAW_COLORS = spritesheet::KITTY_SPRITESHEET_DRAW_COLORS }
 
@@ -730,10 +730,10 @@ fn update() {
                                         0 => game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::MainGameplay),
                                         1 => {
                                             game_state.pallette_idx += 1;
-                                            game_state.pallette_idx %= KITTY_SPRITESHEET_PALLETES.len();
+                                            game_state.pallette_idx %= KITTY_SPRITESHEET_PALETTES.len();
                                             unsafe {
                                                 *PALETTE =
-                                                    spritesheet::KITTY_SPRITESHEET_PALLETES[game_state.pallette_idx];
+                                                    spritesheet::KITTY_SPRITESHEET_PALETTES[game_state.pallette_idx];
                                             }
                                             // unsafe { *DRAW_COLORS = spritesheet::KITTY_SPRITESHEET_DRAW_COLORS }
                                         }
@@ -915,7 +915,7 @@ fn update() {
             text(" & BurntSugar  ", 20, 114);
 
             unsafe {
-                *PALETTE = spritesheet::KITTY_SPRITESHEET_PALLETES[game_state.pallette_idx];
+                *PALETTE = spritesheet::KITTY_SPRITESHEET_PALETTES[game_state.pallette_idx];
             }
             unsafe { *DRAW_COLORS = spritesheet::KITTY_SPRITESHEET_DRAW_COLORS }
             game_state.rng.borrow_mut().next();

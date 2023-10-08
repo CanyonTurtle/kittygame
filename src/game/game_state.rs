@@ -20,7 +20,7 @@ use crate::game::ability_cards::AbilityCardStack;
 use crate::game::game_map::MAP_TILESETS;
 use crate::game::music::SONGS;
 use crate::kitty_ss;
-use crate::spritesheet::{self, KITTY_SPRITESHEET_PALLETES};
+use crate::spritesheet::{self, KITTY_SPRITESHEET_PALETTES};
 
 pub struct GameState<'a> {
     pub players: RefCell<[OptionallyEnabledPlayer; 4]>,
@@ -129,7 +129,7 @@ impl GameState<'static> {
     pub fn regenerate_map(self: &mut Self) {
         self.godmode = false;
 
-        let max_n_tiles_in_map: u32 = (0.7 * 2048.0) as u32 + self.difficulty_level * self.get_n_enabled_players() as u32 * (0.3 * 2048.0) as u32;
+        let max_n_tiles_in_map: u32 = (0.7 * 2048.0) as u32 + (1.0 * 2048.0) as u32 * f32::log2(self.difficulty_level as f32 * self.get_n_enabled_players() as f32) as u32;
 
         let game_state: &mut GameState = self;
 
@@ -137,7 +137,7 @@ impl GameState<'static> {
         let new_song_idx =
             1 + ((game_state.difficulty_level as usize - 1) / LEVELS_PER_MOOD) % (SONGS.len() - 1);
 
-        let new_pallete_idx = ((game_state.difficulty_level as usize - 1) / LEVELS_PER_MOOD) % KITTY_SPRITESHEET_PALLETES.len();
+        let new_pallete_idx = ((game_state.difficulty_level as usize - 1) / LEVELS_PER_MOOD) % KITTY_SPRITESHEET_PALETTES.len();
         game_state.pallette_idx = new_pallete_idx;
 
         if new_song_idx != game_state.song_idx {
