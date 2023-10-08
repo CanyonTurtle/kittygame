@@ -22,24 +22,61 @@ pub struct GameMap {
 // bottomright bottom   bottomleft left
 // topleft     middle   corrupt1   c2
 // c3          c4       c5         c6  
-pub const MAP_TILESETS: [[u8; 16]; 3] = [
-    [
+pub const MAP_TILESETS: [[u8; 16]; 9] = [
+    [ // normal
         0, 20, 0, 17,
         0, 18, 0, 19,
         0, 12, 9, 10,
         11, 12, 13, 14
     ],
-    [
+    [ // oblong
         0, 20, 10, 9,
         13, 18, 11, 9,
         8, 9, 9, 10,
         11, 12, 13, 14
     ],
-    [
+    [ // teeny tunnels
         0, 9, 27, 9,
         29, 9, 28, 9,
         25, 9, 9, 10,
         11, 12, 13, 14
+    ],
+    [ // large normal
+        0, 12, 27, 12,
+        29, 12, 28, 12,
+        25, 30, 9, 10,
+        11, 32, 31, 14
+    ],
+    [ // small (jungle vibes)
+        0, 12, 27, 14,
+        29, 12, 28, 14,
+        25, 12, 9, 31,
+        32, 32, 31, 32
+    ],
+    // for clouds stage use pillars and platforms! :D
+    [ // rediculous tunnels
+        0, 12, 10, 12,
+        13, 12, 11, 12,
+        8, 9, 9, 9,
+        31, 9, 32, 32
+    ],
+    [ // chaotic
+        0, 20, 0, 30,
+        0, 18, 0, 30,
+        0, 30, 31, 27,
+        29, 25, 28, 32
+    ],
+    [ // spacey
+        0, 20, 10, 15,
+        13, 12, 11, 15,
+        8, 12, 12, 10,
+        11, 8, 13, 12
+    ],
+    [ // underworld
+        26, 32, 26, 32,
+        26, 32, 26, 32,
+        0, 26, 25, 27,
+        29, 31, 28, 28
     ],
 ];
 

@@ -47,15 +47,15 @@ pub const MAP_GEN_SETTINGS: [MapGenSetting; 9] = [
         linear_mapsize_mult: 1.0,
     },
     MapGenSetting{ // ridiculous tunnel
-        chunk_min_side_len: 7,
-        chunk_max_side_len: 8,
+        chunk_min_side_len: 8,
+        chunk_max_side_len: 10,
         max_n_tiles_per_chunk: 500,
         linear_mapsize_mult: 0.4,
     },
     MapGenSetting{ // chaotic
         chunk_min_side_len: 5,
         chunk_max_side_len: 60,
-        max_n_tiles_per_chunk: 3000,
+        max_n_tiles_per_chunk: 500,
         linear_mapsize_mult: 1.0,
     },
     MapGenSetting{ // spacey
@@ -92,5 +92,5 @@ pub const Y_UPPER_BOUND: i32 = 5000;
 
 pub const COUNTDOWN_TIMER_START: u32 = 60 * 60;
 
-pub const START_DIFFICULTY_LEVEL: u32 = 16;
+pub const START_DIFFICULTY_LEVEL: u32 = 41;
 pub const LEVELS_PER_MOOD: usize = 5;

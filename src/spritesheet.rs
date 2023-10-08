@@ -313,6 +313,15 @@ impl Sprite {
 
         // 29: bottom right
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![[0, 10, 30, 5, 5]]));
+
+        // 30: complete solid
+        the_sprites.push(Sprite::from_page_x_y_w_h(vec![[0, 0, 35, 5, 5]]));
+
+        // 31: scraggle
+        the_sprites.push(Sprite::from_page_x_y_w_h(vec![[0, 5, 35, 5, 5]]));
+
+        // 32: checker
+        the_sprites.push(Sprite::from_page_x_y_w_h(vec![[0, 10, 35, 5, 5]]));
     }
 
     pub fn get_spritesheet() -> &'static Vec<Sprite> {
