@@ -32,7 +32,7 @@ pub const MAP_GEN_SETTINGS: [MapGenSetting; 9] = [
         chunk_min_side_len: 6,
         chunk_max_side_len: 12,
         max_n_tiles_per_chunk: 800,
-        linear_mapsize_mult: 0.5,
+        linear_mapsize_mult: 0.7,
     },
     MapGenSetting{ // large normal
         chunk_min_side_len: 20,
@@ -92,5 +92,5 @@ pub const Y_UPPER_BOUND: i32 = 5000;
 
 pub const COUNTDOWN_TIMER_START: u32 = 60 * 60;
 
-pub const START_DIFFICULTY_LEVEL: u32 = 1;
+pub const START_DIFFICULTY_LEVEL: u32 = 41;
 pub const LEVELS_PER_MOOD: usize = 5;

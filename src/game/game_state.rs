@@ -163,7 +163,7 @@ impl GameState<'static> {
         // an average-sized map is ~ 30x30 = 900 blocks. Anything smaller is more twisty and denser. Make those
         // twistier maps smaller by a linear factor.
 
-        let max_n_tiles_in_map: u32 = (0.7 * 2048.0) as u32 + (map_gen_setting.linear_mapsize_mult * 1.0 * 2048.0) as u32 * f32::log2(self.difficulty_level as f32 * self.get_n_enabled_players() as f32) as u32;
+        let max_n_tiles_in_map: u32 = (0.7 * 2048.0) as u32 + (map_gen_setting.linear_mapsize_mult * 0.25 * 2048.0) as u32 * self.difficulty_level * self.get_n_enabled_players() as u32;
 
 
         // self.timer = 0;
