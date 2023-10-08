@@ -6,7 +6,7 @@ pub const KITTY_SPRITESHEET_PAGE_WIDTH: u8 = 32;
 
 pub const KITTY_SPRITESHEET_STRIDE: u8 = KITTY_SPRITESHEET_PAGE_WIDTH * 6;
 
-pub const KITTY_SPRITESHEET_PALETTES: [[u32; 4]; 10] = [
+pub const KITTY_SPRITESHEET_PALETTES: [[u32; 4]; 9] = [
     [
         // Teal & Gold Palette
         0x00a080, // background (Cool Teal)
@@ -70,13 +70,13 @@ pub const KITTY_SPRITESHEET_PALETTES: [[u32; 4]; 10] = [
         0xFFD700, // pig: yellow
         0x00CED1, // lizard: teal
     ],
-    [
-        // RGB
-        0x000000, // Black
-        0xFFFFFF, // White
-        0xFF0000, // R
-        0x00FF00, // G
-    ],
+    // [
+    //     // RGB
+    //     0x000000, // Black
+    //     0xFFFFFF, // White
+    //     0xFF0000, // R
+    //     0x00FF00, // G
+    // ],
 ];
 
 // KITTY_SPRITESHEET

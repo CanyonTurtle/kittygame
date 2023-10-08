@@ -129,44 +129,50 @@ impl GameState<'static> {
     pub fn regenerate_map(self: &mut Self) {
         self.godmode = false;
 
-        let max_n_tiles_in_map: u32 = (0.7 * 2048.0) as u32 + (1.0 * 2048.0) as u32 * f32::log2(self.difficulty_level as f32 * self.get_n_enabled_players() as f32) as u32;
-
-        let game_state: &mut GameState = self;
 
         
         let new_song_idx =
-            1 + ((game_state.difficulty_level as usize - 1) / LEVELS_PER_MOOD) % (SONGS.len() - 1);
+            1 + ((self.difficulty_level as usize - 1) / LEVELS_PER_MOOD) % (SONGS.len() - 1);
 
-        let new_pallete_idx = ((game_state.difficulty_level as usize - 1) / LEVELS_PER_MOOD) % KITTY_SPRITESHEET_PALETTES.len();
-        game_state.pallette_idx = new_pallete_idx;
+        let new_pallete_idx = ((self.difficulty_level as usize - 1) / LEVELS_PER_MOOD) % KITTY_SPRITESHEET_PALETTES.len();
+        self.pallette_idx = new_pallete_idx;
 
-        if new_song_idx != game_state.song_idx {
-            game_state.song_timer = 0;
+        if new_song_idx != self.song_idx {
+            self.song_timer = 0;
         }
-        game_state.song_idx = new_song_idx;
+        self.song_idx = new_song_idx;
 
         // set the tileset
         {
-            *game_state.tileset_idx.borrow_mut() = ((game_state.difficulty_level as usize - 1) / LEVELS_PER_MOOD) % MAP_TILESETS.len();
+            *self.tileset_idx.borrow_mut() = ((self.difficulty_level as usize - 1) / LEVELS_PER_MOOD) % MAP_TILESETS.len();
         }
+        
 
         // set the map generation settings
         {
-            *game_state.map_gen_settings_idx.borrow_mut() = ((game_state.difficulty_level as usize - 1) / LEVELS_PER_MOOD) % MAP_GEN_SETTINGS.len();
+            *self.map_gen_settings_idx.borrow_mut() = ((self.difficulty_level as usize - 1) / LEVELS_PER_MOOD) % MAP_GEN_SETTINGS.len();
         }
 
-        let map_gen_setting = &MAP_GEN_SETTINGS[*game_state.map_gen_settings_idx.borrow()];
+
+
+        let map_gen_setting = &MAP_GEN_SETTINGS[*self.map_gen_settings_idx.borrow()];
         let map_chunk_min_side_len = map_gen_setting.chunk_min_side_len;
         let map_chunk_max_side_len = map_gen_setting.chunk_max_side_len;
         let max_n_tiles_in_chunk = map_gen_setting.max_n_tiles_per_chunk;
         
-        // game_state.timer = 0;
-        let map = &mut game_state.map;
+        // an average-sized map is ~ 30x30 = 900 blocks. Anything smaller is more twisty and denser. Make those
+        // twistier maps smaller by a linear factor.
+
+        let max_n_tiles_in_map: u32 = (0.7 * 2048.0) as u32 + (map_gen_setting.linear_mapsize_mult * 1.0 * 2048.0) as u32 * f32::log2(self.difficulty_level as f32 * self.get_n_enabled_players() as f32) as u32;
+
+
+        // self.timer = 0;
+        let map = &mut self.map;
         map.num_tiles = 0;
         map.chunks.clear();
-        let rng = &mut game_state.rng.borrow_mut();
+        let rng = &mut self.rng.borrow_mut();
 
-        for optional_player in game_state.players.borrow_mut().iter_mut() {
+        for optional_player in self.players.borrow_mut().iter_mut() {
             match optional_player {
                 OptionallyEnabledPlayer::Enabled(p) => {
                     p.character.x_pos = 10.0;
@@ -177,29 +183,29 @@ impl GameState<'static> {
             }
         }
 
-        let npcs = &mut game_state.npcs.borrow_mut();
+        let npcs = &mut self.npcs.borrow_mut();
 
         npcs.clear();
 
-        game_state.total_npcs_to_find =
-            (1 + (game_state.difficulty_level / 3) + rng.next() as u32 % 3).min(MAX_N_NPCS as u32);
+        self.total_npcs_to_find =
+            (1 + (self.difficulty_level / 3) + rng.next() as u32 % 3).min(MAX_N_NPCS as u32);
 
-        let countdown_and_score_bonus = (5 + game_state.difficulty_level.min(20)) * 60;
+        let countdown_and_score_bonus = (5 + self.difficulty_level.min(20)) * 60;
 
-        let cdt: &mut u32 = &mut game_state.countdown_timer_msec.borrow_mut();
+        let cdt: &mut u32 = &mut self.countdown_timer_msec.borrow_mut();
         *cdt += countdown_and_score_bonus;
-        *game_state.score.borrow_mut() += countdown_and_score_bonus;
+        *self.score.borrow_mut() += countdown_and_score_bonus;
 
-        match game_state.difficulty_level {
+        match self.difficulty_level {
             1 => {
                 *cdt = COUNTDOWN_TIMER_START;
-                *game_state.score.borrow_mut() = 0;
+                *self.score.borrow_mut() = 0;
             }
             _ => {}
         }
 
         // generate the NPCs before making the chunks.
-        for _ in 0..game_state.total_npcs_to_find {
+        for _ in 0..self.total_npcs_to_find {
             let x = rng.next() % 1000;
             let preset = match x {
                 0..=200 => spritesheet::PresetSprites::Kitty1,
@@ -231,7 +237,7 @@ impl GameState<'static> {
 
         
 
-        // let max_n_chunks = 8 + game_state.difficulty_level * 4;
+        // let max_n_chunks = 8 + self.difficulty_level * 4;
         'generate_chunks: loop {
             if tile_count >= max_n_tiles_in_map {
                 break 'generate_chunks;

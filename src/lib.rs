@@ -17,7 +17,7 @@ use std::borrow::BorrowMut;
 use game::{
     camera::Camera,
     collision::{check_entity_collisions, update_pos},
-    entities::{Character, MovingEntity},
+    entities::{Character, MovingEntity, KittyStates},
     game_constants::{
         MAX_N_NPCS, TILE_HEIGHT_PX, TILE_WIDTH_PX, X_LEFT_BOUND, X_RIGHT_BOUND, Y_LOWER_BOUND,
         Y_UPPER_BOUND,
@@ -125,7 +125,11 @@ fn drawcharacter(
                 0
             } else {
                 BLIT_FLIP_X
-            },
+            }
+            | match the_char.state {
+                KittyStates::OnCeiling(_) => {BLIT_FLIP_Y},
+                _ => 0
+            }
     );
 }
 

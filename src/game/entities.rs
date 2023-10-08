@@ -43,6 +43,7 @@ pub enum KittyStates {
     Walking(u8),
     JumpingUp(u8),
     HuggingWall(bool),
+    OnCeiling(u8)
 }
 
 

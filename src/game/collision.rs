@@ -426,7 +426,7 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
     const GRAVITY: f32 = 0.3;
     // const HUGGING_WALL_SLIDE_MULT: f32 = 0.2;
     match character.state {
-        KittyStates::HuggingWall(_) => {
+        KittyStates::HuggingWall(_) | KittyStates::OnCeiling(_) => {
             character.y_vel = 0.0;
             // if character.y_vel < 0.0 {
             //     character.y_vel = 0.0;
@@ -489,6 +489,7 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
         }
         KittyStates::Walking(t) => {
             let ret = handle_horizontal_input(character, input);
+
             match ret {
                 HorizontalMovementOutcome::DoingSameThing => {
                     character.state = KittyStates::Walking((t + 1) % 255);
@@ -503,9 +504,31 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
                     // character.state = KittyStates::Sleeping;
                 }
             }
-
             handle_jumping(character, input);
-        }
+        },
+        KittyStates::OnCeiling(t) => {
+            let ret = handle_horizontal_input(character, input);
+
+            match ret {
+                HorizontalMovementOutcome::DoingSameThing => {
+                    character.state = KittyStates::OnCeiling((t + 1) % 255);
+                }
+                HorizontalMovementOutcome::ChangedDirection => {
+                    character.state = KittyStates::OnCeiling(0);
+                }
+                HorizontalMovementOutcome::StoppedMoving => {
+                    character.state = KittyStates::Sleeping;
+                }
+                _ => {
+                    // character.state = KittyStates::Sleeping;
+                }
+            }
+            
+            if t > 30 {
+                handle_jumping(character, input);
+            }
+            
+        },
     }
 
     fn get_sprite_i_from_anim_state(state: &KittyStates, discrete_y_vel: i32) -> i32 {
@@ -532,7 +555,7 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
                 // }
             }
             KittyStates::Sleeping => 0,
-            KittyStates::Walking(t) => match (t / 6) % 2 {
+            KittyStates::Walking(t) | KittyStates::OnCeiling(t) => match (t / 6) % 2 {
                 0 => 1,
                 _ => 2,
             },
@@ -553,6 +576,11 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
     // can properly check if we're colliding with the ground.
     match character.state {
         KittyStates::HuggingWall(_) => {}
+        KittyStates::OnCeiling(_) => {
+            if discretized_y_displacement_this_frame == 0 {
+                discretized_y_displacement_this_frame = -1;
+            }
+        }
         _ => {
             if discretized_y_displacement_this_frame == 0 {
                 discretized_y_displacement_this_frame = 1;
@@ -664,6 +692,16 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
                 );
 
                 if v_col_res_left.collided || v_col_res_right.collided {
+                    touching_some_ground = true;
+                    // if we collided against the top, automatically hang
+                    if positive_y == false {
+                        character.state = match character.state {
+                            KittyStates::OnCeiling(t) => KittyStates::OnCeiling(t+1),
+                            KittyStates::HuggingWall(t) => KittyStates::HuggingWall(t),
+                            _ => KittyStates::OnCeiling(0),
+                        };
+                    }
+
                     character.y_vel = 0.0;
                     if v_col_res_left.backed_up {
                         discretized_y_displacement_this_frame =
@@ -680,10 +718,10 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
                                     as i32;
                     }
 
-                    if positive_y {
-                        // && !h_col_res_lower.collided && !h_col_res_upper.collided {
-                        touching_some_ground = true;
-                    }
+                    // if positive_y {
+                    //     // && !h_col_res_lower.collided && !h_col_res_upper.collided {
+                    //     touching_some_ground = true;
+                    // }
                 }
 
                 if h_col_res_lower.collided || h_col_res_upper.collided {
@@ -704,6 +742,9 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
                                     character.state = KittyStates::HuggingWall(true);
                                 }
                             },
+                            KittyStates::OnCeiling(_) => {
+                                character.state = KittyStates::HuggingWall(true);
+                            }
                             _ => {}
                         }
                     }
@@ -836,6 +877,9 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
         match character.state {
             KittyStates::Walking(_) | KittyStates::Sleeping => {
                 character.state = KittyStates::JumpingUp(30);
+            }
+            KittyStates::OnCeiling(_) => {
+                character.state = KittyStates::JumpingUp(0);
             }
             _ => {}
         }

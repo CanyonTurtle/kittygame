@@ -12,23 +12,63 @@ pub struct MapGenSetting {
     pub chunk_min_side_len: usize,
     pub chunk_max_side_len: usize,
     pub max_n_tiles_per_chunk: usize,
+    pub linear_mapsize_mult: f32,
 }
 
-pub const MAP_GEN_SETTINGS: [MapGenSetting; 3] = [
-    MapGenSetting{
+pub const MAP_GEN_SETTINGS: [MapGenSetting; 9] = [
+    MapGenSetting { // normal
         chunk_min_side_len: 6,
         chunk_max_side_len: 50,
         max_n_tiles_per_chunk: 400,
+        linear_mapsize_mult: 1.0,
     },
-    MapGenSetting{
+    MapGenSetting{ // oblong
         chunk_min_side_len: 6,
         chunk_max_side_len: 25,
         max_n_tiles_per_chunk: 2000,
+        linear_mapsize_mult: 1.0,
     },
-    MapGenSetting{
+    MapGenSetting{ // teeny tunnels
         chunk_min_side_len: 6,
         chunk_max_side_len: 12,
         max_n_tiles_per_chunk: 800,
+        linear_mapsize_mult: 0.5,
+    },
+    MapGenSetting{ // large normal
+        chunk_min_side_len: 20,
+        chunk_max_side_len: 40,
+        max_n_tiles_per_chunk: 1400,
+        linear_mapsize_mult: 1.0,
+    },
+    MapGenSetting{ // small
+        chunk_min_side_len: 6,
+        chunk_max_side_len: 30,
+        max_n_tiles_per_chunk: 500,
+        linear_mapsize_mult: 1.0,
+    },
+    MapGenSetting{ // ridiculous tunnel
+        chunk_min_side_len: 7,
+        chunk_max_side_len: 8,
+        max_n_tiles_per_chunk: 500,
+        linear_mapsize_mult: 0.4,
+    },
+    MapGenSetting{ // chaotic
+        chunk_min_side_len: 5,
+        chunk_max_side_len: 60,
+        max_n_tiles_per_chunk: 3000,
+        linear_mapsize_mult: 1.0,
+    },
+    MapGenSetting{ // spacey
+        chunk_min_side_len: 12,
+        chunk_max_side_len: 40,
+        max_n_tiles_per_chunk: 2000,
+        linear_mapsize_mult: 1.0,
+    },
+    MapGenSetting{ // underworld
+        chunk_min_side_len: 5,
+        chunk_max_side_len: 80,
+        max_n_tiles_per_chunk: 5000,
+        linear_mapsize_mult: 1.0,
     },
 ];
 
@@ -52,5 +92,5 @@ pub const Y_UPPER_BOUND: i32 = 5000;
 
 pub const COUNTDOWN_TIMER_START: u32 = 60 * 60;
 
-pub const START_DIFFICULTY_LEVEL: u32 = 1;
+pub const START_DIFFICULTY_LEVEL: u32 = 16;
 pub const LEVELS_PER_MOOD: usize = 5;
