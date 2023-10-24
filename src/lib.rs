@@ -26,18 +26,19 @@ use game::{
     menus::GameMode,
     music::{play_bgm, SONGS}, game_map::MAP_TILESETS,
 };
-use num;
+use title_ss::{OUTPUT_ONLINEPNGTOOLS_WIDTH, OUTPUT_ONLINEPNGTOOLS_HEIGHT, OUTPUT_ONLINEPNGTOOLS_FLAGS};
 mod game;
 use core::cell::RefCell;
 use wasm4::*;
+mod title_ss;
 
 use crate::{
     game::{
         collision::{get_bound_of_character, AbsoluteBoundingBox},
         entities::OptionallyEnabledPlayer,
         menus::{Modal, NormalPlayModes, MenuTypes}, game_constants::{COUNTDOWN_TIMER_START, START_DIFFICULTY_LEVEL}, popup_text::PopTextRingbuffer,
-    },
-    spritesheet::KITTY_SPRITESHEET_PALETTES,
+    }, spritesheet::KITTY_SPRITESHEET_PALETTES,
+    title_ss::OUTPUT_ONLINEPNGTOOLS
 };
 
 // const MIN_BUILDING_DIM: i32 = 4;
@@ -162,6 +163,7 @@ fn update() {
                 spritesheet::Sprite::init_all_sprites();
                 let new_game_state = GameState::new();
                 GAME_STATE_HOLDER = Some(new_game_state);
+                // trace("finished reset");
             }
             Some(_) => {}
         }
@@ -910,14 +912,31 @@ fn update() {
             // line(0, BOTTOM_UI_TEXT_Y - 2, 160, BOTTOM_UI_TEXT_Y - 2);
         }
         GameMode::StartScreen => {
-            game_state.song_idx = 1;
-            game_state.song_timer = 0;
-            unsafe { *DRAW_COLORS = 0x1112 }
-            text("Kitty Game!", 20, 20);
-            text("Any key: start", 20, 40);
-            text("by CanyonTurtle", 20, 100);
-            text(" & BurntSugar  ", 20, 114);
+            
+            
+            // trace("drew lines");
 
+            game_state.song_idx = 1;
+            // game_state.song_timer = 0;
+            unsafe { *DRAW_COLORS = 0x1112 }
+            // text("Kitty Game!", 20, 20);
+
+            if game_state.song_timer >= 100 {
+                if game_state.song_timer % 30 >= 15 {
+                    text("Any key: start", 20, 80);
+                }
+                
+                text("by CanyonTurtle", 20, 100);
+                text(" & BurntSugar  ", 20, 114);
+            }
+            
+
+            unsafe { *DRAW_COLORS = 0x0034 }
+            // blit(&OUTPUT_ONLINEPNGTOOLS, 0, 30, OUTPUT_ONLINEPNGTOOLS_WIDTH, OUTPUT_ONLINEPNGTOOLS_HEIGHT, OUTPUT_ONLINEPNGTOOLS_FLAGS);
+            const TITLE_HEIGHT: i32 = 0;
+            for row in 0..OUTPUT_ONLINEPNGTOOLS_HEIGHT as i32 {
+                blit_sub(&OUTPUT_ONLINEPNGTOOLS, 0 + (3000000f32 * (1f32 / (1f32 + num::Float::powf(game_state.song_timer as f32, 3f32))) * num::Float::sin((game_state.song_timer as f32 + row as f32 * 4f32) * 0.1f32)) as i32, TITLE_HEIGHT + row, OUTPUT_ONLINEPNGTOOLS_WIDTH, 1, 0, row as u32, OUTPUT_ONLINEPNGTOOLS_WIDTH, OUTPUT_ONLINEPNGTOOLS_FLAGS)
+            }
             unsafe {
                 *PALETTE = spritesheet::KITTY_SPRITESHEET_PALETTES[game_state.pallette_idx];
             }
@@ -930,6 +949,12 @@ fn update() {
                 game_state.new_game();
                 game_state.regenerate_map();
             }
+
+            // render title
+
+            // trace("updated positions");
+            unsafe { *DRAW_COLORS = 0x1112 }
+            
         }
     }
 }

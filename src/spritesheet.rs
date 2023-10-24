@@ -1,7 +1,5 @@
 // KITTY_SPRITESHEET
 
-use crate::game::rng::Rng;
-
 pub const KITTY_SPRITESHEET_DRAW_COLORS: u16 = 0x3420;
 
 pub const KITTY_SPRITESHEET_PAGE_WIDTH: u8 = 32;
@@ -90,74 +88,7 @@ pub const KITTY_SPRITESHEET_PALETTES: [[u32; 4]; 9] = [
 
 pub const KITTY_SPRITESHEET_FLAGS: u32 = 1; // BLIT_2BPP
 
-#[derive(Clone, Copy)]
-pub struct TitleLetterPoint {
-    pub target_x: u8,
-    pub target_y: u8,
-    pub x: f32,
-    pub y: f32,
-}
-
-#[derive(Clone, Copy)]
-pub struct TitleLetter {
-    pub target_x: u8,
-    pub target_y: u8,
-    pub x: f32,
-    pub y: f32,
-    pub points: [TitleLetterPoint; 12],
-}
-
-pub struct TitleGraphic {
-    pub letters: [TitleLetter; 1],
-}
-
-pub static mut TITLE_GRAPHIC: TitleGraphic = TitleGraphic {
-    letters: [TitleLetter {
-        target_x: 0,
-        target_y: 0,
-        x: 0.0,
-        y: 0.0,
-        points: [TitleLetterPoint {
-            target_x: 0,
-            target_y: 0,
-            x: 0.0,
-            y: 0.0,
-        }; 12],
-    }; 1],
-};
-
-impl TitleLetterPoint {
-    pub const fn new(tx: u8, ty: u8) -> TitleLetterPoint {
-        TitleLetterPoint {
-            target_x: tx,
-            target_y: ty,
-            x: 0.0,
-            y: 0.0,
-        }
-    }
-}
-
-impl TitleGraphic {
-    pub fn reset(rng: &mut Rng) {
-        // shape of title defined here
-        let title_graphic: &mut TitleGraphic = unsafe { &mut TITLE_GRAPHIC };
-
-        let resetted_graphic: TitleGraphic = TitleGraphic {
-            letters: [
-                // K
-                TitleLetter {
-                    target_x: 10,
-                    target_y: 10,
-                    x: rng.next() as f32,
-                    y: rng.next() as f32,
-                    points: [TitleLetterPoint::new(0, 0); 12],
-                }, 
-            ],
-        };
-
-        *title_graphic = resetted_graphic;
-    }
-}
+    
 
 #[derive(Clone, Copy)]
 pub struct SpriteFrame {
