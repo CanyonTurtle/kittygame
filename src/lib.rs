@@ -36,8 +36,8 @@ use crate::{
     game::{
         collision::{get_bound_of_character, AbsoluteBoundingBox},
         entities::OptionallyEnabledPlayer,
-        menus::{Modal, NormalPlayModes, MenuTypes}, game_constants::{COUNTDOWN_TIMER_START, START_DIFFICULTY_LEVEL}, popup_text::PopTextRingbuffer,
-    }, spritesheet::KITTY_SPRITESHEET_PALETTES,
+        menus::{Modal, NormalPlayModes, MenuTypes}, game_constants::{COUNTDOWN_TIMER_START, START_DIFFICULTY_LEVEL, MAJOR_VERSION, MINOR_VERSION, INCR_VERSION}, popup_text::PopTextRingbuffer,
+    },
     title_ss::OUTPUT_ONLINEPNGTOOLS
 };
 
@@ -377,34 +377,34 @@ fn update() {
 
             drawmap(&game_state);
 
-            if !showing_modal && btns_pressed_this_frame[0] & BUTTON_DOWN != 0 {
-                // game_state.game_mode = GameMode::Options(OptionsState {
-                //     current_selection: 0,
-                // });
+            // if !showing_modal && btns_pressed_this_frame[0] & BUTTON_DOWN != 0 {
+            //     // game_state.game_mode = GameMode::Options(OptionsState {
+            //     //     current_selection: 0,
+            //     // });
 
-                game_state.game_mode =
-                    GameMode::NormalPlay(NormalPlayModes::HoverModal(Modal {
-                        n_options: 4,
-                        timer: RefCell::new(0),
-                        current_selection: RefCell::new(0),
-                        target_position: RefCell::new(AbsoluteBoundingBox {
-                            x: 10,
-                            y: 10,
-                            width: 140,
-                            height: 140,
-                        }),
-                        actual_position: RefCell::new(AbsoluteBoundingBox {
-                            x: 80.0,
-                            y: 80.0,
-                            width: 1.0,
-                            height: 1.0,
-                        }),
-                        menu_type: MenuTypes::Options
-                    }));
+            //     game_state.game_mode =
+            //         GameMode::NormalPlay(NormalPlayModes::HoverModal(Modal {
+            //             n_options: 4,
+            //             timer: RefCell::new(0),
+            //             current_selection: RefCell::new(0),
+            //             target_position: RefCell::new(AbsoluteBoundingBox {
+            //                 x: 10,
+            //                 y: 10,
+            //                 width: 140,
+            //                 height: 140,
+            //             }),
+            //             actual_position: RefCell::new(AbsoluteBoundingBox {
+            //                 x: 80.0,
+            //                 y: 80.0,
+            //                 width: 1.0,
+            //                 height: 1.0,
+            //             }),
+            //             menu_type: MenuTypes::Options
+            //         }));
 
-                return;
-                // game_state.regenerate_map();
-            }
+            //     return;
+            //     // game_state.regenerate_map();
+            // }
 
             // blit_sub(
             //     &game_state.spritesheet,
@@ -650,7 +650,7 @@ fn update() {
                     }
                     NormalPlayModes::HoverModal(m) => {
                         let mut options_ready_to_select: bool = false;
-  
+                        
                         let ready_to_show_text;
                         {
                             let actual_position: &mut AbsoluteBoundingBox<f32, f32> = &mut m.actual_position.borrow_mut();
@@ -658,35 +658,49 @@ fn update() {
 
                             const SPEED: f32 = 0.15;
                             const TOL: f32 = 10.0;
+
+                            let real_tpy = target_position.y + (4f32 * num::Float::sin(game_state.song_timer as f32 * 0.05f32)) as i32;
+
                             actual_position.x += (target_position.x as f32 - actual_position.x) * SPEED;
-                            actual_position.y += (target_position.y as f32 - actual_position.y) * SPEED;
+                            actual_position.y += (real_tpy as f32 - actual_position.y) * SPEED;
                             actual_position.width += (target_position.width as f32 - actual_position.width) * SPEED;
                             actual_position.height += (target_position.height as f32 - actual_position.height) * SPEED;
+
+                            
 
                             ready_to_show_text = (actual_position.width - target_position.width as f32).abs() < TOL;
 
                             draw_modal_bg(&actual_position, 1);
                         
                         }
+
                         let mut text_timer = 0;
-                        if ready_to_show_text {
+                        {
+                            *m.timer.borrow_mut() += 1;
+                        }
+                        const INTERACTIVE_DELAY: u32 = 60;
+                        if ready_to_show_text && *m.timer.borrow() >= INTERACTIVE_DELAY {
                             {
-                                let timer: &mut u32 = &mut m.timer.borrow_mut();
-                                *timer += 1;
+                                // let timer: &mut u32 = &mut m.timer.borrow_mut();
+                                // *timer += 1;
                                 options_ready_to_select = true;
-                                text_timer = *timer;
+                                text_timer = *m.timer.borrow();
 
                             }
                         }
                         
+                        let modal_text = |st: &str, x, y| {
+                            text(st, m.actual_position.borrow().x as i32 + x, m.actual_position.borrow().y as i32 + y);
+                        };
+                        
                         
 
-                        if options_ready_to_select {
-                            let cursor_opt: u8;
+                        if ready_to_show_text {
+                            // let cursor_opt: u8;
                             let mut option_selected: u8 = 10;
-                            {
+                            if options_ready_to_select {
                                 let option: &mut u8 = &mut m.current_selection.borrow_mut();
-                                cursor_opt = *option;
+                                // cursor_opt = *option;
                                 if btns_pressed_this_frame[0] & BUTTON_DOWN != 0 {
                                     *option += 1;
                                     *option %= m.n_options;
@@ -698,72 +712,73 @@ fn update() {
                                 }
                             }
                             match m.menu_type {
-                                MenuTypes::Options => {
+                                // MenuTypes::Options => {
 
-                                    const MENU_X: i32 = 45;
-                                    const MENU_TOP_Y: i32 = 44;
-                                    const MENU_SPACING: i32 = 15;
-                                    unsafe { *DRAW_COLORS = 0x0002 }
-                                    text("-- PAUSED --", 30, 20);
-                                    // line(30, 110, 130, 110);
-                                    text("< > to move,", 34, 124); 
-                                    text("x=jump, z=card", 25, 136);
-                                    text("back", MENU_X, MENU_TOP_Y + MENU_SPACING * 0);
-                                    text("pallette", MENU_X, MENU_TOP_Y + MENU_SPACING * 1);
+                                //     const MENU_X: i32 = 35;
+                                //     const MENU_TOP_Y: i32 = 34;
+                                //     const MENU_SPACING: i32 = 15;
+                                //     unsafe { *DRAW_COLORS = 0x0002 }
+                                //     modal_text("-- PAUSED --", 20, 10);
+                                //     // text(, 30, 20);
+                                //     // line(30, 110, 130, 110);
+                                //     modal_text("< > to move,", 24, 114); 
+                                //     modal_text("x=jump, z=card", 15, 126);
+                                //     modal_text("back", MENU_X, MENU_TOP_Y + MENU_SPACING * 0);
+                                //     modal_text("pallette", MENU_X, MENU_TOP_Y + MENU_SPACING * 1);
 
-                                    for (i, c) in (0x0002..=0x0004).enumerate() {
-                                        unsafe { *DRAW_COLORS = c }
-                                        text(
-                                            "x",
-                                            MENU_X + 70 + 8 * i as i32,
-                                            MENU_TOP_Y + MENU_SPACING * 1,
-                                        )
-                                    }
-                                    unsafe { *DRAW_COLORS = 0x0002 }
+                                //     for (i, c) in (0x0002..=0x0004).enumerate() {
+                                //         unsafe { *DRAW_COLORS = c }
+                                //         modal_text(
+                                //             "x",
+                                //             MENU_X + 70 + 8 * i as i32,
+                                //             MENU_TOP_Y + MENU_SPACING * 1,
+                                //         )
+                                //     }
+                                //     unsafe { *DRAW_COLORS = 0x0002 }
 
-                                    text("fly", MENU_X, MENU_TOP_Y + MENU_SPACING * 2);
-                                    text("reset", MENU_X, MENU_TOP_Y + MENU_SPACING * 3);
+                                //     modal_text("fly", MENU_X, MENU_TOP_Y + MENU_SPACING * 2);
+                                //     modal_text("reset", MENU_X, MENU_TOP_Y + MENU_SPACING * 3);
           
 
-                                    let cursor_x = MENU_X - 25;
-                                    let cursor_y: i32 = MENU_TOP_Y + MENU_SPACING * cursor_opt as i32;
+                                //     let cursor_x = MENU_X - 25;
+                                //     let cursor_y: i32 = MENU_TOP_Y + MENU_SPACING * cursor_opt as i32;
 
 
-                                    text(">>", cursor_x, cursor_y);
+                                //     modal_text(">>", cursor_x, cursor_y);
 
 
-                                    match option_selected {
-                                        0 => game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::MainGameplay),
-                                        1 => {
-                                            game_state.pallette_idx += 1;
-                                            game_state.pallette_idx %= KITTY_SPRITESHEET_PALETTES.len();
-                                            unsafe {
-                                                *PALETTE =
-                                                    spritesheet::KITTY_SPRITESHEET_PALETTES[game_state.pallette_idx];
-                                            }
-                                            // unsafe { *DRAW_COLORS = spritesheet::KITTY_SPRITESHEET_DRAW_COLORS }
-                                        }
-                                        2 => {
-                                            game_state.godmode = !game_state.godmode;
-                                            game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::MainGameplay);
-                                        }
-                                        3 => {
-                                            game_state.regenerate_map();
-                                            game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::MainGameplay);
-                                        }
-                                        10 => {
+                                //     match option_selected {
+                                //         0 => game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::MainGameplay),
+                                //         1 => {
+                                //             game_state.pallette_idx += 1;
+                                //             game_state.pallette_idx %= KITTY_SPRITESHEET_PALETTES.len();
+                                //             unsafe {
+                                //                 *PALETTE =
+                                //                     spritesheet::KITTY_SPRITESHEET_PALETTES[game_state.pallette_idx];
+                                //             }
+                                //             // unsafe { *DRAW_COLORS = spritesheet::KITTY_SPRITESHEET_DRAW_COLORS }
+                                //         }
+                                //         2 => {
+                                //             game_state.godmode = !game_state.godmode;
+                                //             game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::MainGameplay);
+                                //         }
+                                //         3 => {
+                                //             game_state.regenerate_map();
+                                //             game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::MainGameplay);
+                                //         }
+                                //         10 => {
 
-                                        }
-                                        _ => {
-                                            unreachable!()
-                                        }
-                                    }
-                                },
+                                //         }
+                                //         _ => {
+                                //             unreachable!()
+                                //         }
+                                //     }
+                                // },
                                 MenuTypes::WonLevel => {
                                     const BLINK_START: u32 = 50;
                                     const BLINK_TITLE_PERIOD: u32 = 17;
                                     if text_timer < BLINK_START || (text_timer / BLINK_TITLE_PERIOD) % 2 == 0 {
-                                        text("Found!!", 50, 50);
+                                        modal_text("Found!!", 12, 15);
                                     }
 
                                     match option_selected {
@@ -783,10 +798,10 @@ fn update() {
                                     const BLINK_START: u32 = 50;
                                     const BLINK_TITLE_PERIOD: u32 = 17;
                                     if text_timer < BLINK_START || (text_timer / BLINK_TITLE_PERIOD) % 2 == 0 {
-                                        text("Time's Up!", 44, 50);
+                                        modal_text("Time's Up!", 34, 40);
                                     }
 
-                                    text(&format!["Score: {} pts", *game_state.score.borrow()], 20, 80);
+                                    modal_text(&format!["Score: {} pts", *game_state.score.borrow()], 10, 70);
 
                                     match option_selected {
                                         0 => {
@@ -800,12 +815,12 @@ fn update() {
                                     }
                                 },
                                 MenuTypes::StartGameMessage => {
-                                    text("-- GOAL --", 40, 30);
-                                    text("Find all the", 30, 50);
-                                    text("kitties in time!", 20, 65);
-                                    text("-- CONTROLS --", 24, 110);
-                                    text("< > to move,", 34, 124); 
-                                    text("x=jump, z=card", 26, 136);
+                                    modal_text("-- GOAL --", 30, 20);
+                                    modal_text("Find all the", 20, 40);
+                                    modal_text("kitties in time!", 10, 55);
+                                    modal_text("-- CONTROLS --", 14, 100);
+                                    modal_text("< > to move,", 24, 114); 
+                                    modal_text("x=jump, z=card", 16, 126);
                                     match option_selected {
                                         0 => {
                                             game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::MainGameplay);
@@ -822,7 +837,8 @@ fn update() {
                 }
             } else {
                 // HELP TEXT AT START OF GAME
-                if game_state.difficulty_level == 1 && *game_state.countdown_timer_msec.borrow() == COUNTDOWN_TIMER_START - 2 * 60 {
+                if game_state.difficulty_level == 1 && *game_state.countdown_timer_msec.borrow() == COUNTDOWN_TIMER_START - 2 * 60 && *game_state.tutorial_text_counter.borrow() == 0 {
+                    *game_state.tutorial_text_counter.borrow_mut() += 1;
                     game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::HoverModal(Modal {
                         n_options: 1,
                         timer: RefCell::new(0),
@@ -852,10 +868,10 @@ fn update() {
                             timer: RefCell::new(0),
                             current_selection: RefCell::new(0),
                             target_position: RefCell::new(AbsoluteBoundingBox {
-                                x: 20,
+                                x: 40,
                                 y: 40,
-                                width: 120,
-                                height: 80,
+                                width: 80,
+                                height: 40,
                             }),
                             actual_position: RefCell::new(AbsoluteBoundingBox {
                                 x: 0.0,
@@ -921,34 +937,47 @@ fn update() {
             unsafe { *DRAW_COLORS = 0x1112 }
             // text("Kitty Game!", 20, 20);
 
-            if game_state.song_timer >= 100 {
+            const TIMER_INTERACTIVE_START: u32 = 100;
+
+            if game_state.song_timer >= TIMER_INTERACTIVE_START {
                 if game_state.song_timer % 30 >= 15 {
                     text("Any key: start", 20, 80);
                 }
                 
                 text("by CanyonTurtle", 20, 100);
                 text(" & BurntSugar  ", 20, 114);
+                text(format!["ver. {}.{}.{}", MAJOR_VERSION, MINOR_VERSION, INCR_VERSION], 40, 150);
+                if btns_pressed_this_frame[0] != 0 {
+                    game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::MainGameplay);
+                    
+                    // drop(game_state.map.chunks);
+                    game_state.new_game();
+                    game_state.regenerate_map();
+                }
             }
             
 
             unsafe { *DRAW_COLORS = 0x0034 }
             // blit(&OUTPUT_ONLINEPNGTOOLS, 0, 30, OUTPUT_ONLINEPNGTOOLS_WIDTH, OUTPUT_ONLINEPNGTOOLS_HEIGHT, OUTPUT_ONLINEPNGTOOLS_FLAGS);
-            const TITLE_HEIGHT: i32 = 0;
+            const TITLE_Y: i32 = 15;
+            const TITLE_X: i32 = 5;
+            let title_y_osc = match game_state.song_timer {
+                0..=TIMER_INTERACTIVE_START => {
+                    0
+                }
+                _ => {
+                    (5f32 * num::Float::sin((game_state.song_timer - TIMER_INTERACTIVE_START) as f32 * 0.05f32)) as i32
+                }
+            };
             for row in 0..OUTPUT_ONLINEPNGTOOLS_HEIGHT as i32 {
-                blit_sub(&OUTPUT_ONLINEPNGTOOLS, 0 + (3000000f32 * (1f32 / (1f32 + num::Float::powf(game_state.song_timer as f32, 3f32))) * num::Float::sin((game_state.song_timer as f32 + row as f32 * 4f32) * 0.1f32)) as i32, TITLE_HEIGHT + row, OUTPUT_ONLINEPNGTOOLS_WIDTH, 1, 0, row as u32, OUTPUT_ONLINEPNGTOOLS_WIDTH, OUTPUT_ONLINEPNGTOOLS_FLAGS)
+                blit_sub(&OUTPUT_ONLINEPNGTOOLS, TITLE_X + (3000000f32 * (1f32 / (1f32 + num::Float::powf(game_state.song_timer as f32, 3f32))) * num::Float::sin((game_state.song_timer as f32 + row as f32 * 4f32) * 0.1f32)) as i32, TITLE_Y + title_y_osc + row, OUTPUT_ONLINEPNGTOOLS_WIDTH, 1, 0, row as u32, OUTPUT_ONLINEPNGTOOLS_WIDTH, OUTPUT_ONLINEPNGTOOLS_FLAGS)
             }
             unsafe {
                 *PALETTE = spritesheet::KITTY_SPRITESHEET_PALETTES[game_state.pallette_idx];
             }
             unsafe { *DRAW_COLORS = spritesheet::KITTY_SPRITESHEET_DRAW_COLORS }
             game_state.rng.borrow_mut().next();
-            if btns_pressed_this_frame[0] != 0 {
-                game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::MainGameplay);
-                
-                // drop(game_state.map.chunks);
-                game_state.new_game();
-                game_state.regenerate_map();
-            }
+            
 
             // render title
 

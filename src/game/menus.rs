@@ -4,7 +4,7 @@ use super::collision::AbsoluteBoundingBox;
 
 pub enum MenuTypes {
     StartGameMessage,
-    Options,
+    // Options,
     WonLevel,
     Done,
 }

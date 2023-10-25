@@ -44,6 +44,7 @@ pub struct GameState<'a> {
     pub popup_text_ringbuffer: RefCell<PopTextRingbuffer>,
     pub tileset_idx: RefCell<usize>,
     pub map_gen_settings_idx: RefCell<usize>,
+    pub tutorial_text_counter: RefCell<u8>
 }
 
 impl GameState<'static> {
@@ -106,6 +107,7 @@ impl GameState<'static> {
             }),
             tileset_idx: RefCell::new(0),
             map_gen_settings_idx: RefCell::new(0),
+            tutorial_text_counter: RefCell::new(0)
         }
     }
 
@@ -113,6 +115,7 @@ impl GameState<'static> {
         let cdt: &mut u32 = &mut self.countdown_timer_msec.borrow_mut();
         *cdt = COUNTDOWN_TIMER_START;
         *self.score.borrow_mut() = 0;
+        *self.tutorial_text_counter.borrow_mut() = 0;
     }
 
     pub fn get_n_enabled_players(self: &Self) -> u8 {
