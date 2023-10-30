@@ -46,7 +46,7 @@ impl AbilityCard {
 pub enum AbilityCardUsageResult {
     NothingHappened,
     GainedTime(u32),
-    EnabledFlyForTime(u32),
+    EnabledFlyAndTime(u32),
     // TeleportationEnabled,
 }
 
@@ -104,9 +104,9 @@ impl AbilityCardStack {
                         (n_consumed as f32 * (n_consumed as f32 + 1.0) / 2.0) as u32,
                     ),
                     AbilityCardTypes::Piggy | AbilityCardTypes::Lizard => {
-                        AbilityCardUsageResult::GainedTime(10)
+                        AbilityCardUsageResult::GainedTime(n_consumed * 10)
                     }
-                    AbilityCardTypes::Bird => AbilityCardUsageResult::EnabledFlyForTime(0),
+                    AbilityCardTypes::Bird => AbilityCardUsageResult::EnabledFlyAndTime(n_consumed * 10),
                 };
 
                 // remove cards off the end (to ensure correct ordering)
