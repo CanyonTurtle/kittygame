@@ -377,47 +377,6 @@ fn update() {
 
             drawmap(&game_state);
 
-            // if !showing_modal && btns_pressed_this_frame[0] & BUTTON_DOWN != 0 {
-            //     // game_state.game_mode = GameMode::Options(OptionsState {
-            //     //     current_selection: 0,
-            //     // });
-
-            //     game_state.game_mode =
-            //         GameMode::NormalPlay(NormalPlayModes::HoverModal(Modal {
-            //             n_options: 4,
-            //             timer: RefCell::new(0),
-            //             current_selection: RefCell::new(0),
-            //             target_position: RefCell::new(AbsoluteBoundingBox {
-            //                 x: 10,
-            //                 y: 10,
-            //                 width: 140,
-            //                 height: 140,
-            //             }),
-            //             actual_position: RefCell::new(AbsoluteBoundingBox {
-            //                 x: 80.0,
-            //                 y: 80.0,
-            //                 width: 1.0,
-            //                 height: 1.0,
-            //             }),
-            //             menu_type: MenuTypes::Options
-            //         }));
-
-            //     return;
-            //     // game_state.regenerate_map();
-            // }
-
-            // blit_sub(
-            //     &game_state.spritesheet,
-            //     0 as i32,
-            //     150 as i32,
-            //     game_state.background_tiles[0].frames[0].positioning.width as u32,
-            //     game_state.background_tiles[0].frames[0].positioning.height as u32,
-            //     game_state.background_tiles[0].frames[0].positioning.start_x as u32,
-            //     game_state.background_tiles[0].frames[0].positioning.start_y as u32,
-            //     game_state.spritesheet_stride as u32,
-            //     spritesheet::KITTY_SPRITESHEET_FLAGS | if bob.facing_right { 0 } else { BLIT_FLIP_X },
-            // );
-
             const TOP_UI_TEXT_Y: i32 = 2;
 
             const BOTTOM_UI_TEXT_Y: i32 = 160 - 8; // 160 - 8 - 2;
@@ -577,23 +536,37 @@ fn update() {
                         if !showing_modal && btns_pressed_this_frame[p_i] & BUTTON_2 != 0 {
                             let res = p.card_stack.try_use_cards();
                             // trace("tried");
+                            let added_t;
+                            let popup_t: Option<String>;
                             match res {
-                                game::ability_cards::AbilityCardUsageResult::NothingHappened => {},
+                                game::ability_cards::AbilityCardUsageResult::NothingHappened => {
+                                    added_t = 0;
+                                    popup_t = None;
+                                },
                                 game::ability_cards::AbilityCardUsageResult::GainedTime(t) => {
-                                    *game_state.countdown_timer_msec.borrow_mut() += t * 60;
-                                    *game_state.score.borrow_mut() += t * 60;
-                                    game_state.popup_text_ringbuffer.borrow_mut().add_new_popup(p.character.x_pos, p.character.y_pos, format!["+{}", t])
+                                    added_t = t;
+                                    popup_t = Some(format!["+{}", t]);
                                 },
                                 game::ability_cards::AbilityCardUsageResult::EnabledFlyAndTime(t) => {
                                     if p.character.can_fly {
-                                        *game_state.countdown_timer_msec.borrow_mut() += t * 60;
-                                        *game_state.score.borrow_mut() += t * 60;
-                                        game_state.popup_text_ringbuffer.borrow_mut().add_new_popup(p.character.x_pos, p.character.y_pos, format!["+{}", t])
+                                        added_t = t;
+                                        popup_t = Some(format!["+{}", t]);
+                                    } else {
+                                        p.character.can_fly = true;
+                                        added_t = t - 10;
+                                        popup_t = Some("+Fly!".to_string());
                                     }
-                                    p.character.can_fly = true;
-                                    game_state.popup_text_ringbuffer.borrow_mut().add_new_popup(p.character.x_pos, p.character.y_pos, "+Fly!".to_string())
+                                    
                                 }
                             }
+                            match popup_t {
+                                Some(pt) => {
+                                    game_state.popup_text_ringbuffer.borrow_mut().add_new_popup(p.character.x_pos, p.character.y_pos, pt);
+                                }
+                                _ => {}
+                            }
+                            *game_state.countdown_timer_msec.borrow_mut() += added_t * 60;
+                            *game_state.score.borrow_mut() += added_t * 60;
                         }
                     },
                     OptionallyEnabledPlayer::Disabled => {},
@@ -989,6 +962,13 @@ fn update() {
             // trace("updated positions");
             unsafe { *DRAW_COLORS = 0x1112 }
             
+
+
+            // Things that only happen in main game:
+            // per-player camera
+            // kitty controlled by player
+            // entity collisions checked
+            // win conditions, time rendered
         }
     }
 }

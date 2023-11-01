@@ -219,6 +219,7 @@ impl GameState<'static> {
                 851..=900 => spritesheet::PresetSprites::Pig,
                 901..=950 => spritesheet::PresetSprites::BirdIsntReal,
                 951..=1000 => spritesheet::PresetSprites::Kitty1,
+
                 _ => unreachable!(),
             };
             npcs.push(Character::new(preset));
