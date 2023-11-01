@@ -152,6 +152,75 @@ fn get_inputs_this_frame() -> [[u8; 4]; 2] {
     [btns_pressed_this_frame, gamepads]
 }
 
+// DRAW BLURRED BACKGROUND BEHIND SCORE AND TIME TEXTS IN-GAME
+const TOP_UI_TEXT_Y: i32 = 2;
+const BOTTOM_UI_TEXT_Y: i32 = 160 - 8; // 160 - 8 - 2;
+
+fn draw_modal_bg(pf: &AbsoluteBoundingBox<f32, f32>, style: u8) {
+    unsafe { *DRAW_COLORS = 0x0001 }
+    let p: AbsoluteBoundingBox<i32, u32> = AbsoluteBoundingBox {
+        x: pf.x as i32,
+        y: pf.y as i32,
+        width: pf.width as u32,
+        height: pf.height as u32,
+    };
+
+    unsafe {
+        *DRAW_COLORS = 0x0001;
+    }
+
+    match style {
+        1 => {
+            rect(p.x, p.y, p.width as u32, p.height as u32);
+        }
+        _ => {}
+    }
+
+    unsafe {
+        *DRAW_COLORS = match style {
+            0 => 0x0001,
+            _ => 0x0002,
+        }
+    };
+
+    // fill
+    for i in p.x..=p.x + p.width as i32 {
+        for j in p.y..=p.y + p.height as i32 {
+            let cond = match style {
+                1 => false,
+                _ => (i + j) % 3 != 0,
+            };
+            if cond {
+                line(i, j, i, j)
+            }
+        }
+    }
+
+    unsafe { *DRAW_COLORS = 0x0002 }
+    // borders
+
+    match style {
+        1 => {
+            line(p.x, p.y, p.x + p.width as i32, p.y);
+            line(p.x, p.y, p.x, p.y + p.height as i32);
+            line(
+                p.x,
+                p.y + p.height as i32,
+                p.x + p.width as i32,
+                p.y + p.height as i32,
+            );
+            line(
+                p.x + p.width as i32,
+                p.y,
+                p.x + p.width as i32,
+                p.y + p.height as i32,
+            );
+        }
+        _ => {}
+    }
+    
+}
+
 #[no_mangle]
 fn update() {
     let game_state: &mut GameState;
@@ -161,7 +230,12 @@ fn update() {
         match &mut GAME_STATE_HOLDER {
             None => {
                 spritesheet::Sprite::init_all_sprites();
-                let new_game_state = GameState::new();
+                let mut new_game_state = GameState::new();
+                for _ in 0..20 {
+                    new_game_state.rng.borrow_mut().next();
+                }
+                
+                new_game_state.regenerate_map();
                 GAME_STATE_HOLDER = Some(new_game_state);
                 // trace("finished reset");
             }
@@ -184,9 +258,202 @@ fn update() {
     game_state.song_timer += 1;
     play_bgm(game_state.song_timer, &SONGS[game_state.song_idx]);
 
+
+    let mut player_idx: u8 = 0b0;
+
+    // SET CAMERA POSITION
+    match &mut game_state.players.borrow_mut()[player_idx as usize] {
+        OptionallyEnabledPlayer::Disabled => {}
+        OptionallyEnabledPlayer::Enabled(player) => {
+            game_state.camera.borrow_mut().current_viewing_x_target = num::clamp(
+                player.character.x_pos - 80.0,
+                X_LEFT_BOUND as f32,
+                X_RIGHT_BOUND as f32,
+            );
+            game_state.camera.borrow_mut().current_viewing_y_target = num::clamp(
+                player.character.y_pos - 80.0,
+                Y_LOWER_BOUND as f32,
+                Y_UPPER_BOUND as f32,
+            );
+        }
+    }
+
+    game_state.camera.borrow_mut().slew();
+
     // ------------- POLL INPUT ---------------
 
     let [btns_pressed_this_frame, gamepads] = get_inputs_this_frame();
+
+    // ON TITLE SCREEN, MOVE PLAYER 1 BASED ON TIME
+    
+    // CHECK IF CHARACTERS / CATS ARE COLLIDING
+    check_entity_collisions(&game_state);
+
+
+
+    // PREPARE TO RENDER THE MAP & ENTITIES
+    unsafe {
+        *PALETTE = spritesheet::KITTY_SPRITESHEET_PALETTES[game_state.pallette_idx];
+    }
+    unsafe { *DRAW_COLORS = spritesheet::KITTY_SPRITESHEET_DRAW_COLORS }
+
+    // MOVE AND RENDER THE PLAYERS 
+    {
+        let mut optional_players = game_state.players.borrow_mut();
+
+        for (i, optional_player) in &mut optional_players.iter_mut().enumerate() {
+
+
+            let mut input = match false { // showing_modal {
+                false => gamepads[i],
+                true => 0,
+            };
+            if i == 0 {
+                match game_state.game_mode {
+                    GameMode::StartScreen => {
+                        let mut move_n = (((game_state.song_timer / 10) * 31) % 29) as u8;
+                        move_n &= !(BUTTON_LEFT | BUTTON_RIGHT);
+                        input = move_n;
+                        match move_n {
+                            0..=2 => {
+                                input |= BUTTON_LEFT;
+                            },
+                            3..=6=> {
+                                input |= BUTTON_RIGHT;
+                            }
+                            _ => {}
+                        }
+                    },
+                    GameMode::NormalPlay(_) => {},
+                }
+            }
+            update_pos(
+                &game_state.map,
+                MovingEntity::OptionalPlayer(optional_player),
+                input,
+                game_state.godmode,
+            );
+            drawcharacter(
+                &game_state.spritesheet,
+                &game_state.spritesheet_stride,
+                &game_state.camera.borrow(),
+                MovingEntity::OptionalPlayer(optional_player),
+            );
+        }
+    }
+
+    // CREATE INPUTS FOR NPCS
+    let inputs: &mut [u8; MAX_N_NPCS] = unsafe { NPC_INPUTS.borrow_mut() };
+    let l;
+    {
+        l = game_state.npcs.borrow().len();
+    }
+    for i in 0..l {
+        let rngg = &mut game_state.rng.borrow_mut();
+        let rand_val = (rngg.next() % 255) as u8;
+        let current_npc = &mut game_state.npcs.borrow_mut()[i];
+        let mut use_rng_input = false;
+        match current_npc.following_i {
+            None => {
+                use_rng_input = true;
+            }
+            Some(p_i) => {
+                let the_opt_player = &game_state.players.borrow()[p_i as usize];
+                if let OptionallyEnabledPlayer::Enabled(p) = the_opt_player {
+                    let p_bound = get_bound_of_character(&p.character);
+                    let npc_bound: AbsoluteBoundingBox<i32, u32> =
+                        get_bound_of_character(&current_npc);
+                    let needs_teleport;
+                    {
+                        // teleportAyh-shon if needed
+                        const TELEPORT_AXIS_MIN_DIST: u32 = 160;
+                        if p_bound.x.abs_diff(npc_bound.x) > TELEPORT_AXIS_MIN_DIST
+                            || p_bound.y.abs_diff(npc_bound.y) > TELEPORT_AXIS_MIN_DIST
+                        {
+                            needs_teleport = true
+                        } else {
+                            needs_teleport = false
+                        }
+                    }
+
+                    if needs_teleport {
+                        current_npc.x_pos = p_bound.x as f32;
+                        current_npc.y_pos = p_bound.y as f32;
+                        current_npc.x_vel = 0.0;
+                        current_npc.y_vel = 0.0;
+                    } else {
+                        if rngg.next() % 10 > 1 {
+                            inputs[i] = 0;
+
+                            // if current_npc.x_pos + (npc_bound.width as f32) < p.x_pos {
+                            // else if current_npc.x_pos > p.x_pos + p_bound.width as f32 {
+
+                            // make NPCs tryhard when they're not in the same Y to get to exact x position to help with climbing
+                            let mut tryhard_get_to_0: bool = true;
+                            let ch = &p.character;
+                            // fall by doing nothing
+                            if current_npc.y_pos + (npc_bound.height as f32) < ch.y_pos {
+                            } else if current_npc.y_pos > ch.y_pos + p_bound.height as f32 {
+                                inputs[i] |= BUTTON_1;
+                            } else {
+                                tryhard_get_to_0 = false;
+                            }
+
+                            if tryhard_get_to_0 {
+                                if current_npc.x_pos < ch.x_pos {
+                                    inputs[i] |= BUTTON_RIGHT;
+                                } else if current_npc.x_pos > ch.x_pos {
+                                    inputs[i] |= BUTTON_LEFT;
+                                }
+                            } else {
+                                if current_npc.x_pos + (npc_bound.width as f32) < ch.x_pos {
+                                    inputs[i] |= BUTTON_RIGHT;
+                                } else if current_npc.x_pos > ch.x_pos + p_bound.width as f32
+                                {
+                                    inputs[i] |= BUTTON_LEFT;
+                                }
+                            }
+                        } else {
+                            use_rng_input = true;
+                        }
+                    }
+                } else {
+                    use_rng_input = false;
+                }
+            }
+        }
+
+        if use_rng_input {
+            if rand_val < 20 {
+                inputs[i] = 0x10;
+            } else if rand_val < 40 {
+                inputs[i] = 0x20;
+            } else if rand_val < 42 {
+                inputs[i] = BUTTON_1;
+            } else {
+                inputs[i] = 0x0;
+            }
+        }
+    }
+
+    // MOVE AND DRAW NPCS
+    for (i, npc) in game_state.npcs.borrow_mut().iter_mut().enumerate() {
+        update_pos(
+            &game_state.map,
+            MovingEntity::NPC(npc),
+            inputs[i],
+            game_state.godmode,
+        );
+        drawcharacter(
+            &game_state.spritesheet,
+            &game_state.spritesheet_stride,
+            &game_state.camera.borrow(),
+            MovingEntity::NPC(npc),
+        );
+    }
+
+    // RENDER THE MAP
+    drawmap(&game_state);
 
     match &game_state.game_mode {
         GameMode::NormalPlay(play_mode) => {
@@ -202,16 +469,8 @@ fn update() {
                     game_state.countdown_paused = true;
                 }
             }
-
             
-
-            unsafe {
-                *PALETTE = spritesheet::KITTY_SPRITESHEET_PALETTES[game_state.pallette_idx];
-            }
-            unsafe { *DRAW_COLORS = spritesheet::KITTY_SPRITESHEET_DRAW_COLORS }
-
-            let mut player_idx: u8 = 0b0;
-
+            // UPDATE WHICH PLAYER WE'RE PLAYING IN NETPLAY
             unsafe {
                 // If netplay is active
                 if *NETPLAY & 0b100 != 0 {
@@ -220,232 +479,14 @@ fn update() {
                 } else {
                 }
             }
-            match &mut game_state.players.borrow_mut()[player_idx as usize] {
-                OptionallyEnabledPlayer::Disabled => {}
-                OptionallyEnabledPlayer::Enabled(player) => {
-                    game_state.camera.borrow_mut().current_viewing_x_target = num::clamp(
-                        player.character.x_pos - 80.0,
-                        X_LEFT_BOUND as f32,
-                        X_RIGHT_BOUND as f32,
-                    );
-                    game_state.camera.borrow_mut().current_viewing_y_target = num::clamp(
-                        player.character.y_pos - 80.0,
-                        Y_LOWER_BOUND as f32,
-                        Y_UPPER_BOUND as f32,
-                    );
-                }
-            }
 
-            game_state.camera.borrow_mut().slew();
+            
 
-            {
-                let mut optional_players = game_state.players.borrow_mut();
 
-                for (i, optional_player) in &mut optional_players.iter_mut().enumerate() {
-                    let input = match showing_modal {
-                        false => gamepads[i],
-                        true => 0,
-                    };
-                    update_pos(
-                        &game_state.map,
-                        MovingEntity::OptionalPlayer(optional_player),
-                        input,
-                        game_state.godmode,
-                    );
-                    drawcharacter(
-                        &game_state.spritesheet,
-                        &game_state.spritesheet_stride,
-                        &game_state.camera.borrow(),
-                        MovingEntity::OptionalPlayer(optional_player),
-                    );
-                }
-            }
+            
+            
 
-            check_entity_collisions(&game_state);
-
-            // unsafe { *DRAW_COLORS = 0x1112 }
-            // text("WELCOME TO KITTY GAME.          :D       xD                           WHAT IS POPPIN ITS YOUR BOY, THE KITTY GAME", 200 - game_state.camera.current_viewing_x_offset as i32, 130);
-
-            // unsafe { *DRAW_COLORS = spritesheet::KITTY_SPRITESHEET_DRAW_COLORS }
-            let inputs: &mut [u8; MAX_N_NPCS] = unsafe { NPC_INPUTS.borrow_mut() };
-            let l;
-            {
-                l = game_state.npcs.borrow().len();
-            }
-            for i in 0..l {
-                let rngg = &mut game_state.rng.borrow_mut();
-                let rand_val = (rngg.next() % 255) as u8;
-                let current_npc = &mut game_state.npcs.borrow_mut()[i];
-                let mut use_rng_input = false;
-                match current_npc.following_i {
-                    None => {
-                        use_rng_input = true;
-                    }
-                    Some(p_i) => {
-                        let the_opt_player = &game_state.players.borrow()[p_i as usize];
-                        if let OptionallyEnabledPlayer::Enabled(p) = the_opt_player {
-                            let p_bound = get_bound_of_character(&p.character);
-                            let npc_bound: AbsoluteBoundingBox<i32, u32> =
-                                get_bound_of_character(&current_npc);
-                            let needs_teleport;
-                            {
-                                // teleportAyh-shon if needed
-                                const TELEPORT_AXIS_MIN_DIST: u32 = 160;
-                                if p_bound.x.abs_diff(npc_bound.x) > TELEPORT_AXIS_MIN_DIST
-                                    || p_bound.y.abs_diff(npc_bound.y) > TELEPORT_AXIS_MIN_DIST
-                                {
-                                    needs_teleport = true
-                                } else {
-                                    needs_teleport = false
-                                }
-                            }
-
-                            if needs_teleport {
-                                current_npc.x_pos = p_bound.x as f32;
-                                current_npc.y_pos = p_bound.y as f32;
-                                current_npc.x_vel = 0.0;
-                                current_npc.y_vel = 0.0;
-                            } else {
-                                if rngg.next() % 10 > 1 {
-                                    inputs[i] = 0;
-
-                                    // if current_npc.x_pos + (npc_bound.width as f32) < p.x_pos {
-                                    // else if current_npc.x_pos > p.x_pos + p_bound.width as f32 {
-
-                                    // make NPCs tryhard when they're not in the same Y to get to exact x position to help with climbing
-                                    let mut tryhard_get_to_0: bool = true;
-                                    let ch = &p.character;
-                                    // fall by doing nothing
-                                    if current_npc.y_pos + (npc_bound.height as f32) < ch.y_pos {
-                                    } else if current_npc.y_pos > ch.y_pos + p_bound.height as f32 {
-                                        inputs[i] |= BUTTON_1;
-                                    } else {
-                                        tryhard_get_to_0 = false;
-                                    }
-
-                                    if tryhard_get_to_0 {
-                                        if current_npc.x_pos < ch.x_pos {
-                                            inputs[i] |= BUTTON_RIGHT;
-                                        } else if current_npc.x_pos > ch.x_pos {
-                                            inputs[i] |= BUTTON_LEFT;
-                                        }
-                                    } else {
-                                        if current_npc.x_pos + (npc_bound.width as f32) < ch.x_pos {
-                                            inputs[i] |= BUTTON_RIGHT;
-                                        } else if current_npc.x_pos > ch.x_pos + p_bound.width as f32
-                                        {
-                                            inputs[i] |= BUTTON_LEFT;
-                                        }
-                                    }
-                                } else {
-                                    use_rng_input = true;
-                                }
-                            }
-                        } else {
-                            use_rng_input = false;
-                        }
-                    }
-                }
-
-                if use_rng_input {
-                    if rand_val < 20 {
-                        inputs[i] = 0x10;
-                    } else if rand_val < 40 {
-                        inputs[i] = 0x20;
-                    } else if rand_val < 42 {
-                        inputs[i] = BUTTON_1;
-                    } else {
-                        inputs[i] = 0x0;
-                    }
-                }
-            }
-
-            for (i, npc) in game_state.npcs.borrow_mut().iter_mut().enumerate() {
-                update_pos(
-                    &game_state.map,
-                    MovingEntity::NPC(npc),
-                    inputs[i],
-                    game_state.godmode,
-                );
-                drawcharacter(
-                    &game_state.spritesheet,
-                    &game_state.spritesheet_stride,
-                    &game_state.camera.borrow(),
-                    MovingEntity::NPC(npc),
-                );
-            }
-
-            drawmap(&game_state);
-
-            const TOP_UI_TEXT_Y: i32 = 2;
-
-            const BOTTOM_UI_TEXT_Y: i32 = 160 - 8; // 160 - 8 - 2;
-
-            unsafe { *DRAW_COLORS = 0x0001 }
-
-            fn draw_modal_bg(pf: &AbsoluteBoundingBox<f32, f32>, style: u8) {
-                let p: AbsoluteBoundingBox<i32, u32> = AbsoluteBoundingBox {
-                    x: pf.x as i32,
-                    y: pf.y as i32,
-                    width: pf.width as u32,
-                    height: pf.height as u32,
-                };
-
-                unsafe {
-                    *DRAW_COLORS = 0x0001;
-                }
-
-                match style {
-                    1 => {
-                        rect(p.x, p.y, p.width as u32, p.height as u32);
-                    }
-                    _ => {}
-                }
-
-                unsafe {
-                    *DRAW_COLORS = match style {
-                        0 => 0x0001,
-                        _ => 0x0002,
-                    }
-                };
-
-                // fill
-                for i in p.x..=p.x + p.width as i32 {
-                    for j in p.y..=p.y + p.height as i32 {
-                        let cond = match style {
-                            1 => false,
-                            _ => (i + j) % 3 != 0,
-                        };
-                        if cond {
-                            line(i, j, i, j)
-                        }
-                    }
-                }
-
-                unsafe { *DRAW_COLORS = 0x0002 }
-                // borders
-
-                match style {
-                    1 => {
-                        line(p.x, p.y, p.x + p.width as i32, p.y);
-                        line(p.x, p.y, p.x, p.y + p.height as i32);
-                        line(
-                            p.x,
-                            p.y + p.height as i32,
-                            p.x + p.width as i32,
-                            p.y + p.height as i32,
-                        );
-                        line(
-                            p.x + p.width as i32,
-                            p.y,
-                            p.x + p.width as i32,
-                            p.y + p.height as i32,
-                        );
-                    }
-                    _ => {}
-                }
-                
-            }
+            
 
             draw_modal_bg(
                 &AbsoluteBoundingBox {
@@ -467,6 +508,7 @@ fn update() {
                 0,
             );
 
+            // WRITE SCORE / TIME OF GAME
             fn layertext(t: &str, x: i32, y: i32) {
                 unsafe { *DRAW_COLORS = 0x0001 }
                 text(t, x + 1, y);
@@ -480,6 +522,7 @@ fn update() {
             layertext(&format!["Lv. {}", game_state.difficulty_level], 0, BOTTOM_UI_TEXT_Y);
             layertext(&format!["Sc. {}", *game_state.score.borrow()], 80, BOTTOM_UI_TEXT_Y);
 
+            // COUNT THE NUMBER OF NPCS THAT ARE FOLLOWING PLAYERS
             let mut current_found_npcs = 0;
             for npc in game_state.npcs.borrow().iter() {
                 current_found_npcs += match npc.following_i {
@@ -488,7 +531,7 @@ fn update() {
                 }
             }
 
-            // keep going till the timer hits
+            // RENDER NUMBER OF KITTIES TO FIND
             if game_state.total_npcs_to_find == current_found_npcs {
                 // layertext("You found them!! :D", 0, TOP_UI_TEXT_Y);
                 // game_state.difficulty_level += 1;
@@ -504,7 +547,7 @@ fn update() {
                 );
             }
 
-            // update popups
+            // UPDATE POPUPS
             {
                 let popup_texts_rb: &mut PopTextRingbuffer = &mut game_state.popup_text_ringbuffer.borrow_mut();
                 popup_texts_rb.update_popup_positions();
@@ -524,7 +567,7 @@ fn update() {
                 }
             }
 
-            // use ability cards
+            // USE ABILITY CARDS
             for (p_i, pr) in game_state.players.borrow_mut().iter_mut().enumerate() {
                 // if btns_pressed_this_frame[p_i] != 0 {
                 //     trace(format!["check p{}: {}", p_i, btns_pressed_this_frame[p_i]]);
@@ -574,7 +617,7 @@ fn update() {
             }
             
 
-            // move ability cards
+            // MOVE ABILITY CARD POSITIONS
             match &mut (*game_state.players.borrow_mut())[player_idx as usize] {
                 OptionallyEnabledPlayer::Enabled(p) => {
                     for (i, card) in p.card_stack.cards.iter_mut().enumerate() {
@@ -591,7 +634,7 @@ fn update() {
                 OptionallyEnabledPlayer::Disabled => {}
             }
             
-            // draw ability cards
+            // DRAW ABILITY CARDS
             unsafe { *DRAW_COLORS = spritesheet::KITTY_SPRITESHEET_DRAW_COLORS }
             match &(*game_state.players.borrow())[player_idx as usize] {
                 OptionallyEnabledPlayer::Enabled(p) => {
@@ -620,7 +663,7 @@ fn update() {
                 OptionallyEnabledPlayer::Disabled => {},
             }
 
-
+            // SHOW MODAL DIALOGS
             if showing_modal {
                 match play_mode {
                     NormalPlayModes::MainGameplay => {
@@ -690,68 +733,6 @@ fn update() {
                                 }
                             }
                             match m.menu_type {
-                                // MenuTypes::Options => {
-
-                                //     const MENU_X: i32 = 35;
-                                //     const MENU_TOP_Y: i32 = 34;
-                                //     const MENU_SPACING: i32 = 15;
-                                //     unsafe { *DRAW_COLORS = 0x0002 }
-                                //     modal_text("-- PAUSED --", 20, 10);
-                                //     // text(, 30, 20);
-                                //     // line(30, 110, 130, 110);
-                                //     modal_text("< > to move,", 24, 114); 
-                                //     modal_text("x=jump, z=card", 15, 126);
-                                //     modal_text("back", MENU_X, MENU_TOP_Y + MENU_SPACING * 0);
-                                //     modal_text("pallette", MENU_X, MENU_TOP_Y + MENU_SPACING * 1);
-
-                                //     for (i, c) in (0x0002..=0x0004).enumerate() {
-                                //         unsafe { *DRAW_COLORS = c }
-                                //         modal_text(
-                                //             "x",
-                                //             MENU_X + 70 + 8 * i as i32,
-                                //             MENU_TOP_Y + MENU_SPACING * 1,
-                                //         )
-                                //     }
-                                //     unsafe { *DRAW_COLORS = 0x0002 }
-
-                                //     modal_text("fly", MENU_X, MENU_TOP_Y + MENU_SPACING * 2);
-                                //     modal_text("reset", MENU_X, MENU_TOP_Y + MENU_SPACING * 3);
-          
-
-                                //     let cursor_x = MENU_X - 25;
-                                //     let cursor_y: i32 = MENU_TOP_Y + MENU_SPACING * cursor_opt as i32;
-
-
-                                //     modal_text(">>", cursor_x, cursor_y);
-
-
-                                //     match option_selected {
-                                //         0 => game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::MainGameplay),
-                                //         1 => {
-                                //             game_state.pallette_idx += 1;
-                                //             game_state.pallette_idx %= KITTY_SPRITESHEET_PALETTES.len();
-                                //             unsafe {
-                                //                 *PALETTE =
-                                //                     spritesheet::KITTY_SPRITESHEET_PALETTES[game_state.pallette_idx];
-                                //             }
-                                //             // unsafe { *DRAW_COLORS = spritesheet::KITTY_SPRITESHEET_DRAW_COLORS }
-                                //         }
-                                //         2 => {
-                                //             game_state.godmode = !game_state.godmode;
-                                //             game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::MainGameplay);
-                                //         }
-                                //         3 => {
-                                //             game_state.regenerate_map();
-                                //             game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::MainGameplay);
-                                //         }
-                                //         10 => {
-
-                                //         }
-                                //         _ => {
-                                //             unreachable!()
-                                //         }
-                                //     }
-                                // },
                                 MenuTypes::WonLevel => {
                                     const BLINK_START: u32 = 50;
                                     const BLINK_TITLE_PERIOD: u32 = 17;
@@ -814,6 +795,7 @@ fn update() {
                     }
                 }
             } else {
+
                 // HELP TEXT AT START OF GAME
                 if game_state.difficulty_level == 1 && *game_state.countdown_timer_msec.borrow() == COUNTDOWN_TIMER_START - 2 * 60 && *game_state.tutorial_text_counter.borrow() == 0 {
                     *game_state.tutorial_text_counter.borrow_mut() += 1;
@@ -863,6 +845,7 @@ fn update() {
                     game_state.song_timer = 0;
                 }
 
+                // PROGRESS TIME, CHECK FOR GAME END
                 if !game_state.countdown_paused {
                     *game_state.countdown_timer_msec.borrow_mut() -= 1;
             
@@ -892,38 +875,32 @@ fn update() {
                     }
                 }
             }
-
-            
-
-            // let time_sec = game_state.timer as f32 / 60.0;
-            // layertext(&format!["{:.1} sec", time_sec], 90, BOTTOM_UI_TEXT_Y);
-
-            // draw UI lines
-            // line(0, TOP_UI_TEXT_Y + 8 + 1, 160, TOP_UI_TEXT_Y + 8 + 1);
-            // line(0, TOP_UI_TEXT_Y - 2, 160, TOP_UI_TEXT_Y - 2);
-
-            // line(0, BOTTOM_UI_TEXT_Y + 8 + 1, 160, BOTTOM_UI_TEXT_Y + 8 + 1);
-            // line(0, BOTTOM_UI_TEXT_Y - 2, 160, BOTTOM_UI_TEXT_Y - 2);
         }
         GameMode::StartScreen => {
             
             
-            // trace("drew lines");
-
+            // SETUP TITLE MUSIC AND COLORS
             game_state.song_idx = 1;
-            // game_state.song_timer = 0;
-            unsafe { *DRAW_COLORS = 0x1112 }
-            // text("Kitty Game!", 20, 20);
+            unsafe { *DRAW_COLORS = 0x0002 }
 
+            // SHOW TITLE-SCREEN SUBTEXT
             const TIMER_INTERACTIVE_START: u32 = 100;
-
             if game_state.song_timer >= TIMER_INTERACTIVE_START {
+                draw_modal_bg(
+                    &AbsoluteBoundingBox {
+                        x: 15.0,
+                        y: 105.0,
+                        width: 130.0,
+                        height: 40.0,
+                    },
+                    0,
+                );
                 if game_state.song_timer % 30 >= 15 {
-                    text("Any key: start", 20, 80);
+                    text("Any key: start", 20, 110);
                 }
                 
-                text("by CanyonTurtle", 20, 100);
-                text(" & BurntSugar  ", 20, 114);
+                text("by CanyonTurtle", 20, 125);
+                text(" & BurntSugar  ", 20, 135);
                 text(format!["ver. {}.{}.{}", MAJOR_VERSION, MINOR_VERSION, INCR_VERSION], 40, 150);
                 if btns_pressed_this_frame[0] != 0 {
                     game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::MainGameplay);
@@ -934,9 +911,8 @@ fn update() {
                 }
             }
             
-
+            // RENDER THE TITLE
             unsafe { *DRAW_COLORS = 0x0034 }
-            // blit(&OUTPUT_ONLINEPNGTOOLS, 0, 30, OUTPUT_ONLINEPNGTOOLS_WIDTH, OUTPUT_ONLINEPNGTOOLS_HEIGHT, OUTPUT_ONLINEPNGTOOLS_FLAGS);
             const TITLE_Y: i32 = 15;
             const TITLE_X: i32 = 5;
             let title_y_osc = match game_state.song_timer {
@@ -956,19 +932,9 @@ fn update() {
             unsafe { *DRAW_COLORS = spritesheet::KITTY_SPRITESHEET_DRAW_COLORS }
             game_state.rng.borrow_mut().next();
             
-
-            // render title
-
             // trace("updated positions");
             unsafe { *DRAW_COLORS = 0x1112 }
             
-
-
-            // Things that only happen in main game:
-            // per-player camera
-            // kitty controlled by player
-            // entity collisions checked
-            // win conditions, time rendered
         }
     }
 }
