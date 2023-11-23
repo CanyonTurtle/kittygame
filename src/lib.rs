@@ -261,6 +261,16 @@ fn update() {
 
     let mut player_idx: u8 = 0b0;
 
+    // UPDATE WHICH PLAYER WE'RE PLAYING IN NETPLAY
+    unsafe {
+        // If netplay is active
+        if *NETPLAY & 0b100 != 0 {
+            player_idx = *NETPLAY & 0b011;
+        // Render the game from player_idx's perspective
+        } else {
+        }
+    }
+
     // SET CAMERA POSITION
     match &mut game_state.players.borrow_mut()[player_idx as usize] {
         OptionallyEnabledPlayer::Disabled => {}
@@ -470,15 +480,7 @@ fn update() {
                 }
             }
             
-            // UPDATE WHICH PLAYER WE'RE PLAYING IN NETPLAY
-            unsafe {
-                // If netplay is active
-                if *NETPLAY & 0b100 != 0 {
-                    player_idx = *NETPLAY & 0b011;
-                // Render the game from player_idx's perspective
-                } else {
-                }
-            }
+
 
             
 
