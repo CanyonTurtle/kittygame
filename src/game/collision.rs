@@ -1,3 +1,4 @@
+
 use crate::{
     game::{ability_cards::{AbilityCardStack, AbilityCardTypes}, entities::Player, popup_text::PopTextRingbuffer},
     spritesheet,
@@ -10,7 +11,7 @@ use super::{
     },
     game_map::GameMap,
     game_state::GameState,
-    mapchunk::{MapChunk, TileAlignedBoundingBox},
+    mapchunk::{MapChunk, TileAlignedBoundingBox}, cloud::Cloud,
 };
 
 use crate::wasm4::*;
@@ -154,7 +155,7 @@ pub fn check_entity_collisions(game_state: &GameState) {
                     // add score popup if this was newly found, update score
                     let popup_texts_rb: &mut PopTextRingbuffer =
                         &mut game_state.popup_text_ringbuffer.borrow_mut();
-                    popup_texts_rb.add_new_popup(pop_x, pop_y, format!["+{}", 1].to_string());
+                    popup_texts_rb.add_new_popup(pop_x - 14.0, pop_y, format!["cat +{}", 1].to_string());
 
                     // add card
                     let abil_card_type = match npc.sprite_type {
@@ -164,6 +165,17 @@ pub fn check_entity_collisions(game_state: &GameState) {
                         spritesheet::PresetSprites::BirdIsntReal => AbilityCardTypes::Bird,
                         _ => AbilityCardTypes::Kitty,
                     };
+
+                    // spawn some clouds
+                    for dir in [(1.0, 0.0), (0.5, 0.86), (-0.5, 0.86), (-1.0, 0.0), (-0.5, -0.86), (0.5, -0.86)] {
+                        const CARD_CLOUD_SPEED: f32 = 4.0;
+
+                        let vx = CARD_CLOUD_SPEED * dir.0;
+                        let vy = CARD_CLOUD_SPEED * dir.1;
+                        Cloud::try_push_cloud(&mut game_state.clouds.borrow_mut(), npc.x_pos + 2.0, npc.y_pos + 3.0, vx, vy);
+
+                    }
+
                     let npc_p = game_state.camera.borrow().cvt_world_to_screen_coords(npc.x_pos, npc.y_pos);
                     p.card_stack.try_push_card(abil_card_type, npc_p.0, npc_p.1);
 
@@ -317,7 +329,7 @@ pub fn raycast_axis_aligned(
     collision_result
 }
 
-pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode: bool) {
+pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode: bool, clouds:&mut Vec<Cloud>) {
     let character: &mut Character;
 
     match moving_entity {
@@ -392,11 +404,22 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
         ret
     }
 
-    fn handle_jumping(the_char: &mut Character, input: u8) -> bool {
+    fn handle_jumping(the_char: &mut Character, input: u8, clouds: &mut Vec<Cloud>) -> bool {
         let mut allow_jump = true;
-        match the_char.state {
+        match the_char.state { 
             KittyStates::JumpingUp(t) => match t {
-                0..=10 => {}
+                0 => {}
+                1 => {
+                    
+                    const CLOUD_VX: f32 = 2.0;
+                    const CLOUD_VY: f32 = 1.0;
+                    let y = the_char.y_pos + (the_char.sprite.frames[the_char.current_sprite_i as usize].height as f32) * 1.2;
+                    let x = the_char.x_pos + (the_char.sprite.frames[the_char.current_sprite_i as usize].width as f32) * 0.5;
+                    Cloud::try_push_cloud(clouds, x, y, CLOUD_VX, CLOUD_VY);
+                    Cloud::try_push_cloud(clouds, x, y, -CLOUD_VX, CLOUD_VY);
+
+                }
+                2..=10 => {}
                 _ => {
                     allow_jump = false;
                 }
@@ -420,7 +443,7 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
 
     if godmode {
         character.state = KittyStates::JumpingUp(0);
-        handle_jumping(character, input);
+        handle_jumping(character, input, clouds);
     }
 
     const GRAVITY: f32 = 0.3;
@@ -443,7 +466,7 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
     match character.state {
         KittyStates::JumpingUp(t) => {
             handle_horizontal_input(character, input);
-            handle_jumping(character, input);
+            handle_jumping(character, input, clouds);
             character.state = KittyStates::JumpingUp((t + 1).min(255));
         }
         KittyStates::HuggingWall(firstframe) => {
@@ -460,7 +483,7 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
                     character.state = KittyStates::JumpingUp(0);
                 }
                 _ => {
-                    if handle_jumping(character, input) {
+                    if handle_jumping(character, input, clouds) {
                         character.is_facing_right = !character.is_facing_right;
                         const WALLJUMP_VX: f32 = 3.0;
                         let new_x_vel = match character.is_facing_right {
@@ -485,7 +508,7 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
                 }
                 _ => {}
             }
-            handle_jumping(character, input);
+            handle_jumping(character, input, clouds);
         }
         KittyStates::Walking(t) => {
             let ret = handle_horizontal_input(character, input);
@@ -504,7 +527,7 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
                     // character.state = KittyStates::Sleeping;
                 }
             }
-            handle_jumping(character, input);
+            handle_jumping(character, input, clouds);
         },
         KittyStates::OnCeiling(t) => {
             let ret = handle_horizontal_input(character, input);
@@ -525,7 +548,7 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
             }
             
             if t > 30 {
-                handle_jumping(character, input);
+                handle_jumping(character, input, clouds);
             }
             
         },
@@ -884,10 +907,15 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
             _ => {}
         }
     } else {
+
+ 
+
         // if we hit the floor, stop jumping
         match character.state {
             KittyStates::JumpingUp(t) => match t {
-                0..=15 => {}
+                0..=15 => {
+                    // Cloud::try_push_cloud(clouds, 0.0, 0.0, 5.0, 0.0);
+                }
                 _ => {
                     character.state = KittyStates::Walking(0);
                 }

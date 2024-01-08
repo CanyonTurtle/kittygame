@@ -9,10 +9,19 @@ pub const KITTY_SPRITESHEET_STRIDE: u8 = KITTY_SPRITESHEET_PAGE_WIDTH * 6;
 pub const KITTY_SPRITESHEET_PALETTES: [[u32; 4]; 9] = [
     [
         // Teal & Gold Palette
-        0x00a080, // background (Cool Teal)
-        0xffe4b5, // foreground (Warm Wheat)
-        0xff8080, // pig (Cool Teal)
-        0xeaf520, // lizard (Warm Goldenrod)
+        0x57dab2, // pig (Cool Teal)
+
+        0xe4f288, // background (Cool Teal)
+        0xdff6633, // lizard (Warm Goldenrod)
+
+        0xf8ffd2, // foreground (Warm Wheat)
+        // Teal & Gold Palette
+        // 0x8adab2, // pig (Cool Teal)
+
+        // 0xd0f288, // background (Cool Teal)
+        // 0xdf826c, // lizard (Warm Goldenrod)
+
+        // 0xf8ffd2, // foreground (Warm Wheat)
     ],
     [
         // Pinky
@@ -128,6 +137,7 @@ pub enum PresetSprites {
     PiggyCard,
     LizardCard,
     BirdCard,
+    Cloud,
 }
 
 static mut SPRITES: Option<Vec<Sprite>> = None;
@@ -324,6 +334,9 @@ impl Sprite {
 
         // 32: checker
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![[0, 10, 35, 5, 5]]));
+
+        // 33: cloud
+        the_sprites.push(Sprite::from_page_x_y_w_h(vec![[1, 0, 0, 6, 3]]))
     }
 
     pub fn get_spritesheet() -> &'static Vec<Sprite> {
@@ -400,6 +413,7 @@ impl Sprite {
             PresetSprites::PiggyCard => &sprites_vec[22],
             PresetSprites::LizardCard => &sprites_vec[23],
             PresetSprites::BirdCard => &sprites_vec[24],
+            PresetSprites::Cloud => &sprites_vec[33]
         }
     }
 }

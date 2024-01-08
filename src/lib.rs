@@ -24,11 +24,10 @@ use game::{
     },
     game_state::GameState,
     menus::GameMode,
-    music::{play_bgm, SONGS}, game_map::MAP_TILESETS,
+    music::{play_bgm, SONGS}, game_map::MAP_TILESETS, cloud::Cloud,
 };
 use title_ss::{OUTPUT_ONLINEPNGTOOLS_WIDTH, OUTPUT_ONLINEPNGTOOLS_HEIGHT, OUTPUT_ONLINEPNGTOOLS_FLAGS};
 mod game;
-use core::cell::RefCell;
 use wasm4::*;
 mod title_ss;
 
@@ -342,6 +341,7 @@ fn update() {
                 MovingEntity::OptionalPlayer(optional_player),
                 input,
                 game_state.godmode,
+                &mut game_state.clouds.borrow_mut(),
             );
             drawcharacter(
                 &game_state.spritesheet,
@@ -453,6 +453,7 @@ fn update() {
             MovingEntity::NPC(npc),
             inputs[i],
             game_state.godmode,
+            &mut game_state.clouds.borrow_mut(),
         );
         drawcharacter(
             &game_state.spritesheet,
@@ -462,8 +463,48 @@ fn update() {
         );
     }
 
+ 
+
+
     // RENDER THE MAP
     drawmap(&game_state);
+
+   // UPDATE CLOUDS
+   {
+        Cloud::update_clouds(&mut game_state.clouds.borrow_mut());
+    }
+
+    // DRAW CLOUDS
+    // unsafe { *DRAW_COLORS = spritesheet::KITTY_SPRITESHEET_DRAW_COLORS }
+    for cloud in game_state.clouds.borrow().iter() {
+        let cam: &Camera = &game_state.camera.borrow();
+        let cloud_sprite: &spritesheet::Sprite = spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::Cloud);
+        blit_sub(
+            &game_state.spritesheet,
+            (cloud.x - cam.current_viewing_x_offset) as i32,
+            (cloud.y - cam.current_viewing_y_offset) as i32,
+            cloud_sprite.frames[0].width as u32,
+            cloud_sprite.frames[0].height as u32,
+            cloud_sprite.frames[0].start_x as u32,
+            cloud_sprite.frames[0].start_y as u32,
+            game_state.spritesheet_stride as u32,
+            spritesheet::KITTY_SPRITESHEET_FLAGS
+                | if cloud.vx <= 0.0 {
+                    0
+                } else {
+                    BLIT_FLIP_X
+                }
+                | if cloud.vy >= 0.0 {
+                    0
+                } else {
+                    BLIT_FLIP_Y
+                }
+                // | match the_char.state {
+                //     KittyStates::OnCeiling(_) => {BLIT_FLIP_Y},
+                //     _ => 0
+                // }
+        );
+    }
 
     match &game_state.game_mode {
         GameMode::NormalPlay(play_mode) => {
@@ -521,9 +562,6 @@ fn update() {
                 text(t, x, y);
             }
 
-            layertext(&format!["Lv. {}", game_state.difficulty_level], 0, BOTTOM_UI_TEXT_Y);
-            layertext(&format!["Sc. {}", *game_state.score.borrow()], 80, BOTTOM_UI_TEXT_Y);
-
             // COUNT THE NUMBER OF NPCS THAT ARE FOLLOWING PLAYERS
             let mut current_found_npcs = 0;
             for npc in game_state.npcs.borrow().iter() {
@@ -533,21 +571,13 @@ fn update() {
                 }
             }
 
-            // RENDER NUMBER OF KITTIES TO FIND
-            if game_state.total_npcs_to_find == current_found_npcs {
-                // layertext("You found them!! :D", 0, TOP_UI_TEXT_Y);
-                // game_state.difficulty_level += 1;
-            } else {
-                // layertext("find the kitties...", 0, BOTTOM_UI_TEXT_Y);
-                layertext(
-                    &format![
-                        "{}/{} {:.2}",
-                        current_found_npcs, game_state.total_npcs_to_find, *game_state.countdown_timer_msec.borrow() as u32 / 60
-                    ],
-                    0,
-                    TOP_UI_TEXT_Y,
-                );
-            }
+            // COMPUTE SCORE, LEVEL, # KITTIES (used later either in modal or normal screen)
+            let world_level_text = &format!["W{}-L{}", ((game_state.difficulty_level - 1) / 5) + 1, ((game_state.difficulty_level - 1) % 5) + 1];
+            let score_text = &format!["Sc. {}", *game_state.score.borrow()];
+            let found_kitties_text = &format![
+                "{}/{} {:.2}",
+                current_found_npcs, game_state.total_npcs_to_find, *game_state.countdown_timer_msec.borrow() as u32 / 60
+            ];
 
             // UPDATE POPUPS
             {
@@ -590,23 +620,32 @@ fn update() {
                                 },
                                 game::ability_cards::AbilityCardUsageResult::GainedTime(t) => {
                                     added_t = t;
-                                    popup_t = Some(format!["+{}", t]);
+                                    popup_t = Some(format!["time +{}", t]);
                                 },
                                 game::ability_cards::AbilityCardUsageResult::EnabledFlyAndTime(t) => {
                                     if p.character.can_fly {
                                         added_t = t;
-                                        popup_t = Some(format!["+{}", t]);
+                                        popup_t = Some(format!["time +{}", t]);
                                     } else {
                                         p.character.can_fly = true;
                                         added_t = t - 10;
-                                        popup_t = Some("+Fly!".to_string());
+                                        popup_t = Some("fly!".to_string());
                                     }
                                     
                                 }
                             }
                             match popup_t {
                                 Some(pt) => {
-                                    game_state.popup_text_ringbuffer.borrow_mut().add_new_popup(p.character.x_pos, p.character.y_pos, pt);
+                                    // spawn some clouds
+                                    for dir in [(1.0, 0.0), (0.5, 0.86), (-0.5, 0.86), (-1.0, 0.0), (-0.5, -0.86), (0.5, -0.86)] {
+                                        const CARD_CLOUD_SPEED: f32 = 4.0;
+
+                                        let vx = CARD_CLOUD_SPEED * dir.0;
+                                        let vy = CARD_CLOUD_SPEED * dir.1;
+                                        Cloud::try_push_cloud(&mut game_state.clouds.borrow_mut(), p.character.x_pos + 2.0, p.character.y_pos + 3.0, vx, vy);
+
+                                    }
+                                    game_state.popup_text_ringbuffer.borrow_mut().add_new_popup(p.character.x_pos - 14.0, p.character.y_pos, pt);
                                 }
                                 _ => {}
                             }
@@ -720,18 +759,11 @@ fn update() {
 
                         if ready_to_show_text {
                             // let cursor_opt: u8;
-                            let mut option_selected: u8 = 10;
+                            let mut btn_pressed: bool = false;
                             if options_ready_to_select {
-                                let option: &mut u8 = &mut m.current_selection.borrow_mut();
                                 // cursor_opt = *option;
-                                if btns_pressed_this_frame[0] & BUTTON_DOWN != 0 {
-                                    *option += 1;
-                                    *option %= m.n_options;
-                                } else if btns_pressed_this_frame[0] & BUTTON_UP != 0 {
-                                    *option -= 1;
-                                    *option %= m.n_options;
-                                } else if btns_pressed_this_frame[0] & (BUTTON_1 | BUTTON_2) != 0 {
-                                    option_selected = *option;
+                                if btns_pressed_this_frame[0] & (BUTTON_1 | BUTTON_2) != 0 {
+                                    btn_pressed = true
                                 }
                             }
                             match m.menu_type {
@@ -739,40 +771,71 @@ fn update() {
                                     const BLINK_START: u32 = 50;
                                     const BLINK_TITLE_PERIOD: u32 = 17;
                                     if text_timer < BLINK_START || (text_timer / BLINK_TITLE_PERIOD) % 2 == 0 {
-                                        modal_text("Found!!", 12, 15);
+                                        // modal_text("Found!!", 12, 15);
+                                        modal_text(world_level_text, 16, 12);
+                                        modal_text("Clear!", 16, 22);
+
+
                                     }
 
-                                    match option_selected {
-                                        0 => {
+                                    match btn_pressed {
+                                        true => {
                                             game_state.difficulty_level += 1;
+                                            // game_state.game_mode =
+                                            //     GameMode::NormalPlay(NormalPlayModes::MainGameplay);
                                             game_state.game_mode =
-                                                GameMode::NormalPlay(NormalPlayModes::MainGameplay);
+                                                GameMode::NormalPlay(NormalPlayModes::HoverModal(Modal::new(
+                                                    AbsoluteBoundingBox {
+                                                        x: 40,
+                                                        y: 40,
+                                                        width: 80,
+                                                        height: 40,
+                                                    },
+                                                    MenuTypes::StartLevel,
+                                                )));
                                             game_state.regenerate_map();
                                         }
-                                        10 => {}
-                                        _ => {
-                                            unreachable!()
+                                        _ => {}
+                                    }
+                                },
+                                MenuTypes::StartLevel => {
+        
+                                    // modal_text("Found!!", 12, 15);
+                                    modal_text(world_level_text, 16, 12);
+                                    modal_text("Start!", 16, 22);
+                                    let mut start_normal_play = false;
+                                    if text_timer > 100 {
+                                        start_normal_play = true;
+                                    }
+
+
+                                    match btn_pressed {
+                                        true => {
+                                            start_normal_play = true; 
                                         }
+                                        _ => {}
+                                    }
+                                    if start_normal_play {
+                                        game_state.game_mode =
+                                            GameMode::NormalPlay(NormalPlayModes::MainGameplay);
                                     }
                                 },
                                 MenuTypes::Done => {
                                     const BLINK_START: u32 = 50;
                                     const BLINK_TITLE_PERIOD: u32 = 17;
                                     if text_timer < BLINK_START || (text_timer / BLINK_TITLE_PERIOD) % 2 == 0 {
-                                        modal_text("Time's Up!", 34, 40);
+                                        modal_text("Time's Up!", 20, 14);
                                     }
 
-                                    modal_text(&format!["Score: {} pts", *game_state.score.borrow()], 10, 70);
+                                    modal_text(&format!["End: {}", world_level_text], 8, 30);
+                                    modal_text(&format!["Sc: {} pts", *game_state.score.borrow()], 8, 40);
 
-                                    match option_selected {
-                                        0 => {
+                                    match btn_pressed {
+                                        true => {
                                             game_state.difficulty_level = START_DIFFICULTY_LEVEL;
                                             game_state.game_mode = GameMode::StartScreen;
                                         }
-                                        10 => {}
-                                        _ => {
-                                            unreachable!()
-                                        }
+                                        _ => {}
                                     }
                                 },
                                 MenuTypes::StartGameMessage => {
@@ -782,14 +845,11 @@ fn update() {
                                     modal_text("-- CONTROLS --", 14, 100);
                                     modal_text("< > to move,", 24, 114); 
                                     modal_text("x=jump, z=card", 16, 126);
-                                    match option_selected {
-                                        0 => {
+                                    match btn_pressed {
+                                        true => {
                                             game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::MainGameplay);
                                         }
-                                        10 => {}
-                                        _ => {
-                                            unreachable!()
-                                        }
+                                        _ => {}
                                     }
                                 }
                             }     
@@ -801,48 +861,30 @@ fn update() {
                 // HELP TEXT AT START OF GAME
                 if game_state.difficulty_level == 1 && *game_state.countdown_timer_msec.borrow() == COUNTDOWN_TIMER_START - 2 * 60 && *game_state.tutorial_text_counter.borrow() == 0 {
                     *game_state.tutorial_text_counter.borrow_mut() += 1;
-                    game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::HoverModal(Modal {
-                        n_options: 1,
-                        timer: RefCell::new(0),
-                        current_selection: RefCell::new(0),
-                        target_position: RefCell::new(AbsoluteBoundingBox {
+                    game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::HoverModal(Modal::new(
+                        AbsoluteBoundingBox {
                             x: 10,
                             y: 10,
                             width: 140,
                             height: 140,
-                        }),
-                        actual_position: RefCell::new(AbsoluteBoundingBox {
-                            x: 80.0,
-                            y: 80.0,
-                            width: 1.0,
-                            height: 1.0,
-                        }),
-                        menu_type: MenuTypes::StartGameMessage
-                    }));
+                        },
+                        MenuTypes::StartGameMessage
+                    )));
                 }
                 
 
                 // ------- LEVEL WIN CONDITION -----------
                 if game_state.total_npcs_to_find == current_found_npcs {
                     game_state.game_mode =
-                        GameMode::NormalPlay(NormalPlayModes::HoverModal(Modal {
-                            n_options: 1,
-                            timer: RefCell::new(0),
-                            current_selection: RefCell::new(0),
-                            target_position: RefCell::new(AbsoluteBoundingBox {
+                        GameMode::NormalPlay(NormalPlayModes::HoverModal(Modal::new(
+                            AbsoluteBoundingBox {
                                 x: 40,
                                 y: 40,
                                 width: 80,
                                 height: 40,
-                            }),
-                            actual_position: RefCell::new(AbsoluteBoundingBox {
-                                x: 0.0,
-                                y: 0.0,
-                                width: 1.0,
-                                height: 1.0,
-                            }),
-                            menu_type: MenuTypes::WonLevel
-                        }));
+                            },
+                            MenuTypes::WonLevel
+                        )));
                     game_state.song_idx = 0;
                     game_state.song_timer = 0;
                 }
@@ -856,26 +898,25 @@ fn update() {
             
                         game_state.song_idx = 0;
             
-                        game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::HoverModal(Modal {
-                            n_options: 1,
-                            timer: RefCell::new(0),
-                            current_selection: RefCell::new(0),
-                            target_position: RefCell::new(AbsoluteBoundingBox {
-                                x: 10,
-                                y: 10,
-                                width: 140,
-                                height: 140,
-                            }),
-                            actual_position: RefCell::new(AbsoluteBoundingBox {
-                                x: 80.0,
-                                y: 80.0,
-                                width: 1.0,
-                                height: 1.0,
-                            }),
-                            menu_type: MenuTypes::Done
-                        }));
+                        game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::HoverModal(Modal::new(
+                            AbsoluteBoundingBox {
+                                x: 15,
+                                y: 50,
+                                width: 130,
+                                height: 60,
+                            },
+                            MenuTypes::Done
+                        )));
                     }
                 }
+
+
+
+                // DRAW SCORE, LEVEL, # KITTIES during normal play
+                layertext(world_level_text, 0, BOTTOM_UI_TEXT_Y);
+                layertext(score_text, 80, BOTTOM_UI_TEXT_Y);
+                layertext(found_kitties_text, 0, TOP_UI_TEXT_Y);
+                
             }
         }
         GameMode::StartScreen => {

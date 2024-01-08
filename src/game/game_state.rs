@@ -1,5 +1,6 @@
 use core::cell::RefCell;
 
+use super::cloud::Cloud;
 use super::entities::Player;
 use super::game_constants::{COUNTDOWN_TIMER_START, START_DIFFICULTY_LEVEL, LEVELS_PER_MOOD, MAP_GEN_SETTINGS};
 use super::menus::GameMode;
@@ -44,7 +45,8 @@ pub struct GameState<'a> {
     pub popup_text_ringbuffer: RefCell<PopTextRingbuffer>,
     pub tileset_idx: RefCell<usize>,
     pub map_gen_settings_idx: RefCell<usize>,
-    pub tutorial_text_counter: RefCell<u8>
+    pub tutorial_text_counter: RefCell<u8>,
+    pub clouds: RefCell<Vec<Cloud>>
 }
 
 impl GameState<'static> {
@@ -107,7 +109,8 @@ impl GameState<'static> {
             }),
             tileset_idx: RefCell::new(0),
             map_gen_settings_idx: RefCell::new(0),
-            tutorial_text_counter: RefCell::new(0)
+            tutorial_text_counter: RefCell::new(0),
+            clouds: RefCell::new(Vec::new()),
         }
     }
 

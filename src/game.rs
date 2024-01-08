@@ -10,3 +10,4 @@ pub mod music;
 pub mod menus;
 pub mod popup_text;
 pub mod ability_cards;
+pub mod cloud;
