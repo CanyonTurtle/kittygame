@@ -155,7 +155,13 @@ pub fn check_entity_collisions(game_state: &GameState) {
                     // add score popup if this was newly found, update score
                     let popup_texts_rb: &mut PopTextRingbuffer =
                         &mut game_state.popup_text_ringbuffer.borrow_mut();
-                    popup_texts_rb.add_new_popup(pop_x - 14.0, pop_y, format!["cat +{}", 1].to_string());
+                    let animal_name = match npc.sprite_type {
+                        spritesheet::PresetSprites::BirdIsntReal => "brd",
+                        spritesheet::PresetSprites::Pig => "pig",
+                        spritesheet::PresetSprites::Lizard => "lzd",
+                        _ => "cat"
+                    };
+                    popup_texts_rb.add_new_popup(pop_x - 14.0, pop_y, format!["{} +{}", animal_name, 1].to_string());
 
                     // add card
                     let abil_card_type = match npc.sprite_type {
