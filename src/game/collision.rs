@@ -108,15 +108,15 @@ pub fn get_bound_of_character(character: &Character) -> AbsoluteBoundingBox<i32,
     }
 }
 
-pub fn check_entity_collisions(game_state: &GameState) {
+pub fn check_entity_collisions(game_state: &mut GameState) {
     // player -> npc
     const N_PLAYER_NPC_COLLISIONS_TO_CHECK_AT_MOST: usize = 10;
     let mut npc_hitlist: [(u8, u8); N_PLAYER_NPC_COLLISIONS_TO_CHECK_AT_MOST] =
         [(0, 0); N_PLAYER_NPC_COLLISIONS_TO_CHECK_AT_MOST];
     let mut hitlist_i: u8 = 0;
-    for (i, opt_p) in game_state.players.borrow().iter().enumerate() {
+    for (i, opt_p) in game_state.players.iter().enumerate() {
         if let OptionallyEnabledPlayer::Enabled(p) = opt_p {
-            for (j, npc2) in game_state.npcs.borrow().iter().enumerate() {
+            for (j, npc2) in game_state.npcs.iter().enumerate() {
                 let did_hit: bool;
                 {
                     let player_bound = get_bound_of_character(&p.character);
@@ -142,10 +142,10 @@ pub fn check_entity_collisions(game_state: &GameState) {
     }
 
     for (hit_p_i, hit_npc_i) in &npc_hitlist[..hitlist_i as usize] {
-        let opt_p = &mut game_state.players.borrow_mut()[*hit_p_i as usize];
+        let opt_p = &mut game_state.players[*hit_p_i as usize];
 
         if let OptionallyEnabledPlayer::Enabled(p) = opt_p {
-            let npc = &mut game_state.npcs.borrow_mut()[*hit_npc_i as usize];
+            let npc = &mut game_state.npcs[*hit_npc_i as usize];
 
             let pop_x = npc.x_pos;
             let pop_y = npc.y_pos;
@@ -154,7 +154,7 @@ pub fn check_entity_collisions(game_state: &GameState) {
                 None => {
                     // add score popup if this was newly found, update score
                     let popup_texts_rb: &mut PopTextRingbuffer =
-                        &mut game_state.popup_text_ringbuffer.borrow_mut();
+                        &mut game_state.popup_text_ringbuffer;
                     let animal_name = match npc.sprite_type {
                         spritesheet::PresetSprites::BirdIsntReal => "brd",
                         spritesheet::PresetSprites::Pig => "pig",
@@ -178,18 +178,18 @@ pub fn check_entity_collisions(game_state: &GameState) {
 
                         let vx = CARD_CLOUD_SPEED * dir.0;
                         let vy = CARD_CLOUD_SPEED * dir.1;
-                        Cloud::try_push_cloud(&mut game_state.clouds.borrow_mut(), npc.x_pos + 2.0, npc.y_pos + 3.0, vx, vy);
+                        Cloud::try_push_cloud(&mut game_state.clouds, npc.x_pos + 2.0, npc.y_pos + 3.0, vx, vy);
 
                     }
 
-                    let npc_p = game_state.camera.borrow().cvt_world_to_screen_coords(npc.x_pos, npc.y_pos);
+                    let npc_p = game_state.camera.cvt_world_to_screen_coords(npc.x_pos, npc.y_pos);
                     p.card_stack.try_push_card(abil_card_type, npc_p.0, npc_p.1);
 
                     let game_state_cd_timer: &mut u32 =
-                        &mut game_state.countdown_timer_msec.borrow_mut();
+                        &mut game_state.countdown_timer_msec;
                     let gained_amount = 1 * 60;
                     *game_state_cd_timer += gained_amount;
-                    *game_state.score.borrow_mut() += gained_amount;
+                    game_state.score += gained_amount;
                 }
                 Some(_) => {}
             }

@@ -1,4 +1,3 @@
-use core::cell::RefCell;
 
 use super::cloud::Cloud;
 use super::entities::Player;
@@ -24,16 +23,16 @@ use crate::kitty_ss;
 use crate::spritesheet::{self, KITTY_SPRITESHEET_PALETTES};
 
 pub struct GameState<'a> {
-    pub players: RefCell<[OptionallyEnabledPlayer; 4]>,
-    pub npcs: RefCell<Vec<Character>>,
+    pub players: [OptionallyEnabledPlayer; 4],
+    pub npcs: Vec<Character>,
     pub spritesheet: &'a [u8],
     pub spritesheet_stride: usize,
     pub background_tiles: &'static Vec<spritesheet::Sprite>,
     pub map: GameMap,
-    pub camera: RefCell<Camera>,
-    pub rng: RefCell<Rng>,
+    pub camera: Camera,
+    pub rng: Rng,
     pub game_mode: GameMode,
-    pub countdown_timer_msec: RefCell<u32>,
+    pub countdown_timer_msec: u32,
     pub countdown_paused: bool,
     pub godmode: bool,
     pub pallette_idx: usize,
@@ -41,12 +40,12 @@ pub struct GameState<'a> {
     pub song_timer: u32,
     pub difficulty_level: u32,
     pub total_npcs_to_find: u32,
-    pub score: RefCell<u32>,
-    pub popup_text_ringbuffer: RefCell<PopTextRingbuffer>,
-    pub tileset_idx: RefCell<usize>,
-    pub map_gen_settings_idx: RefCell<usize>,
-    pub tutorial_text_counter: RefCell<u8>,
-    pub clouds: RefCell<Vec<Cloud>>
+    pub score: u32,
+    pub popup_text_ringbuffer: PopTextRingbuffer,
+    pub tileset_idx: usize,
+    pub map_gen_settings_idx: usize,
+    pub tutorial_text_counter: u8,
+    pub clouds: Vec<Cloud>
 }
 
 impl GameState<'static> {
@@ -79,22 +78,22 @@ impl GameState<'static> {
         // }).collect::<Vec<Character>>()
 
         GameState {
-            players: RefCell::new(characters),
-            npcs: RefCell::new(Vec::new()),
+            players: characters,
+            npcs: Vec::new(),
 
             spritesheet: kitty_ss::KITTY_SPRITESHEET,
             spritesheet_stride: spritesheet::KITTY_SPRITESHEET_STRIDE as usize,
             background_tiles: spritesheet::Sprite::get_spritesheet(),
             map: GameMap::create_map(),
-            camera: RefCell::new(Camera {
+            camera: Camera {
                 current_viewing_x_offset: 0.0,
                 current_viewing_y_offset: 0.0,
                 current_viewing_x_target: 0.0,
                 current_viewing_y_target: 0.0,
-            }),
-            rng: RefCell::new(rng),
+            },
+            rng,
             game_mode: GameMode::StartScreen,
-            countdown_timer_msec: RefCell::new(60 * 3),
+            countdown_timer_msec: 60 * 3,
             countdown_paused: false,
             godmode: false,
             pallette_idx: 0,
@@ -102,23 +101,23 @@ impl GameState<'static> {
             song_timer: 0,
             difficulty_level: START_DIFFICULTY_LEVEL,
             total_npcs_to_find: 3,
-            score: RefCell::new(0),
-            popup_text_ringbuffer: RefCell::new(PopTextRingbuffer {
+            score: 0,
+            popup_text_ringbuffer: PopTextRingbuffer {
                 texts: [None, None, None, None, None, None, None, None, None, None],
                 next_avail_idx: 0,
-            }),
-            tileset_idx: RefCell::new(0),
-            map_gen_settings_idx: RefCell::new(0),
-            tutorial_text_counter: RefCell::new(0),
-            clouds: RefCell::new(Vec::new()),
+            },
+            tileset_idx: 0,
+            map_gen_settings_idx: 0,
+            tutorial_text_counter: 0,
+            clouds: Vec::new(),
         }
     }
 
     pub fn new_game(self: &mut Self) {
-        let cdt: &mut u32 = &mut self.countdown_timer_msec.borrow_mut();
+        let cdt: &mut u32 = &mut self.countdown_timer_msec;
         *cdt = COUNTDOWN_TIMER_START;
-        *self.score.borrow_mut() = 0;
-        *self.tutorial_text_counter.borrow_mut() = 0;
+        self.score = 0;
+        self.tutorial_text_counter = 0;
     }
 
     pub fn regenerate_map(self: &mut Self) {
@@ -139,18 +138,18 @@ impl GameState<'static> {
 
         // set the tileset
         {
-            *self.tileset_idx.borrow_mut() = ((self.difficulty_level as usize - 1) / LEVELS_PER_MOOD) % MAP_TILESETS.len();
+            self.tileset_idx = ((self.difficulty_level as usize - 1) / LEVELS_PER_MOOD) % MAP_TILESETS.len();
         }
         
 
         // set the map generation settings
         {
-            *self.map_gen_settings_idx.borrow_mut() = ((self.difficulty_level as usize - 1) / LEVELS_PER_MOOD) % MAP_GEN_SETTINGS.len();
+            self.map_gen_settings_idx = ((self.difficulty_level as usize - 1) / LEVELS_PER_MOOD) % MAP_GEN_SETTINGS.len();
         }
 
 
 
-        let map_gen_setting = &MAP_GEN_SETTINGS[*self.map_gen_settings_idx.borrow()];
+        let map_gen_setting = &MAP_GEN_SETTINGS[self.map_gen_settings_idx];
         let map_chunk_min_side_len = map_gen_setting.chunk_min_side_len;
         let map_chunk_max_side_len = map_gen_setting.chunk_max_side_len;
         let max_n_tiles_in_chunk = map_gen_setting.max_n_tiles_per_chunk;
@@ -165,9 +164,9 @@ impl GameState<'static> {
         let map = &mut self.map;
         map.num_tiles = 0;
         map.chunks.clear();
-        let rng = &mut self.rng.borrow_mut();
+        let rng = &mut self.rng;
 
-        for optional_player in self.players.borrow_mut().iter_mut() {
+        for optional_player in self.players.iter_mut() {
             match optional_player {
                 OptionallyEnabledPlayer::Enabled(p) => {
                     p.character.x_pos = 10.0;
@@ -178,7 +177,7 @@ impl GameState<'static> {
             }
         }
 
-        let npcs = &mut self.npcs.borrow_mut();
+        let npcs = &mut self.npcs;
 
         npcs.clear();
 
@@ -187,14 +186,14 @@ impl GameState<'static> {
 
         let countdown_and_score_bonus = (5 + self.difficulty_level.min(20)) * 60;
 
-        let cdt: &mut u32 = &mut self.countdown_timer_msec.borrow_mut();
+        let cdt: &mut u32 = &mut self.countdown_timer_msec;
         *cdt += countdown_and_score_bonus;
-        *self.score.borrow_mut() += countdown_and_score_bonus;
+        self.score += countdown_and_score_bonus;
 
         match self.difficulty_level {
             1 => {
                 *cdt = COUNTDOWN_TIMER_START;
-                *self.score.borrow_mut() = 0;
+                self.score = 0;
             }
             _ => {}
         }

@@ -46,7 +46,7 @@ fn drawmap(game_state: &GameState) {
     let map = &game_state.map;
     let camera = &game_state.camera;
 
-    let tileset = &MAP_TILESETS[*game_state.tileset_idx.borrow()];
+    let tileset = &MAP_TILESETS[game_state.tileset_idx];
 
     for chunk in &map.chunks {
         for row in 0..chunk.bound.height {
@@ -62,9 +62,9 @@ fn drawmap(game_state: &GameState) {
                         let chunk_x_offset: i32 = (TILE_WIDTH_PX) as i32 * chunk.bound.x;
                         let chunk_y_offset: i32 = (TILE_HEIGHT_PX) as i32 * chunk.bound.y;
                         let x_loc = (chunk_x_offset + col as i32 * TILE_HEIGHT_PX as i32)
-                            - camera.borrow().current_viewing_x_offset as i32;
+                            - camera.current_viewing_x_offset as i32;
                         let y_loc = (chunk_y_offset + row as i32 * TILE_WIDTH_PX as i32)
-                            - camera.borrow().current_viewing_y_offset as i32;
+                            - camera.current_viewing_y_offset as i32;
 
                         if x_loc >= 0 && x_loc < 160 && y_loc > 0 && y_loc < 160 {
                             blit_sub(
@@ -222,7 +222,7 @@ fn draw_modal_bg(pf: &AbsoluteBoundingBox<f32, f32>, style: u8) {
 
 #[no_mangle]
 fn update() {
-    let game_state: &mut GameState;
+    let mut game_state: &mut GameState;
 
     // -------- INITIALIZE GAME STATE IF NEEDED ----------
     unsafe {
@@ -271,7 +271,7 @@ fn update() {
     }
 
     // SET CAMERA POSITION
-    match &mut game_state.players.borrow_mut()[player_idx as usize] {
+    match &mut game_state.players[player_idx as usize] {
         OptionallyEnabledPlayer::Disabled => {}
         OptionallyEnabledPlayer::Enabled(player) => {
             game_state.camera.borrow_mut().current_viewing_x_target = num::clamp(
@@ -296,7 +296,7 @@ fn update() {
     // ON TITLE SCREEN, MOVE PLAYER 1 BASED ON TIME
     
     // CHECK IF CHARACTERS / CATS ARE COLLIDING
-    check_entity_collisions(&game_state);
+    check_entity_collisions(&mut game_state);
 
 
 
@@ -308,7 +308,7 @@ fn update() {
 
     // MOVE AND RENDER THE PLAYERS 
     {
-        let mut optional_players = game_state.players.borrow_mut();
+        let optional_players: &mut [OptionallyEnabledPlayer; 4] = &mut game_state.players;
 
         for (i, optional_player) in &mut optional_players.iter_mut().enumerate() {
 
@@ -346,7 +346,7 @@ fn update() {
             drawcharacter(
                 &game_state.spritesheet,
                 &game_state.spritesheet_stride,
-                &game_state.camera.borrow(),
+                &game_state.camera,
                 MovingEntity::OptionalPlayer(optional_player),
             );
         }
@@ -356,19 +356,19 @@ fn update() {
     let inputs: &mut [u8; MAX_N_NPCS] = unsafe { NPC_INPUTS.borrow_mut() };
     let l;
     {
-        l = game_state.npcs.borrow().len();
+        l = game_state.npcs.len();
     }
     for i in 0..l {
         let rngg = &mut game_state.rng.borrow_mut();
         let rand_val = (rngg.next() % 255) as u8;
-        let current_npc = &mut game_state.npcs.borrow_mut()[i];
+        let current_npc = &mut game_state.npcs[i];
         let mut use_rng_input = false;
         match current_npc.following_i {
             None => {
                 use_rng_input = true;
             }
             Some(p_i) => {
-                let the_opt_player = &game_state.players.borrow()[p_i as usize];
+                let the_opt_player = &game_state.players[p_i as usize];
                 if let OptionallyEnabledPlayer::Enabled(p) = the_opt_player {
                     let p_bound = get_bound_of_character(&p.character);
                     let npc_bound: AbsoluteBoundingBox<i32, u32> =
@@ -447,7 +447,7 @@ fn update() {
     }
 
     // MOVE AND DRAW NPCS
-    for (i, npc) in game_state.npcs.borrow_mut().iter_mut().enumerate() {
+    for (i, npc) in game_state.npcs.iter_mut().enumerate() {
         update_pos(
             &game_state.map,
             MovingEntity::NPC(npc),
@@ -458,7 +458,7 @@ fn update() {
         drawcharacter(
             &game_state.spritesheet,
             &game_state.spritesheet_stride,
-            &game_state.camera.borrow(),
+            &game_state.camera,
             MovingEntity::NPC(npc),
         );
     }
@@ -476,8 +476,8 @@ fn update() {
 
     // DRAW CLOUDS
     // unsafe { *DRAW_COLORS = spritesheet::KITTY_SPRITESHEET_DRAW_COLORS }
-    for cloud in game_state.clouds.borrow().iter() {
-        let cam: &Camera = &game_state.camera.borrow();
+    for cloud in game_state.clouds.iter() {
+        let cam: &Camera = &game_state.camera;
         let cloud_sprite: &spritesheet::Sprite = spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::Cloud);
         blit_sub(
             &game_state.spritesheet,
@@ -506,7 +506,7 @@ fn update() {
         );
     }
 
-    match &game_state.game_mode {
+    match &mut game_state.game_mode {
         GameMode::NormalPlay(play_mode) => {
             let mut showing_modal = false;
 
@@ -564,7 +564,7 @@ fn update() {
 
             // COUNT THE NUMBER OF NPCS THAT ARE FOLLOWING PLAYERS
             let mut current_found_npcs = 0;
-            for npc in game_state.npcs.borrow().iter() {
+            for npc in game_state.npcs.iter() {
                 current_found_npcs += match npc.following_i {
                     None => 0,
                     Some(_) => 1,
@@ -573,17 +573,17 @@ fn update() {
 
             // COMPUTE SCORE, LEVEL, # KITTIES (used later either in modal or normal screen)
             let world_level_text = &format!["W{}-L{}", ((game_state.difficulty_level - 1) / 5) + 1, ((game_state.difficulty_level - 1) % 5) + 1];
-            let score_text = &format!["Sc. {}", *game_state.score.borrow()];
+            let score_text = &format!["Sc. {}", game_state.score];
             let found_kitties_text = &format![
                 "{}/{} {:.2}",
-                current_found_npcs, game_state.total_npcs_to_find, *game_state.countdown_timer_msec.borrow() as u32 / 60
+                current_found_npcs, game_state.total_npcs_to_find, game_state.countdown_timer_msec as u32 / 60
             ];
 
             // UPDATE POPUPS
             {
                 let popup_texts_rb: &mut PopTextRingbuffer = &mut game_state.popup_text_ringbuffer.borrow_mut();
                 popup_texts_rb.update_popup_positions();
-                let camera = game_state.camera.borrow();
+                let camera = game_state.camera;
                 for popup in popup_texts_rb.texts.iter() {
                     match popup {
                         Some(p) => {
@@ -600,7 +600,7 @@ fn update() {
             }
 
             // USE ABILITY CARDS
-            for (p_i, pr) in game_state.players.borrow_mut().iter_mut().enumerate() {
+            for (p_i, pr) in game_state.players.iter_mut().enumerate() {
                 // if btns_pressed_this_frame[p_i] != 0 {
                 //     trace(format!["check p{}: {}", p_i, btns_pressed_this_frame[p_i]]);
                 // }
@@ -659,7 +659,7 @@ fn update() {
             
 
             // MOVE ABILITY CARD POSITIONS
-            match &mut (*game_state.players.borrow_mut())[player_idx as usize] {
+            match &mut game_state.players[player_idx as usize] {
                 OptionallyEnabledPlayer::Enabled(p) => {
                     for (i, card) in p.card_stack.cards.iter_mut().enumerate() {
                         match card {
@@ -677,7 +677,7 @@ fn update() {
             
             // DRAW ABILITY CARDS
             unsafe { *DRAW_COLORS = spritesheet::KITTY_SPRITESHEET_DRAW_COLORS }
-            match &(*game_state.players.borrow())[player_idx as usize] {
+            match &game_state.players[player_idx as usize] {
                 OptionallyEnabledPlayer::Enabled(p) => {
                     for card in p.card_stack.cards.iter() {
                         match &card {
@@ -715,8 +715,8 @@ fn update() {
                         
                         let ready_to_show_text;
                         {
-                            let actual_position: &mut AbsoluteBoundingBox<f32, f32> = &mut m.actual_position.borrow_mut();
-                            let target_position: &mut AbsoluteBoundingBox<i32, u32> = &mut m.target_position.borrow_mut();
+                            let actual_position: &mut AbsoluteBoundingBox<f32, f32> = &mut m.actual_position;
+                            let target_position: &mut AbsoluteBoundingBox<i32, u32> = &mut m.target_position;
 
                             const SPEED: f32 = 0.15;
                             const TOL: f32 = 10.0;
@@ -738,21 +738,21 @@ fn update() {
 
                         let mut text_timer = 0;
                         {
-                            *m.timer.borrow_mut() += 1;
+                            m.timer += 1;
                         }
                         const INTERACTIVE_DELAY: u32 = 60;
-                        if ready_to_show_text && *m.timer.borrow() >= INTERACTIVE_DELAY {
+                        if ready_to_show_text && m.timer >= INTERACTIVE_DELAY {
                             {
                                 // let timer: &mut u32 = &mut m.timer.borrow_mut();
                                 // *timer += 1;
                                 options_ready_to_select = true;
-                                text_timer = *m.timer.borrow();
+                                text_timer = m.timer;
 
                             }
                         }
                         
                         let modal_text = |st: &str, x, y| {
-                            text(st, m.actual_position.borrow().x as i32 + x, m.actual_position.borrow().y as i32 + y);
+                            text(st, m.actual_position.x as i32 + x, m.actual_position.y as i32 + y);
                         };
                         
                         
@@ -828,7 +828,7 @@ fn update() {
                                     }
 
                                     modal_text(&format!["End: {}", world_level_text], 8, 30);
-                                    modal_text(&format!["Sc: {} pts", *game_state.score.borrow()], 8, 40);
+                                    modal_text(&format!["Sc: {} pts", game_state.score], 8, 40);
 
                                     match btn_pressed {
                                         true => {
@@ -859,7 +859,7 @@ fn update() {
             } else {
 
                 // HELP TEXT AT START OF GAME
-                if game_state.difficulty_level == 1 && *game_state.countdown_timer_msec.borrow() == COUNTDOWN_TIMER_START - 2 * 60 && *game_state.tutorial_text_counter.borrow() == 0 {
+                if game_state.difficulty_level == 1 && game_state.countdown_timer_msec == COUNTDOWN_TIMER_START - 2 * 60 && game_state.tutorial_text_counter == 0 {
                     *game_state.tutorial_text_counter.borrow_mut() += 1;
                     game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::HoverModal(Modal::new(
                         AbsoluteBoundingBox {
@@ -894,7 +894,7 @@ fn update() {
                     *game_state.countdown_timer_msec.borrow_mut() -= 1;
             
                     // ---- LOSE CONDITION ----
-                    if *game_state.countdown_timer_msec.borrow() <= 0 {
+                    if game_state.countdown_timer_msec <= 0 {
             
                         game_state.song_idx = 0;
             
