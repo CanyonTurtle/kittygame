@@ -1,5 +1,7 @@
 ![demo](./demo.gif)
+
 Play it here: <https://wasm4.org/play/kittygame>
+
 Incremental releases here: <https://canyonturtle.github.io/kittygame>
 
 # Kitty Game
