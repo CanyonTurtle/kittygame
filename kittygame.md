@@ -8,5 +8,9 @@ date: 2024-1-9
 
 Find the kitties!! Move with arrow keys, jump / use cards with buttons. Supports 2-4 player netplay multiplayer. Enjoy!
 
-[See source code here!](https://github.com/canyonturtle/kittygame)
+See source code here: <https://github.com/canyonturtle/kittygame>
+
+Play latest development release here: <https://canyonturtle.github.io/kittygame>
+
+Find and play older versions here: <https://github.com/CanyonTurtle/kittygame/releases>
 

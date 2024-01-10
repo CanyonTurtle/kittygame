@@ -1,8 +1,10 @@
 ![demo](./demo.gif)
 
-Play it here: <https://wasm4.org/play/kittygame>
+Play official game here: <https://wasm4.org/play/kittygame>
 
-Incremental releases here: <https://canyonturtle.github.io/kittygame>
+Play latest development release here: <https://canyonturtle.github.io/kittygame>
+
+Find and play older versions here: <https://github.com/CanyonTurtle/kittygame/releases>
 
 # Kitty Game
 
