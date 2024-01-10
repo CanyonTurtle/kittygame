@@ -1,7 +1,8 @@
 
 pub enum PopupIcon {
     None,
-    Clock
+    Clock,
+    CatHead,
 }
 
 pub struct PopupText {

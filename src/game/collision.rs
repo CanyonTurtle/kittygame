@@ -158,7 +158,7 @@ pub fn check_entity_collisions(game_state: &mut GameState) {
 
                     let gained_amount = 1 * 60;
 
-                    popup_texts_rb.add_new_popup(pop_x - 7.0, pop_y, format![" +{}", gained_amount/60].to_string(), PopupIcon::Clock);
+                    popup_texts_rb.add_new_popup(pop_x - 7.0, pop_y, format![" +{}", gained_amount/60].to_string(), PopupIcon::CatHead);
 
                     // add card
                     let abil_card_type = match npc.sprite_type {

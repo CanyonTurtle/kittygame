@@ -591,7 +591,10 @@ fn update() {
                                 match p.icon {
                                     PopupIcon::None => {},
                                     PopupIcon::Clock => {
-                                        draw_spriteframe( &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::Clock).frames[0], dx, dy)
+                                        draw_spriteframe( &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::Clock).frames[0], dx, dy-1)
+                                    }
+                                    PopupIcon::CatHead => {
+                                        draw_spriteframe( &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::CatHead).frames[0], dx+1, dy+1)
                                     }
                                 }
                             }
@@ -752,6 +755,7 @@ fn update() {
                         }
                         
                         let modal_text = |st: &str, x, y| {
+                            unsafe {*DRAW_COLORS = 0x0002}
                             text(st, m.actual_position.x as i32 + x, m.actual_position.y as i32 + y);
                         };
 
@@ -790,10 +794,10 @@ fn update() {
                                             game_state.game_mode =
                                                 GameMode::NormalPlay(NormalPlayModes::HoverModal(Modal::new(
                                                     AbsoluteBoundingBox {
-                                                        x: 40,
-                                                        y: 30,
-                                                        width: 80,
-                                                        height: 60,
+                                                        x: 45,
+                                                        y: 40,
+                                                        width: 70,
+                                                        height: 50,
                                                     },
                                                     MenuTypes::StartLevel,
                                                 )));
@@ -848,12 +852,25 @@ fn update() {
                                     }
                                 },
                                 MenuTypes::StartGameMessage => {
-                                    modal_text("-- GOAL --", 30, 20);
-                                    modal_text("Find all the", 20, 40);
-                                    modal_text("kitties in time!", 10, 55);
+                                    modal_text("-- GOAL --", 30, 10);
+                                    modal_text("Find all the", 20, 25);
+                                    modal_text("kitties in time!", 10, 40);
                                     modal_text("-- CONTROLS --", 14, 100);
                                     modal_text("< > to move,", 24, 114); 
                                     modal_text("x=jump, z=card", 16, 126);
+                                    let (xx, yy) = modal_offs(0, 0);
+                                    draw_spriteframe(
+                                        &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::CatHead).frames[0], 
+                                        xx + 20, 
+                                        yy + 62
+                                    );
+                                    modal_text(" = # kittes", 28, 62);
+                                    draw_spriteframe(
+                                        &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::Clock).frames[0], 
+                                        xx + 20, 
+                                        yy + 78
+                                    );
+                                    modal_text(" = time left", 28, 78);
                                     match btn_pressed {
                                         true => {
                                             game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::MainGameplay);
@@ -868,7 +885,7 @@ fn update() {
             } else {
 
                 // HELP TEXT AT START OF GAME
-                if game_state.difficulty_level == 1 && game_state.countdown_timer_msec == COUNTDOWN_TIMER_START - 2 * 60 && game_state.tutorial_text_counter == 0 {
+                if game_state.difficulty_level == 1 && game_state.countdown_timer_msec == COUNTDOWN_TIMER_START - 1 && game_state.tutorial_text_counter == 0 {
                     game_state.tutorial_text_counter += 1;
                     game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::HoverModal(Modal::new(
                         AbsoluteBoundingBox {
