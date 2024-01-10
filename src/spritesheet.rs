@@ -138,6 +138,8 @@ pub enum PresetSprites {
     LizardCard,
     BirdCard,
     Cloud,
+    Clock,
+    CatHead,
 }
 
 static mut SPRITES: Option<Vec<Sprite>> = None;
@@ -336,7 +338,13 @@ impl Sprite {
         the_sprites.push(Sprite::from_page_x_y_w_h(vec![[0, 10, 35, 5, 5]]));
 
         // 33: cloud
-        the_sprites.push(Sprite::from_page_x_y_w_h(vec![[1, 0, 0, 6, 3]]))
+        the_sprites.push(Sprite::from_page_x_y_w_h(vec![[1, 0, 0, 6, 3]]));
+
+        // 34: clock
+        the_sprites.push(Sprite::from_page_x_y_w_h(vec![[0, 17, 0, 7, 8]]));
+
+        // 35: cat head
+        the_sprites.push(Sprite::from_page_x_y_w_h(vec![[3, 3, 3, 6, 6]]));
     }
 
     pub fn get_spritesheet() -> &'static Vec<Sprite> {
@@ -413,7 +421,9 @@ impl Sprite {
             PresetSprites::PiggyCard => &sprites_vec[22],
             PresetSprites::LizardCard => &sprites_vec[23],
             PresetSprites::BirdCard => &sprites_vec[24],
-            PresetSprites::Cloud => &sprites_vec[33]
+            PresetSprites::Cloud => &sprites_vec[33],
+            PresetSprites::Clock => &sprites_vec[34],
+            PresetSprites::CatHead => &sprites_vec[35],
         }
     }
 }

@@ -1,6 +1,6 @@
 
 use crate::{
-    game::{ability_cards::{AbilityCardStack, AbilityCardTypes}, entities::Player, popup_text::PopTextRingbuffer},
+    game::{ability_cards::{AbilityCardStack, AbilityCardTypes}, entities::Player, popup_text::{PopTextRingbuffer, PopupIcon}},
     spritesheet,
 };
 
@@ -155,13 +155,10 @@ pub fn check_entity_collisions(game_state: &mut GameState) {
                     // add score popup if this was newly found, update score
                     let popup_texts_rb: &mut PopTextRingbuffer =
                         &mut game_state.popup_text_ringbuffer;
-                    let animal_name = match npc.sprite_type {
-                        spritesheet::PresetSprites::BirdIsntReal => "brd",
-                        spritesheet::PresetSprites::Pig => "pig",
-                        spritesheet::PresetSprites::Lizard => "lzd",
-                        _ => "cat"
-                    };
-                    popup_texts_rb.add_new_popup(pop_x - 14.0, pop_y, format!["{} +{}", animal_name, 1].to_string());
+
+                    let gained_amount = 1 * 60;
+
+                    popup_texts_rb.add_new_popup(pop_x - 7.0, pop_y, format![" +{}", gained_amount/60].to_string(), PopupIcon::Clock);
 
                     // add card
                     let abil_card_type = match npc.sprite_type {
@@ -185,10 +182,10 @@ pub fn check_entity_collisions(game_state: &mut GameState) {
                     let npc_p = game_state.camera.cvt_world_to_screen_coords(npc.x_pos, npc.y_pos);
                     p.card_stack.try_push_card(abil_card_type, npc_p.0, npc_p.1);
 
-                    let game_state_cd_timer: &mut u32 =
-                        &mut game_state.countdown_timer_msec;
+
                     let gained_amount = 1 * 60;
-                    *game_state_cd_timer += gained_amount;
+                    game_state.countdown_timer_msec += gained_amount;
+                    game_state.countdown_timer_msec = game_state.countdown_timer_msec.min(100 * 60 - 1);
                     game_state.score += gained_amount;
                 }
                 Some(_) => {}

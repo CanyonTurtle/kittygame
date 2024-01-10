@@ -2,9 +2,8 @@
 //!
 //! [`kittygame`]: https://canyonturtle.github.io/kittygame/
 
-// ideas
-//
-// custom tilemap code? or hand write? custom tilemap code is preferrable.
+/// This is essentially the entrypoint of the game, providing the update() loop. 
+/// This has all the drawing code and lots of update logic.
 
 #[cfg(feature = "buddy-alloc")]
 mod alloc;
@@ -12,7 +11,6 @@ mod kitty_ss;
 mod spritesheet;
 
 mod wasm4;
-use std::borrow::BorrowMut;
 
 use game::{
     camera::Camera,
@@ -26,6 +24,7 @@ use game::{
     menus::GameMode,
     music::{play_bgm, SONGS}, game_map::MAP_TILESETS, cloud::Cloud,
 };
+
 use title_ss::{OUTPUT_ONLINEPNGTOOLS_WIDTH, OUTPUT_ONLINEPNGTOOLS_HEIGHT, OUTPUT_ONLINEPNGTOOLS_FLAGS};
 mod game;
 use wasm4::*;
@@ -35,13 +34,12 @@ use crate::{
     game::{
         collision::{get_bound_of_character, AbsoluteBoundingBox},
         entities::OptionallyEnabledPlayer,
-        menus::{Modal, NormalPlayModes, MenuTypes}, game_constants::{COUNTDOWN_TIMER_START, START_DIFFICULTY_LEVEL, MAJOR_VERSION, MINOR_VERSION, INCR_VERSION}, popup_text::PopTextRingbuffer,
+        menus::{Modal, NormalPlayModes, MenuTypes}, game_constants::{COUNTDOWN_TIMER_START, START_DIFFICULTY_LEVEL, MAJOR_VERSION, MINOR_VERSION, INCR_VERSION}, popup_text::{PopTextRingbuffer, PopupIcon},
     },
     title_ss::OUTPUT_ONLINEPNGTOOLS
 };
 
-// const MIN_BUILDING_DIM: i32 = 4;
-
+/// draw the tiles in the map, relative to the camera.
 fn drawmap(game_state: &GameState) {
     let map = &game_state.map;
     let camera = &game_state.camera;
@@ -88,6 +86,7 @@ fn drawmap(game_state: &GameState) {
 
 static mut GAME_STATE_HOLDER: Option<GameState<'static>> = None;
 
+/// Draw a character on-screen, relative to the camera.
 fn drawcharacter(
     spritesheet: &[u8],
     spritesheet_stride: &usize,
@@ -137,6 +136,7 @@ static mut NPC_INPUTS: [u8; MAX_N_NPCS] = [0; MAX_N_NPCS];
 
 static mut PREVIOUS_GAMEPAD: [u8; 4] = [0, 0, 0, 0];
 
+/// get joystick inputs from this and last frame.
 fn get_inputs_this_frame() -> [[u8; 4]; 2] {
     let gamepads: [u8; 4] = unsafe { [*GAMEPAD1, *GAMEPAD2, *GAMEPAD3, *GAMEPAD4] };
     let mut btns_pressed_this_frame: [u8; 4] = [0; 4];
@@ -151,10 +151,10 @@ fn get_inputs_this_frame() -> [[u8; 4]; 2] {
     [btns_pressed_this_frame, gamepads]
 }
 
-// DRAW BLURRED BACKGROUND BEHIND SCORE AND TIME TEXTS IN-GAME
 const TOP_UI_TEXT_Y: i32 = 2;
 const BOTTOM_UI_TEXT_Y: i32 = 160 - 8; // 160 - 8 - 2;
 
+/// DRAW BLURRED BACKGROUND BEHIND SCORE AND TIME TEXTS IN-GAME
 fn draw_modal_bg(pf: &AbsoluteBoundingBox<f32, f32>, style: u8) {
     unsafe { *DRAW_COLORS = 0x0001 }
     let p: AbsoluteBoundingBox<i32, u32> = AbsoluteBoundingBox {
@@ -220,6 +220,18 @@ fn draw_modal_bg(pf: &AbsoluteBoundingBox<f32, f32>, style: u8) {
     
 }
 
+/// Draw text with a soft background under
+fn layertext(t: &str, x: i32, y: i32) {
+    unsafe { *DRAW_COLORS = 0x0001 }
+    text(t, x + 1, y);
+    text(t, x, y + 1);
+    text(t, x + 1, y + 1);
+    unsafe { *DRAW_COLORS = 0x0002 }
+
+    text(t, x, y);
+}
+
+/// Main loop that runs every frame. Progress the game state and render.
 #[no_mangle]
 fn update() {
     let mut game_state: &mut GameState;
@@ -231,7 +243,7 @@ fn update() {
                 spritesheet::Sprite::init_all_sprites();
                 let mut new_game_state = GameState::new();
                 for _ in 0..20 {
-                    new_game_state.rng.borrow_mut().next();
+                    new_game_state.rng.next();
                 }
                 
                 new_game_state.regenerate_map();
@@ -249,11 +261,6 @@ fn update() {
     }
 
     // ----------- UPDATE TIMER AND PLAY BGM -----------
-
-
-    
-    
-
     game_state.song_timer += 1;
     play_bgm(game_state.song_timer, &SONGS[game_state.song_idx]);
 
@@ -274,12 +281,12 @@ fn update() {
     match &mut game_state.players[player_idx as usize] {
         OptionallyEnabledPlayer::Disabled => {}
         OptionallyEnabledPlayer::Enabled(player) => {
-            game_state.camera.borrow_mut().current_viewing_x_target = num::clamp(
+            game_state.camera.current_viewing_x_target = num::clamp(
                 player.character.x_pos - 80.0,
                 X_LEFT_BOUND as f32,
                 X_RIGHT_BOUND as f32,
             );
-            game_state.camera.borrow_mut().current_viewing_y_target = num::clamp(
+            game_state.camera.current_viewing_y_target = num::clamp(
                 player.character.y_pos - 80.0,
                 Y_LOWER_BOUND as f32,
                 Y_UPPER_BOUND as f32,
@@ -287,7 +294,7 @@ fn update() {
         }
     }
 
-    game_state.camera.borrow_mut().slew();
+    game_state.camera.slew();
 
     // ------------- POLL INPUT ---------------
 
@@ -341,7 +348,7 @@ fn update() {
                 MovingEntity::OptionalPlayer(optional_player),
                 input,
                 game_state.godmode,
-                &mut game_state.clouds.borrow_mut(),
+                &mut game_state.clouds,
             );
             drawcharacter(
                 &game_state.spritesheet,
@@ -353,13 +360,13 @@ fn update() {
     }
 
     // CREATE INPUTS FOR NPCS
-    let inputs: &mut [u8; MAX_N_NPCS] = unsafe { NPC_INPUTS.borrow_mut() };
+    let inputs: &mut [u8; MAX_N_NPCS] = unsafe { &mut NPC_INPUTS };
     let l;
     {
         l = game_state.npcs.len();
     }
     for i in 0..l {
-        let rngg = &mut game_state.rng.borrow_mut();
+        let rngg = &mut game_state.rng;
         let rand_val = (rngg.next() % 255) as u8;
         let current_npc = &mut game_state.npcs[i];
         let mut use_rng_input = false;
@@ -453,7 +460,7 @@ fn update() {
             MovingEntity::NPC(npc),
             inputs[i],
             game_state.godmode,
-            &mut game_state.clouds.borrow_mut(),
+            &mut game_state.clouds,
         );
         drawcharacter(
             &game_state.spritesheet,
@@ -464,18 +471,13 @@ fn update() {
     }
 
  
-
-
-    // RENDER THE MAP
+    // ------ RENDER THE MAP -----------
     drawmap(&game_state);
 
-   // UPDATE CLOUDS
-   {
-        Cloud::update_clouds(&mut game_state.clouds.borrow_mut());
-    }
+    // UPDATE CLOUDS
+    Cloud::update_clouds(&mut game_state.clouds);
 
     // DRAW CLOUDS
-    // unsafe { *DRAW_COLORS = spritesheet::KITTY_SPRITESHEET_DRAW_COLORS }
     for cloud in game_state.clouds.iter() {
         let cam: &Camera = &game_state.camera;
         let cloud_sprite: &spritesheet::Sprite = spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::Cloud);
@@ -499,13 +501,30 @@ fn update() {
                 } else {
                     BLIT_FLIP_Y
                 }
-                // | match the_char.state {
-                //     KittyStates::OnCeiling(_) => {BLIT_FLIP_Y},
-                //     _ => 0
-                // }
         );
     }
 
+    // just draw a spriteframe at a location. Put a colored layer behind it, like layertext() does.
+    let draw_spriteframe = |spriteframe: &spritesheet::SpriteFrame, x: i32, y: i32| {
+        let cf = spriteframe;
+        for (xx, yy, colors) in [(x, y, 0x1111), (x+1, y+1, 0x1111), (x, y, spritesheet::KITTY_SPRITESHEET_DRAW_COLORS)] {
+            unsafe {*DRAW_COLORS = colors}
+            blit_sub(
+                &game_state.spritesheet,
+                xx,
+                yy,
+                cf.width as u32,
+                cf.height as u32,
+                cf.start_x as u32,
+                cf.start_y as u32,
+                game_state.spritesheet_stride as u32,
+                spritesheet::KITTY_SPRITESHEET_FLAGS
+            );
+        }
+        
+    };
+
+    // Depending on what gamemode we're in, we do different update steps.
     match &mut game_state.game_mode {
         GameMode::NormalPlay(play_mode) => {
             let mut showing_modal = false;
@@ -520,17 +539,8 @@ fn update() {
                     game_state.countdown_paused = true;
                 }
             }
-            
 
-
-            
-
-
-            
-            
-
-            
-
+            // Draw blur sections for the status bars on the bottom and top of the screen.
             draw_modal_bg(
                 &AbsoluteBoundingBox {
                     x: -1.0,
@@ -551,37 +561,24 @@ fn update() {
                 0,
             );
 
-            // WRITE SCORE / TIME OF GAME
-            fn layertext(t: &str, x: i32, y: i32) {
-                unsafe { *DRAW_COLORS = 0x0001 }
-                text(t, x + 1, y);
-                text(t, x, y + 1);
-                text(t, x + 1, y + 1);
-                unsafe { *DRAW_COLORS = 0x0002 }
 
-                text(t, x, y);
-            }
 
             // COUNT THE NUMBER OF NPCS THAT ARE FOLLOWING PLAYERS
-            let mut current_found_npcs = 0;
-            for npc in game_state.npcs.iter() {
-                current_found_npcs += match npc.following_i {
-                    None => 0,
-                    Some(_) => 1,
-                }
-            }
+            let current_found_npcs: u32 = game_state.npcs
+                .iter()
+                .fold(0, |acc, e| acc + match e.following_i {None => 0, Some(_) => 1});
 
             // COMPUTE SCORE, LEVEL, # KITTIES (used later either in modal or normal screen)
             let world_level_text = &format!["W{}-L{}", ((game_state.difficulty_level - 1) / 5) + 1, ((game_state.difficulty_level - 1) % 5) + 1];
             let score_text = &format!["Sc. {}", game_state.score];
             let found_kitties_text = &format![
-                "{}/{} {:.2}",
-                current_found_npcs, game_state.total_npcs_to_find, game_state.countdown_timer_msec as u32 / 60
+                "{:<5} {:<3}", &format!["{:.2}/{:.2}", current_found_npcs, game_state.total_npcs_to_find],
+                game_state.countdown_timer_msec as u32 / 60
             ];
 
             // UPDATE POPUPS
             {
-                let popup_texts_rb: &mut PopTextRingbuffer = &mut game_state.popup_text_ringbuffer.borrow_mut();
+                let popup_texts_rb: &mut PopTextRingbuffer = &mut game_state.popup_text_ringbuffer;
                 popup_texts_rb.update_popup_positions();
                 let camera = game_state.camera;
                 for popup in popup_texts_rb.texts.iter() {
@@ -589,7 +586,14 @@ fn update() {
                         Some(p) => {
                             const T_BEFORE_BLINK: u32 = 60;
                             if p.duration_timer < T_BEFORE_BLINK || p.duration_timer % 6 < 3 {
-                                layertext(&p.text, (p.x_pos - camera.current_viewing_x_offset) as i32, (p.y_pos - camera.current_viewing_y_offset) as i32);
+                                let (dx, dy) = ((p.x_pos - camera.current_viewing_x_offset) as i32, (p.y_pos - camera.current_viewing_y_offset) as i32);
+                                layertext(&p.text, dx, dy);
+                                match p.icon {
+                                    PopupIcon::None => {},
+                                    PopupIcon::Clock => {
+                                        draw_spriteframe( &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::Clock).frames[0], dx, dy)
+                                    }
+                                }
                             }
                         },
                         None => {
@@ -601,35 +605,34 @@ fn update() {
 
             // USE ABILITY CARDS
             for (p_i, pr) in game_state.players.iter_mut().enumerate() {
-                // if btns_pressed_this_frame[p_i] != 0 {
-                //     trace(format!["check p{}: {}", p_i, btns_pressed_this_frame[p_i]]);
-                // }
-                
-                
                 match pr {
                     OptionallyEnabledPlayer::Enabled(p) => {
                         if !showing_modal && btns_pressed_this_frame[p_i] & BUTTON_2 != 0 {
                             let res = p.card_stack.try_use_cards();
-                            // trace("tried");
                             let added_t;
                             let popup_t: Option<String>;
+                            let popup_icon: PopupIcon;
                             match res {
                                 game::ability_cards::AbilityCardUsageResult::NothingHappened => {
                                     added_t = 0;
                                     popup_t = None;
+                                    popup_icon = PopupIcon::None;
                                 },
                                 game::ability_cards::AbilityCardUsageResult::GainedTime(t) => {
                                     added_t = t;
-                                    popup_t = Some(format!["time +{}", t]);
+                                    popup_t = Some(format![" +{}", t]);
+                                    popup_icon = PopupIcon::Clock;
                                 },
                                 game::ability_cards::AbilityCardUsageResult::EnabledFlyAndTime(t) => {
                                     if p.character.can_fly {
                                         added_t = t;
-                                        popup_t = Some(format!["time +{}", t]);
+                                        popup_t = Some(format![" +{}", t]);
+                                        popup_icon = PopupIcon::Clock;
                                     } else {
                                         p.character.can_fly = true;
                                         added_t = t - 10;
                                         popup_t = Some("fly!".to_string());
+                                        popup_icon = PopupIcon::None;
                                     }
                                     
                                 }
@@ -642,15 +645,16 @@ fn update() {
 
                                         let vx = CARD_CLOUD_SPEED * dir.0;
                                         let vy = CARD_CLOUD_SPEED * dir.1;
-                                        Cloud::try_push_cloud(&mut game_state.clouds.borrow_mut(), p.character.x_pos + 2.0, p.character.y_pos + 3.0, vx, vy);
+                                        Cloud::try_push_cloud(&mut game_state.clouds, p.character.x_pos + 2.0, p.character.y_pos + 3.0, vx, vy);
 
                                     }
-                                    game_state.popup_text_ringbuffer.borrow_mut().add_new_popup(p.character.x_pos - 14.0, p.character.y_pos, pt);
+                                    game_state.popup_text_ringbuffer.add_new_popup(p.character.x_pos - 14.0, p.character.y_pos, pt, popup_icon);
                                 }
                                 _ => {}
                             }
-                            *game_state.countdown_timer_msec.borrow_mut() += added_t * 60;
-                            *game_state.score.borrow_mut() += added_t * 60;
+                            game_state.countdown_timer_msec += added_t * 60;
+                            game_state.countdown_timer_msec = game_state.countdown_timer_msec.min(100 * 60 - 1);
+                            game_state.score += added_t * 60;
                         }
                     },
                     OptionallyEnabledPlayer::Disabled => {},
@@ -728,8 +732,6 @@ fn update() {
                             actual_position.width += (target_position.width as f32 - actual_position.width) * SPEED;
                             actual_position.height += (target_position.height as f32 - actual_position.height) * SPEED;
 
-                            
-
                             ready_to_show_text = (actual_position.width - target_position.width as f32).abs() < TOL;
 
                             draw_modal_bg(&actual_position, 1);
@@ -743,8 +745,6 @@ fn update() {
                         const INTERACTIVE_DELAY: u32 = 60;
                         if ready_to_show_text && m.timer >= INTERACTIVE_DELAY {
                             {
-                                // let timer: &mut u32 = &mut m.timer.borrow_mut();
-                                // *timer += 1;
                                 options_ready_to_select = true;
                                 text_timer = m.timer;
 
@@ -753,6 +753,10 @@ fn update() {
                         
                         let modal_text = |st: &str, x, y| {
                             text(st, m.actual_position.x as i32 + x, m.actual_position.y as i32 + y);
+                        };
+
+                        let modal_offs = |x: i32, y: i32| {
+                            (m.actual_position.x as i32 + x, m.actual_position.y as i32 + y)
                         };
                         
                         
@@ -787,9 +791,9 @@ fn update() {
                                                 GameMode::NormalPlay(NormalPlayModes::HoverModal(Modal::new(
                                                     AbsoluteBoundingBox {
                                                         x: 40,
-                                                        y: 40,
+                                                        y: 30,
                                                         width: 80,
-                                                        height: 40,
+                                                        height: 60,
                                                     },
                                                     MenuTypes::StartLevel,
                                                 )));
@@ -799,10 +803,15 @@ fn update() {
                                     }
                                 },
                                 MenuTypes::StartLevel => {
-        
-                                    // modal_text("Found!!", 12, 15);
                                     modal_text(world_level_text, 16, 12);
                                     modal_text("Start!", 16, 22);
+                                    modal_text(&format!["+{}", game_state.countdown_and_score_bonus / 60], 33, 35);
+                                    let (xx, yy) = modal_offs(25, 34);
+                                    draw_spriteframe(
+                                        &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::Clock).frames[0], 
+                                        xx, 
+                                        yy
+                                    );
                                     let mut start_normal_play = false;
                                     if text_timer > 100 {
                                         start_normal_play = true;
@@ -860,7 +869,7 @@ fn update() {
 
                 // HELP TEXT AT START OF GAME
                 if game_state.difficulty_level == 1 && game_state.countdown_timer_msec == COUNTDOWN_TIMER_START - 2 * 60 && game_state.tutorial_text_counter == 0 {
-                    *game_state.tutorial_text_counter.borrow_mut() += 1;
+                    game_state.tutorial_text_counter += 1;
                     game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::HoverModal(Modal::new(
                         AbsoluteBoundingBox {
                             x: 10,
@@ -891,7 +900,7 @@ fn update() {
 
                 // PROGRESS TIME, CHECK FOR GAME END
                 if !game_state.countdown_paused {
-                    *game_state.countdown_timer_msec.borrow_mut() -= 1;
+                    game_state.countdown_timer_msec -= 1;
             
                     // ---- LOSE CONDITION ----
                     if game_state.countdown_timer_msec <= 0 {
@@ -915,7 +924,10 @@ fn update() {
                 // DRAW SCORE, LEVEL, # KITTIES during normal play
                 layertext(world_level_text, 0, BOTTOM_UI_TEXT_Y);
                 layertext(score_text, 80, BOTTOM_UI_TEXT_Y);
-                layertext(found_kitties_text, 0, TOP_UI_TEXT_Y);
+                layertext(found_kitties_text, 9, TOP_UI_TEXT_Y);
+                draw_spriteframe( &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::Clock).frames[0], 48, TOP_UI_TEXT_Y - 1);
+                draw_spriteframe( &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::CatHead).frames[0], 1, TOP_UI_TEXT_Y + 1);
+
                 
             }
         }
@@ -947,9 +959,6 @@ fn update() {
                 text(format!["ver. {}.{}.{}", MAJOR_VERSION, MINOR_VERSION, INCR_VERSION], 40, 150);
                 if btns_pressed_this_frame[0] != 0 {
                     game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::MainGameplay);
-                    
-                    // drop(game_state.map.chunks);
-                    game_state.new_game();
                     game_state.regenerate_map();
                 }
             }
@@ -973,7 +982,7 @@ fn update() {
                 *PALETTE = spritesheet::KITTY_SPRITESHEET_PALETTES[game_state.pallette_idx];
             }
             unsafe { *DRAW_COLORS = spritesheet::KITTY_SPRITESHEET_DRAW_COLORS }
-            game_state.rng.borrow_mut().next();
+            game_state.rng.next();
             
             // trace("updated positions");
             unsafe { *DRAW_COLORS = 0x1112 }

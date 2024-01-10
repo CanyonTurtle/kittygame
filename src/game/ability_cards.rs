@@ -47,7 +47,6 @@ pub enum AbilityCardUsageResult {
     NothingHappened,
     GainedTime(u32),
     EnabledFlyAndTime(u32),
-    // TeleportationEnabled,
 }
 
 impl AbilityCardStack {

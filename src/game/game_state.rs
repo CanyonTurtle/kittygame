@@ -45,7 +45,8 @@ pub struct GameState<'a> {
     pub tileset_idx: usize,
     pub map_gen_settings_idx: usize,
     pub tutorial_text_counter: u8,
-    pub clouds: Vec<Cloud>
+    pub clouds: Vec<Cloud>,
+    pub countdown_and_score_bonus: u32,
 }
 
 impl GameState<'static> {
@@ -110,14 +111,8 @@ impl GameState<'static> {
             map_gen_settings_idx: 0,
             tutorial_text_counter: 0,
             clouds: Vec::new(),
+            countdown_and_score_bonus: 0,
         }
-    }
-
-    pub fn new_game(self: &mut Self) {
-        let cdt: &mut u32 = &mut self.countdown_timer_msec;
-        *cdt = COUNTDOWN_TIMER_START;
-        self.score = 0;
-        self.tutorial_text_counter = 0;
     }
 
     pub fn regenerate_map(self: &mut Self) {
@@ -160,7 +155,6 @@ impl GameState<'static> {
         let max_n_tiles_in_map: u32 = (0.7 * 2048.0) as u32 + (map_gen_setting.linear_mapsize_mult * 0.25 * 2048.0) as u32 * self.difficulty_level;
 
 
-        // self.timer = 0;
         let map = &mut self.map;
         map.num_tiles = 0;
         map.chunks.clear();
@@ -184,16 +178,17 @@ impl GameState<'static> {
         self.total_npcs_to_find =
             (1 + (self.difficulty_level / 3) + rng.next() as u32 % 3).min(MAX_N_NPCS as u32);
 
-        let countdown_and_score_bonus = (5 + self.difficulty_level.min(20)) * 60;
+        self.countdown_and_score_bonus = (4 + self.difficulty_level.min(20) / 3) * 60;
 
-        let cdt: &mut u32 = &mut self.countdown_timer_msec;
-        *cdt += countdown_and_score_bonus;
-        self.score += countdown_and_score_bonus;
+        self.countdown_timer_msec += self.countdown_and_score_bonus;
+        self.countdown_timer_msec = self.countdown_timer_msec.min(100 * 60 - 1);
+        self.score += self.countdown_and_score_bonus;
 
         match self.difficulty_level {
             1 => {
-                *cdt = COUNTDOWN_TIMER_START;
+                self.countdown_timer_msec = COUNTDOWN_TIMER_START;
                 self.score = 0;
+                self.tutorial_text_counter = 0;
             }
             _ => {}
         }

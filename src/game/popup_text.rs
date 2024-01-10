@@ -1,4 +1,9 @@
 
+pub enum PopupIcon {
+    None,
+    Clock
+}
+
 pub struct PopupText {
     pub x_pos: f32,
     pub y_pos: f32,
@@ -6,6 +11,7 @@ pub struct PopupText {
     pub target_y_pos: f32,
     pub duration_timer: u32,
     pub text: String,
+    pub icon: PopupIcon
 }
 
 pub struct PopTextRingbuffer {
@@ -14,7 +20,7 @@ pub struct PopTextRingbuffer {
 }
 
 impl PopTextRingbuffer {
-    pub fn add_new_popup(self: &mut Self, x: f32, y: f32, s: String) {
+    pub fn add_new_popup(self: &mut Self, x: f32, y: f32, s: String, icon: PopupIcon) {
         const POPUP_RISE_DIST: f32 = 15.0;
         const POPUP_Y_OFFSET: f32 = -8.0;
         self.texts[self.next_avail_idx as usize] = Some(PopupText {
@@ -23,7 +29,8 @@ impl PopTextRingbuffer {
             target_x_pos: x,
             target_y_pos: y + POPUP_Y_OFFSET - POPUP_RISE_DIST,
             duration_timer: 0,
-            text: s
+            text: s,
+            icon
         });
         self.next_avail_idx += 1;
         self.next_avail_idx %= self.texts.len() as u8;
