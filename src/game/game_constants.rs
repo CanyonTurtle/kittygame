@@ -96,5 +96,5 @@ pub const START_DIFFICULTY_LEVEL: u32 = 1;
 pub const LEVELS_PER_MOOD: usize = 5;
 
 pub const MAJOR_VERSION: u8 = 1;
-pub const MINOR_VERSION: u8 = 0;
-pub const INCR_VERSION: u8 = 1;
+pub const MINOR_VERSION: u8 = 1;
+pub const INCR_VERSION: u8 = 0;
