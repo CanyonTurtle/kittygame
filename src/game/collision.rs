@@ -1,6 +1,6 @@
 
 use crate::{
-    game::{ability_cards::{AbilityCardStack, AbilityCardTypes}, entities::Player, popup_text::{PopTextRingbuffer, PopupIcon}},
+    game::{ability_cards::{AbilityCardStack, AbilityCardTypes}, entities::{Player, WarpAbility, WarpState}, popup_text::{PopTextRingbuffer, PopupIcon}},
     spritesheet,
 };
 
@@ -332,6 +332,7 @@ pub fn raycast_axis_aligned(
     collision_result
 }
 
+// handle inputs of players and other characters.
 pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode: bool, clouds:&mut Vec<Cloud>) {
     let character: &mut Character;
 
@@ -892,6 +893,7 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
         }
 
         // if anyone makes it out of bounds, drop them in the center of the map
+        // (or if they use the lizard warp)
         if !inside_at_least_one_chunk {
             character.x_pos = 10.0;
             character.y_pos = 10.0;
@@ -922,6 +924,35 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
                 _ => {
                     character.state = KittyStates::Walking(0);
                 }
+            },
+            _ => {}
+        }
+    }
+
+    // handle warping. If down is held, warp.
+    if input & BUTTON_DOWN != 0 {
+        match &mut character.warp_ability {
+            WarpAbility::CannotWarp => {},
+            WarpAbility::CanWarp(warp_state) => {
+                match warp_state {
+                    WarpState::Charging(t) => {
+                        *t += 1;
+                        if *t >= 25 {
+                            character.warp_ability = WarpAbility::CanWarp(WarpState::Ready);
+                        }
+                    },
+                    WarpState::Ready => {
+                        character.x_pos = 10.0;
+                        character.y_pos = 10.0;
+                        character.warp_ability = WarpAbility::CanWarp(WarpState::Charging(0));
+                    }
+                }
+            }
+        }
+    } else {
+        match character.warp_ability {
+            WarpAbility::CanWarp(_) => {
+                character.warp_ability = WarpAbility::CanWarp(WarpState::Charging(0));
             },
             _ => {}
         }

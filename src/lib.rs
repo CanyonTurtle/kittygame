@@ -15,7 +15,7 @@ mod wasm4;
 use game::{
     camera::Camera,
     collision::{check_entity_collisions, update_pos},
-    entities::{Character, MovingEntity, KittyStates},
+    entities::{Character, MovingEntity, KittyStates, WarpAbility, WarpState},
     game_constants::{
         MAX_N_NPCS, TILE_HEIGHT_PX, TILE_WIDTH_PX, X_LEFT_BOUND, X_RIGHT_BOUND, Y_LOWER_BOUND,
         Y_UPPER_BOUND,
@@ -248,7 +248,6 @@ fn update() {
                 
                 new_game_state.regenerate_map();
                 GAME_STATE_HOLDER = Some(new_game_state);
-                // trace("finished reset");
             }
             Some(_) => {}
         }
@@ -638,6 +637,18 @@ fn update() {
                                         popup_icon = PopupIcon::None;
                                     }
                                     
+                                },
+                                game::ability_cards::AbilityCardUsageResult::EnabledWarpAndTime(t) => {
+                                    if p.character.warp_ability == WarpAbility::CannotWarp {
+                                        p.character.warp_ability = WarpAbility::CanWarp(WarpState::Charging(0));
+                                        added_t = t - 10;
+                                        popup_t = Some("hold down = warp".to_string());
+                                        popup_icon = PopupIcon::None;
+                                    } else {
+                                        added_t = 10;
+                                        popup_t = Some(format![" +{}", t]);
+                                        popup_icon = PopupIcon::Clock;
+                                    }
                                 }
                             }
                             match popup_t {

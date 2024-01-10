@@ -1,6 +1,6 @@
 
 use super::cloud::Cloud;
-use super::entities::Player;
+use super::entities::{Player, WarpAbility};
 use super::game_constants::{COUNTDOWN_TIMER_START, START_DIFFICULTY_LEVEL, LEVELS_PER_MOOD, MAP_GEN_SETTINGS};
 use super::menus::GameMode;
 use super::popup_text::PopTextRingbuffer;
@@ -62,21 +62,6 @@ impl GameState<'static> {
         ];
 
         let rng = Rng::new();
-
-        // (0..N_NPCS).map(|mut x| {
-        //     x %= 7;
-        //     let preset = match x {
-        //         0 => spritesheet::PresetSprites::Kitty1,
-        //         1 => spritesheet::PresetSprites::Kitty2,
-        //         2 => spritesheet::PresetSprites::Kitty3,
-        //         3 => spritesheet::PresetSprites::Kitty4,
-        //         4 => spritesheet::PresetSprites::Lizard,
-        //         5 => spritesheet::PresetSprites::Pig,
-        //         6 => spritesheet::PresetSprites::BirdIsntReal,
-        //         _ => spritesheet::PresetSprites::Pig
-        //     };
-        //     Character::new(preset)
-        // }).collect::<Vec<Character>>()
 
         GameState {
             players: characters,
@@ -189,6 +174,16 @@ impl GameState<'static> {
                 self.countdown_timer_msec = COUNTDOWN_TIMER_START;
                 self.score = 0;
                 self.tutorial_text_counter = 0;
+
+                // Reset warping ability only on a new game. Keep the ability each level.
+                for optional_player in self.players.iter_mut() {
+                    match optional_player {
+                        OptionallyEnabledPlayer::Enabled(p) => {
+                            p.character.warp_ability = WarpAbility::CannotWarp;
+                        }
+                        OptionallyEnabledPlayer::Disabled => {}
+                    }
+                }
             }
             _ => {}
         }
@@ -197,16 +192,13 @@ impl GameState<'static> {
         for _ in 0..self.total_npcs_to_find {
             let x = rng.next() % 1000;
             let preset = match x {
-                0..=200 => spritesheet::PresetSprites::Kitty1,
-                201..=400 => spritesheet::PresetSprites::Kitty2,
-                401..=600 => spritesheet::PresetSprites::Kitty3,
-                601..=800 => spritesheet::PresetSprites::Kitty4,
-                801..=850 => spritesheet::PresetSprites::Lizard,
-                851..=900 => spritesheet::PresetSprites::Pig,
-                901..=950 => spritesheet::PresetSprites::BirdIsntReal,
-                951..=1000 => spritesheet::PresetSprites::Kitty1,
-
-                _ => unreachable!(),
+                0..=200 => spritesheet::PresetSprites::Kitty1, // 20 % chance
+                201..=400 => spritesheet::PresetSprites::Kitty2, // 20 % chance
+                401..=600 => spritesheet::PresetSprites::Kitty3, // 20 % chance
+                601..=800 => spritesheet::PresetSprites::Kitty4, // 20 % chance
+                801..=900 => spritesheet::PresetSprites::Pig, // 10 % chance
+                901..=960 => spritesheet::PresetSprites::BirdIsntReal, // 6 % chance
+                _ => spritesheet::PresetSprites::Lizard, // 4 % chance
             };
             npcs.push(Character::new(preset));
         }

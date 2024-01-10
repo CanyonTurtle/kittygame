@@ -16,7 +16,21 @@ pub enum MovingEntity<'a> {
     OptionalPlayer(&'a mut OptionallyEnabledPlayer),
     NPC(&'a mut Character)
 }
+ 
+// If a player can warp, they need to hold the button long enough.
+type WarpInputTimer = u8;
 
+#[derive(PartialEq, Eq, Hash)]
+pub enum WarpState {
+    Charging(WarpInputTimer),
+    Ready,
+}
+
+#[derive(PartialEq, Eq, Hash)]
+pub enum WarpAbility {
+    CannotWarp,
+    CanWarp(WarpState)
+}
 
 pub struct Character {
     pub x_pos: f32,
@@ -33,6 +47,7 @@ pub struct Character {
     pub following_i: Option<u8>,
     pub can_fly: bool,
     pub sprite_type: PresetSprites,
+    pub warp_ability: WarpAbility,
 }
 
 #[derive(PartialEq, Eq, Hash)]
@@ -64,7 +79,8 @@ impl Character {
             sprite: &spritesheet::Sprite::from_preset(&sprite_type),
             following_i: None,
             can_fly: false,
-            sprite_type: sprite_type
+            sprite_type,
+            warp_ability: WarpAbility::CannotWarp
         }
     }
 }

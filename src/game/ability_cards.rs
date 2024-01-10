@@ -47,6 +47,7 @@ pub enum AbilityCardUsageResult {
     NothingHappened,
     GainedTime(u32),
     EnabledFlyAndTime(u32),
+    EnabledWarpAndTime(u32),
 }
 
 impl AbilityCardStack {
@@ -102,10 +103,13 @@ impl AbilityCardStack {
                     AbilityCardTypes::Kitty => AbilityCardUsageResult::GainedTime(
                         (n_consumed as f32 * (n_consumed as f32 + 1.0) / 2.0) as u32,
                     ),
-                    AbilityCardTypes::Piggy | AbilityCardTypes::Lizard => {
+                    AbilityCardTypes::Piggy => {
                         AbilityCardUsageResult::GainedTime(n_consumed * 10)
-                    }
-                    AbilityCardTypes::Bird => AbilityCardUsageResult::EnabledFlyAndTime(n_consumed * 10),
+                    },
+                    AbilityCardTypes::Lizard => {
+                        AbilityCardUsageResult::EnabledWarpAndTime(n_consumed * 3)
+                    },
+                    AbilityCardTypes::Bird => AbilityCardUsageResult::EnabledFlyAndTime(n_consumed * 3),
                 };
 
                 // remove cards off the end (to ensure correct ordering)
