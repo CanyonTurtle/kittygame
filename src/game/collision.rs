@@ -1,11 +1,11 @@
 
 use crate::{
-    game::{ability_cards::{AbilityCardStack, AbilityCardTypes}, entities::{Player, WarpAbility, WarpState}, popup_text::{PopTextRingbuffer, PopupIcon}},
+    game::{ability_cards::AbilityCardTypes, entities::{WarpAbility, WarpState}, popup_text::{PopTextRingbuffer, PopupIcon}},
     spritesheet,
 };
 
 use super::{
-    entities::{Character, KittyStates, MovingEntity, OptionallyEnabledPlayer},
+    entities::{Character, KittyStates, OptionallyEnabledPlayer},
     game_constants::{
         TILE_HEIGHT_PX, TILE_WIDTH_PX, X_LEFT_BOUND, X_RIGHT_BOUND, Y_LOWER_BOUND, Y_UPPER_BOUND,
     },
@@ -40,6 +40,7 @@ pub fn check_absolute_point_inside_tile_aligned_bound(
     false
 }
 
+#[derive(Clone)]
 pub struct AbsoluteBoundingBox<P, W> {
     pub x: P,
     pub y: P,
@@ -108,15 +109,15 @@ pub fn get_bound_of_character(character: &Character) -> AbsoluteBoundingBox<i32,
     }
 }
 
-pub fn check_entity_collisions(game_state: &mut GameState) {
-    // player -> npc
+pub fn check_entity_collisions(game_state: GameState) -> GameState {
+    let mut new_game_state = game_state;
     const N_PLAYER_NPC_COLLISIONS_TO_CHECK_AT_MOST: usize = 10;
     let mut npc_hitlist: [(u8, u8); N_PLAYER_NPC_COLLISIONS_TO_CHECK_AT_MOST] =
         [(0, 0); N_PLAYER_NPC_COLLISIONS_TO_CHECK_AT_MOST];
     let mut hitlist_i: u8 = 0;
-    for (i, opt_p) in game_state.players.iter().enumerate() {
+    for (i, opt_p) in new_game_state.players.iter().enumerate() {
         if let OptionallyEnabledPlayer::Enabled(p) = opt_p {
-            for (j, npc2) in game_state.npcs.iter().enumerate() {
+            for (j, npc2) in new_game_state.npcs.iter().enumerate() {
                 let did_hit: bool;
                 {
                     let player_bound = get_bound_of_character(&p.character);
@@ -142,10 +143,10 @@ pub fn check_entity_collisions(game_state: &mut GameState) {
     }
 
     for (hit_p_i, hit_npc_i) in &npc_hitlist[..hitlist_i as usize] {
-        let opt_p = &mut game_state.players[*hit_p_i as usize];
+        let opt_p = &mut new_game_state.players[*hit_p_i as usize];
 
         if let OptionallyEnabledPlayer::Enabled(p) = opt_p {
-            let npc = &mut game_state.npcs[*hit_npc_i as usize];
+            let npc = &mut new_game_state.npcs[*hit_npc_i as usize];
 
             let pop_x = npc.x_pos;
             let pop_y = npc.y_pos;
@@ -154,7 +155,7 @@ pub fn check_entity_collisions(game_state: &mut GameState) {
                 None => {
                     // add score popup if this was newly found, update score
                     let popup_texts_rb: &mut PopTextRingbuffer =
-                        &mut game_state.popup_text_ringbuffer;
+                        &mut new_game_state.popup_text_ringbuffer;
 
                     let gained_amount = 1 * 60;
 
@@ -175,18 +176,18 @@ pub fn check_entity_collisions(game_state: &mut GameState) {
 
                         let vx = CARD_CLOUD_SPEED * dir.0;
                         let vy = CARD_CLOUD_SPEED * dir.1;
-                        Cloud::try_push_cloud(&mut game_state.clouds, npc.x_pos + 2.0, npc.y_pos + 3.0, vx, vy);
+                        new_game_state.clouds = Cloud::try_push_cloud(new_game_state.clouds, npc.x_pos + 2.0, npc.y_pos + 3.0, vx, vy);
 
                     }
 
-                    let npc_p = game_state.camera.cvt_world_to_screen_coords(npc.x_pos, npc.y_pos);
+                    let npc_p = new_game_state.camera.cvt_world_to_screen_coords(npc.x_pos, npc.y_pos);
                     p.card_stack.try_push_card(abil_card_type, npc_p.0, npc_p.1);
 
 
                     let gained_amount = 1 * 60;
-                    game_state.countdown_timer_msec += gained_amount;
-                    game_state.countdown_timer_msec = game_state.countdown_timer_msec.min(100 * 60 - 1);
-                    game_state.score += gained_amount;
+                    new_game_state.countdown_timer_msec += gained_amount;
+                    new_game_state.countdown_timer_msec = new_game_state.countdown_timer_msec.min(100 * 60 - 1);
+                    new_game_state.score += gained_amount;
                 }
                 Some(_) => {}
             }
@@ -195,6 +196,8 @@ pub fn check_entity_collisions(game_state: &mut GameState) {
             npc.following_i = Some(*hit_p_i);
         }
     }
+
+    new_game_state
 }
 
 pub struct CollisionResult {
@@ -333,39 +336,10 @@ pub fn raycast_axis_aligned(
 }
 
 // handle inputs of players and other characters.
-pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode: bool, clouds:&mut Vec<Cloud>) {
-    let character: &mut Character;
+pub fn update_pos(map: &GameMap, character: Character, input: u8, clouds: Vec<Cloud>) -> (Character, Vec<Cloud>) {
 
-    match moving_entity {
-        MovingEntity::OptionalPlayer(optionally_enabled_player) => {
-            match optionally_enabled_player {
-                OptionallyEnabledPlayer::Enabled(ch) => {
-                    character = &mut ch.character;
-                }
-                OptionallyEnabledPlayer::Disabled => {
-                    if input != 0 {
-                        *optionally_enabled_player = OptionallyEnabledPlayer::Enabled(Player {
-                            character: Character::new(spritesheet::PresetSprites::MainCat),
-                            card_stack: AbilityCardStack {
-                                cards: Vec::new()
-                            },
-                        });
-                        match optionally_enabled_player {
-                            OptionallyEnabledPlayer::Enabled(ch) => {
-                                character = &mut ch.character;
-                            }
-                            _ => return,
-                        }
-                    } else {
-                        return;
-                    }
-                }
-            }
-        }
-        MovingEntity::NPC(npc) => {
-            character = npc;
-        }
-    }
+    let mut new_character = character;
+    let mut new_clouds = clouds;
 
     const BTN_ACCEL: f32 = 0.85;
     const HOP_V: f32 = -5.0;
@@ -378,50 +352,58 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
         DoingSameThing,
     }
 
-    fn handle_horizontal_input(the_char: &mut Character, input: u8) -> HorizontalMovementOutcome {
+    fn handle_horizontal_input(the_char: Character, input: u8) -> (Character, HorizontalMovementOutcome) {
+
+        let mut new_character = the_char;
+
         let ret;
-        let previous_direction = the_char.is_facing_right;
+        let previous_direction = new_character.is_facing_right;
 
         let mut moving_now = false;
         if input & BUTTON_LEFT != 0 {
-            the_char.x_vel -= BTN_ACCEL;
-            the_char.is_facing_right = false;
+            new_character.x_vel -= BTN_ACCEL;
+            new_character.is_facing_right = false;
             moving_now = true;
         } else if input & BUTTON_RIGHT != 0 {
-            the_char.x_vel += BTN_ACCEL;
-            the_char.is_facing_right = true;
+            new_character.x_vel += BTN_ACCEL;
+            new_character.is_facing_right = true;
             moving_now = true;
         } else {
-            the_char.x_vel *= H_DECAY;
-            the_char.current_sprite_i = 0;
+            new_character.x_vel *= H_DECAY;
+            new_character.current_sprite_i = 0;
         }
 
-        if moving_now && the_char.state == KittyStates::Sleeping {
+        if moving_now && new_character.state == KittyStates::Sleeping {
             ret = HorizontalMovementOutcome::StartedMoving;
-        } else if moving_now && previous_direction != the_char.is_facing_right {
+        } else if moving_now && previous_direction != new_character.is_facing_right {
             ret = HorizontalMovementOutcome::ChangedDirection;
-        } else if !moving_now && the_char.state != KittyStates::Sleeping {
+            // trace("cd");
+        } else if !moving_now && new_character.state != KittyStates::Sleeping {
             ret = HorizontalMovementOutcome::StoppedMoving;
         } else {
             ret = HorizontalMovementOutcome::DoingSameThing;
         }
-        ret
+        
+        (new_character, ret)
     }
 
-    fn handle_jumping(the_char: &mut Character, input: u8, clouds: &mut Vec<Cloud>) -> bool {
+    fn handle_jumping(the_char: Character, input: u8, clouds: Vec<Cloud>) -> (Character, Vec<Cloud>, bool) {
+
+        let mut new_character = the_char;
+        let mut new_clouds = clouds;
+
         let mut allow_jump = true;
-        match the_char.state { 
+        match new_character.state { 
             KittyStates::JumpingUp(t) => match t {
                 0 => {}
                 1 => {
                     
                     const CLOUD_VX: f32 = 2.0;
                     const CLOUD_VY: f32 = 1.0;
-                    let y = the_char.y_pos + (the_char.sprite.frames[the_char.current_sprite_i as usize].height as f32) * 1.2;
-                    let x = the_char.x_pos + (the_char.sprite.frames[the_char.current_sprite_i as usize].width as f32) * 0.5;
-                    Cloud::try_push_cloud(clouds, x, y, CLOUD_VX, CLOUD_VY);
-                    Cloud::try_push_cloud(clouds, x, y, -CLOUD_VX, CLOUD_VY);
-
+                    let y = new_character.y_pos + (new_character.sprite.frames[new_character.current_sprite_i as usize].height as f32) * 1.2;
+                    let x = new_character.x_pos + (new_character.sprite.frames[new_character.current_sprite_i as usize].width as f32) * 0.5;
+                    new_clouds = Cloud::try_push_cloud(new_clouds, x, y, CLOUD_VX, CLOUD_VY);
+                    new_clouds = Cloud::try_push_cloud(new_clouds, x, y, -CLOUD_VX, CLOUD_VY);
                 }
                 2..=10 => {}
                 _ => {
@@ -431,120 +413,115 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
             _ => {}
         }
 
-        if the_char.can_fly {
+        if new_character.can_fly {
             allow_jump = true;
         }
 
         if allow_jump {
             if input & BUTTON_1 != 0 {
-                the_char.state = KittyStates::JumpingUp(0);
-                the_char.y_vel = HOP_V;
-                return true;
+                new_character.state = KittyStates::JumpingUp(0);
+                new_character.y_vel = HOP_V;
+                return (new_character, new_clouds, true);
             }
         }
-        false
-    }
-
-    if godmode {
-        character.state = KittyStates::JumpingUp(0);
-        handle_jumping(character, input, clouds);
+        (new_character, new_clouds, false)
     }
 
     const GRAVITY: f32 = 0.3;
-    // const HUGGING_WALL_SLIDE_MULT: f32 = 0.2;
-    match character.state {
+    match new_character.state {
         KittyStates::HuggingWall(_) | KittyStates::OnCeiling(_) => {
-            character.y_vel = 0.0;
-            // if character.y_vel < 0.0 {
-            //     character.y_vel = 0.0;
-            // }
-            // else {
-            //     character.y_vel += GRAVITY * HUGGING_WALL_SLIDE_MULT;
-            // }
+            new_character.y_vel = 0.0;
         }
         _ => {
-            character.y_vel += GRAVITY;
+            new_character.y_vel += GRAVITY;
         }
     }
 
-    match character.state {
+    match new_character.state {
         KittyStates::JumpingUp(t) => {
-            handle_horizontal_input(character, input);
-            handle_jumping(character, input, clouds);
-            character.state = KittyStates::JumpingUp((t + 1).min(255));
+            (new_character, _) = handle_horizontal_input(new_character, input);
+            (new_character, new_clouds, _) = handle_jumping(new_character, input, new_clouds);
+            new_character.state = KittyStates::JumpingUp((t + 1).min(255));
         }
         KittyStates::HuggingWall(firstframe) => {
             if firstframe {
-                if character.is_facing_right {
-                    character.x_pos += character.sprite.frames[3].width as f32
-                        - character.sprite.frames[4].width as f32;
+                if new_character.is_facing_right {
+                    new_character.x_pos += new_character.sprite.frames[3].width as f32
+                        - new_character.sprite.frames[4].width as f32;
                 }
             }
-            character.state = KittyStates::HuggingWall(false);
-            let ret = handle_horizontal_input(character, input);
+            new_character.state = KittyStates::HuggingWall(false);
+            let ret;
+            (new_character, ret) = handle_horizontal_input(new_character, input);
             match ret {
                 HorizontalMovementOutcome::ChangedDirection => {
-                    character.state = KittyStates::JumpingUp(0);
+                    new_character.state = KittyStates::JumpingUp(0);
+                    // trace("Jump");
                 }
                 _ => {
-                    if handle_jumping(character, input, clouds) {
-                        character.is_facing_right = !character.is_facing_right;
+                    let didjump;
+                    (new_character, new_clouds, didjump) = handle_jumping(new_character, input, new_clouds);
+                    if didjump {
+                        new_character.is_facing_right = !new_character.is_facing_right;
                         const WALLJUMP_VX: f32 = 3.0;
-                        let new_x_vel = match character.is_facing_right {
+                        let new_x_vel = match new_character.is_facing_right {
                             true => WALLJUMP_VX,
                             false => -WALLJUMP_VX,
                         };
-                        character.x_vel = new_x_vel;
+                        new_character.x_vel = new_x_vel;
                         // #TODO find better spacing fix for walljump on right.
-                        if !character.is_facing_right {
-                            character.x_pos -= character.sprite.frames[3].width as f32
-                                - character.sprite.frames[4].width as f32;
+                        if !new_character.is_facing_right {
+                            new_character.x_pos -= new_character.sprite.frames[3].width as f32
+                                - new_character.sprite.frames[4].width as f32;
                         }
                     }
                 }
             }
         }
         KittyStates::Sleeping => {
-            let ret = handle_horizontal_input(character, input);
+            let ret;
+            (new_character, ret) = handle_horizontal_input(new_character, input);
             match ret {
                 HorizontalMovementOutcome::StartedMoving => {
-                    character.state = KittyStates::Walking(0);
+                    new_character.state = KittyStates::Walking(0);
                 }
                 _ => {}
             }
-            handle_jumping(character, input, clouds);
+            (new_character, new_clouds, _) = handle_jumping(new_character, input, new_clouds);
         }
         KittyStates::Walking(t) => {
-            let ret = handle_horizontal_input(character, input);
+            let ret;
+            (new_character, ret) = handle_horizontal_input(new_character, input);
 
             match ret {
                 HorizontalMovementOutcome::DoingSameThing => {
-                    character.state = KittyStates::Walking((t + 1) % 255);
+                    new_character.state = KittyStates::Walking((t + 1) % 255);
                 }
                 HorizontalMovementOutcome::ChangedDirection => {
-                    character.state = KittyStates::Walking(0);
+                    new_character.state = KittyStates::Walking(0);
                 }
                 HorizontalMovementOutcome::StoppedMoving => {
-                    character.state = KittyStates::Sleeping;
+                    new_character.state = KittyStates::Sleeping;
                 }
                 _ => {
                     // character.state = KittyStates::Sleeping;
                 }
             }
-            handle_jumping(character, input, clouds);
+            (new_character, new_clouds, _) = handle_jumping(new_character, input, new_clouds);
         },
         KittyStates::OnCeiling(t) => {
-            let ret = handle_horizontal_input(character, input);
+            let ret;
+            (new_character, ret) = handle_horizontal_input(new_character, input);
 
             match ret {
                 HorizontalMovementOutcome::DoingSameThing => {
-                    character.state = KittyStates::OnCeiling((t + 1) % 255);
+                    new_character.state = KittyStates::OnCeiling((t + 1) % 255);
                 }
                 HorizontalMovementOutcome::ChangedDirection => {
-                    character.state = KittyStates::OnCeiling(0);
+                    new_character.state = KittyStates::OnCeiling(0);
                 }
                 HorizontalMovementOutcome::StoppedMoving => {
-                    character.state = KittyStates::Sleeping;
+                    new_character.state = KittyStates::Sleeping;
                 }
                 _ => {
                     // character.state = KittyStates::Sleeping;
@@ -552,7 +529,7 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
             }
             
             if t > 30 {
-                handle_jumping(character, input, clouds);
+                (new_character, new_clouds, _) = handle_jumping(new_character, input, new_clouds);
             }
             
         },
@@ -589,19 +566,19 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
         }
     }
 
-    character.x_vel = num::clamp(character.x_vel, -character.x_vel_cap, character.x_vel_cap);
-    character.y_vel = num::clamp(character.y_vel, -character.y_vel_cap, character.y_vel_cap);
+    new_character.x_vel = num::clamp(new_character.x_vel, -new_character.x_vel_cap, new_character.x_vel_cap);
+    new_character.y_vel = num::clamp(new_character.y_vel, -new_character.y_vel_cap, new_character.y_vel_cap);
 
     // now, we need to check if moving in the current direction would collide with anything.
     // Since before moving we can assume we are in a valid location, as long as this collision
     // logic places us in another valid location, we'll be okay.
 
-    let mut discretized_y_displacement_this_frame = character.y_vel as i32;
-    let mut discretized_x_displacement_this_frame = character.x_vel as i32;
+    let mut discretized_y_displacement_this_frame = new_character.y_vel as i32;
+    let mut discretized_x_displacement_this_frame = new_character.x_vel as i32;
 
     // hotfix: if our y displacement is exactly zero, set it to 1, just so we
     // can properly check if we're colliding with the ground.
-    match character.state {
+    match new_character.state {
         KittyStates::HuggingWall(_) => {}
         KittyStates::OnCeiling(_) => {
             if discretized_y_displacement_this_frame == 0 {
@@ -617,297 +594,297 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
 
     let mut touching_some_ground: bool = false;
 
-    if !godmode {
-        // trace("will check--------------------");
-        // look at each chunk, and see if the player is inside it
-        character.current_sprite_i =
-            get_sprite_i_from_anim_state(&character.state, discretized_y_displacement_this_frame);
-        let char_bound = get_bound_of_character(&character);
-        let mut inside_at_least_one_chunk = false;
-        for chunk in map.chunks.iter() {
-            // trace("checking chn");
 
-            // if the sprite is inside this chunk, we now need to check to see if moving along our velocity
-            if check_absolue_bound_partially_inside_tile_aligned_bound(&char_bound, &chunk.bound) {
-                inside_at_least_one_chunk = true;
-                // text(format!["Player in ch {i}"], 10, 10);
+    // trace("will check--------------------");
+    // look at each chunk, and see if the player is inside it
+    new_character.current_sprite_i =
+        get_sprite_i_from_anim_state(&new_character.state, discretized_y_displacement_this_frame);
+    let char_bound = get_bound_of_character(&new_character);
+    let mut inside_at_least_one_chunk = false;
+    for chunk in map.chunks.iter() {
+        // trace("checking chn");
 
-                // VERTICAL COLLISION
-                // take the y velocity, and start at the edge of the player's bounding box, and project the line outward, to check for collisions.
+        // if the sprite is inside this chunk, we now need to check to see if moving along our velocity
+        if check_absolue_bound_partially_inside_tile_aligned_bound(&char_bound, &chunk.bound) {
+            inside_at_least_one_chunk = true;
+            // text(format!["Player in ch {i}"], 10, 10);
 
-                // text(format!["moving up"], 10, 20);
-                // CHECK TOP LEFT CORNER
-                // create the decreasing vertical vector, and incrementally travel until it is touching something
+            // VERTICAL COLLISION
+            // take the y velocity, and start at the edge of the player's bounding box, and project the line outward, to check for collisions.
 
-                // let lowerleft_checker_location = (char_bound.x, char_bound.y);
-                // let lowerright_checker_location = (char_bound.x + char_bound.width as i32 - 1, char_bound.y);
-                // let upperleft_checker_location = (char_bound.x, char_bound.y + char_bound.height as i32 - 1);
-                // let upperright_checker_location = (char_bound.x + char_bound.width as i32 - 1, char_bound.y + char_bound.height as i32 - 1);
+            // text(format!["moving up"], 10, 20);
+            // CHECK TOP LEFT CORNER
+            // create the decreasing vertical vector, and incrementally travel until it is touching something
 
-                // fn check_collision_group_on_same_dir(
-                //     points: &Vec<(i32, i32)>,
-                //     character: &mut Character,
-                //     displacement_to_set: &mut i32,
-                //     horizontal: bool,
-                //     positive: bool,
-                // ) {
+            // let lowerleft_checker_location = (char_bound.x, char_bound.y);
+            // let lowerright_checker_location = (char_bound.x + char_bound.width as i32 - 1, char_bound.y);
+            // let upperleft_checker_location = (char_bound.x, char_bound.y + char_bound.height as i32 - 1);
+            // let upperright_checker_location = (char_bound.x + char_bound.width as i32 - 1, char_bound.y + char_bound.height as i32 - 1);
 
-                // }
+            // fn check_collision_group_on_same_dir(
+            //     points: &Vec<(i32, i32)>,
+            //     character: &mut Character,
+            //     displacement_to_set: &mut i32,
+            //     horizontal: bool,
+            //     positive: bool,
+            // ) {
 
-                let h_col_res_lower;
-                let h_col_res_upper;
-                let v_col_res_left;
-                let v_col_res_right;
+            // }
 
-                let upper_y = char_bound.y + char_bound.height as i32 - 2;
-                let lower_y = char_bound.y + 1;
-                let left_x: i32 = char_bound.x + 1;
-                let right_x: i32 = char_bound.x + char_bound.width as i32 - 2;
+            let h_col_res_lower;
+            let h_col_res_upper;
+            let v_col_res_left;
+            let v_col_res_right;
 
-                let vert_y;
-                let positive_y;
+            let upper_y = char_bound.y + char_bound.height as i32 - 2;
+            let lower_y = char_bound.y + 1;
+            let left_x: i32 = char_bound.x + 1;
+            let right_x: i32 = char_bound.x + char_bound.width as i32 - 2;
 
-                // VERTICAL RAYCAST
-                if discretized_y_displacement_this_frame > 0 {
-                    // GOING DOWNWARD
-                    positive_y = true;
-                    vert_y = upper_y;
+            let vert_y;
+            let positive_y;
+
+            // VERTICAL RAYCAST
+            if discretized_y_displacement_this_frame > 0 {
+                // GOING DOWNWARD
+                positive_y = true;
+                vert_y = upper_y;
+            } else {
+                positive_y = false;
+                vert_y = lower_y;
+            }
+            v_col_res_left = raycast_axis_aligned(
+                false,
+                positive_y,
+                (left_x, vert_y),
+                discretized_y_displacement_this_frame,
+                chunk,
+            );
+            v_col_res_right = raycast_axis_aligned(
+                false,
+                positive_y,
+                (right_x, vert_y),
+                discretized_y_displacement_this_frame,
+                chunk,
+            );
+
+            let horizontal_x;
+            let positive_x;
+
+            // HORIZONTAL RAYCAST
+            if discretized_x_displacement_this_frame > 0 {
+                // GOING DOWNWARD
+                positive_x = true;
+                horizontal_x = right_x;
+            } else {
+                positive_x = false;
+                horizontal_x = left_x;
+            }
+            h_col_res_lower = raycast_axis_aligned(
+                true,
+                positive_x,
+                (horizontal_x, lower_y),
+                discretized_x_displacement_this_frame,
+                chunk,
+            );
+            h_col_res_upper = raycast_axis_aligned(
+                true,
+                positive_x,
+                (horizontal_x, upper_y),
+                discretized_x_displacement_this_frame,
+                chunk,
+            );
+
+            if v_col_res_left.collided || v_col_res_right.collided {
+                touching_some_ground = true;
+                // if we collided against the top, automatically hang
+                if positive_y == false {
+                    new_character.state = match new_character.state {
+                        KittyStates::OnCeiling(t) => KittyStates::OnCeiling(t+1),
+                        KittyStates::HuggingWall(t) => KittyStates::HuggingWall(t),
+                        _ => KittyStates::OnCeiling(0),
+                    };
+                }
+
+                new_character.y_vel = 0.0;
+                if v_col_res_left.backed_up {
+                    discretized_y_displacement_this_frame =
+                        v_col_res_left.allowable_displacement;
+                } else if v_col_res_right.backed_up {
+                    discretized_y_displacement_this_frame =
+                        v_col_res_right.allowable_displacement;
                 } else {
-                    positive_y = false;
-                    vert_y = lower_y;
-                }
-                v_col_res_left = raycast_axis_aligned(
-                    false,
-                    positive_y,
-                    (left_x, vert_y),
-                    discretized_y_displacement_this_frame,
-                    chunk,
-                );
-                v_col_res_right = raycast_axis_aligned(
-                    false,
-                    positive_y,
-                    (right_x, vert_y),
-                    discretized_y_displacement_this_frame,
-                    chunk,
-                );
-
-                let horizontal_x;
-                let positive_x;
-
-                // HORIZONTAL RAYCAST
-                if discretized_x_displacement_this_frame > 0 {
-                    // GOING DOWNWARD
-                    positive_x = true;
-                    horizontal_x = right_x;
-                } else {
-                    positive_x = false;
-                    horizontal_x = left_x;
-                }
-                h_col_res_lower = raycast_axis_aligned(
-                    true,
-                    positive_x,
-                    (horizontal_x, lower_y),
-                    discretized_x_displacement_this_frame,
-                    chunk,
-                );
-                h_col_res_upper = raycast_axis_aligned(
-                    true,
-                    positive_x,
-                    (horizontal_x, upper_y),
-                    discretized_x_displacement_this_frame,
-                    chunk,
-                );
-
-                if v_col_res_left.collided || v_col_res_right.collided {
-                    touching_some_ground = true;
-                    // if we collided against the top, automatically hang
-                    if positive_y == false {
-                        character.state = match character.state {
-                            KittyStates::OnCeiling(t) => KittyStates::OnCeiling(t+1),
-                            KittyStates::HuggingWall(t) => KittyStates::HuggingWall(t),
-                            _ => KittyStates::OnCeiling(0),
-                        };
-                    }
-
-                    character.y_vel = 0.0;
-                    if v_col_res_left.backed_up {
-                        discretized_y_displacement_this_frame =
-                            v_col_res_left.allowable_displacement;
-                    } else if v_col_res_right.backed_up {
-                        discretized_y_displacement_this_frame =
-                            v_col_res_right.allowable_displacement;
-                    } else {
-                        discretized_y_displacement_this_frame =
-                            v_col_res_left.allowable_displacement.signum()
-                                * v_col_res_left
-                                    .allowable_displacement
-                                    .abs_diff(v_col_res_left.allowable_displacement)
-                                    as i32;
-                    }
-
-                    // if positive_y {
-                    //     // && !h_col_res_lower.collided && !h_col_res_upper.collided {
-                    //     touching_some_ground = true;
-                    // }
+                    discretized_y_displacement_this_frame =
+                        v_col_res_left.allowable_displacement.signum()
+                            * v_col_res_left
+                                .allowable_displacement
+                                .abs_diff(v_col_res_left.allowable_displacement)
+                                as i32;
                 }
 
-                if h_col_res_lower.collided || h_col_res_upper.collided {
-                    if !h_col_res_lower.collided && positive_y {
-                        // if we are touching floor (pos y), and the bottom horizontal hit but
-                        // not the top, allow us to hop up the ledge.
-
-                        discretized_y_displacement_this_frame -= TILE_HEIGHT_PX as i32;
-                    } else {
-                        // if the above special case isn't true, we hit a wall
-                        character.x_vel = 0.0;
-
-                        // if in free fall (after beginning of jump), allow hugging wall
-                        match character.state {
-                            KittyStates::JumpingUp(t) => match t {
-                                0..=15 => {}
-                                _ => {
-                                    character.state = KittyStates::HuggingWall(true);
-                                }
-                            },
-                            KittyStates::OnCeiling(_) => {
-                                character.state = KittyStates::HuggingWall(true);
-                            }
-                            _ => {}
-                        }
-                    }
-
-                    if h_col_res_lower.backed_up {
-                        discretized_x_displacement_this_frame =
-                            h_col_res_lower.allowable_displacement;
-                    } else if h_col_res_upper.backed_up {
-                        discretized_x_displacement_this_frame =
-                            h_col_res_upper.allowable_displacement;
-                    } else {
-                        discretized_x_displacement_this_frame =
-                            h_col_res_lower.allowable_displacement.signum()
-                                * h_col_res_upper
-                                    .allowable_displacement
-                                    .abs_diff(h_col_res_lower.allowable_displacement)
-                                    as i32;
-                    }
-                }
-                // // upward collision
-                // if character.y_vel < 0.0 {
-                //     let collision_res = raycast_axis_aligned(false, false, lowerleft_checker_location, discretized_y_displacement_this_frame, chunk);
-                //     discretized_y_displacement_this_frame = collision_res.allowable_displacement;
-                //     if collision_res.collided {
-                //         character.y_vel = 0.0;
-                //     }
-                //     if !collision_res.backed_up {
-                //         let second_collision_res = raycast_axis_aligned(false, false, lowerright_checker_location, discretized_y_displacement_this_frame, chunk);
-                //         discretized_y_displacement_this_frame = second_collision_res.allowable_displacement;
-                //         if second_collision_res.collided {
-                //             character.y_vel = 0.0;
-                //         }
-                //     }
-                // }
-
-                // // downward collision
-                // else {
-                //     let collision_res = raycast_axis_aligned(false, true, upperleft_checker_location, discretized_y_displacement_this_frame, chunk);
-                //     discretized_y_displacement_this_frame = collision_res.allowable_displacement;
-                //     if collision_res.collided {
-                //         character.y_vel = 0.0;
-                //         touching_some_ground = true;
-
-                //     } else {
-
-                //     }
-                //     if !collision_res.backed_up {
-                //         let second_collision_res = raycast_axis_aligned(false, true, upperright_checker_location, discretized_y_displacement_this_frame, chunk);
-                //         discretized_y_displacement_this_frame = second_collision_res.allowable_displacement;
-                //         if second_collision_res.collided {
-                //             touching_some_ground = true;
-                //             character.y_vel = 0.0;
-                //         }
-                //     }
-                // }
-
-                // // left collision
-                // if character.x_vel < 0.0 {
-                //     let collision_res = raycast_axis_aligned(true, false, lowerleft_checker_location, discretized_x_displacement_this_frame, chunk);
-                //     discretized_x_displacement_this_frame = collision_res.allowable_displacement;
-                //     if collision_res.collided {
-                //         // if in free fall (after beginning of jump), allow hugging wall
-                //         match character.state {
-                //             KittyStates::JumpingUp(t) => {
-                //                 match t {
-                //                     0..=15 => {
-
-                //                     },
-                //                     _ => {
-                //                         character.state = KittyStates::HuggingWall(true);
-                //                     }
-                //                 }
-                //             }
-                //             _ => {}
-                //         }
-                //         character.x_vel = 0.0;
-                //     }
-                //     if !collision_res.backed_up {
-                //         let second_collision_res = raycast_axis_aligned(true, false, upperleft_checker_location, discretized_x_displacement_this_frame, chunk);
-                //         discretized_x_displacement_this_frame = second_collision_res.allowable_displacement;
-                //         if second_collision_res.collided {
-                //             character.x_vel = 0.0;
-                //         }
-                //     }
-                // }
-
-                // // right collision
-                // else {
-
-                //     let collision_res = raycast_axis_aligned(true, true, lowerright_checker_location, discretized_x_displacement_this_frame, chunk);
-                //     discretized_x_displacement_this_frame = collision_res.allowable_displacement;
-                //     if collision_res.collided {
-                //         // if in free fall (after beginning of jump), allow hugging wall
-                //         match character.state {
-                //             KittyStates::JumpingUp(t) => {
-                //                 match t {
-                //                     0..=15 => {
-
-                //                     },
-                //                     _ => {
-                //                         character.state = KittyStates::HuggingWall(true);
-                //                     }
-                //                 }
-                //             }
-                //             _ => {}
-                //         }
-
-                //         character.x_vel = 0.0;
-                //     }
-                //     if !collision_res.backed_up {
-                //         let second_collision_res = raycast_axis_aligned(true, true, upperright_checker_location, discretized_x_displacement_this_frame, chunk);
-                //         discretized_x_displacement_this_frame = second_collision_res.allowable_displacement;
-                //         if second_collision_res.collided {
-                //             character.x_vel = 0.0;
-                //         }
-                //     }
+                // if positive_y {
+                //     // && !h_col_res_lower.collided && !h_col_res_upper.collided {
+                //     touching_some_ground = true;
                 // }
             }
-        }
 
-        // if anyone makes it out of bounds, drop them in the center of the map
-        // (or if they use the lizard warp)
-        if !inside_at_least_one_chunk {
-            character.x_pos = 10.0;
-            character.y_pos = 10.0;
+            if h_col_res_lower.collided || h_col_res_upper.collided {
+                if !h_col_res_lower.collided && positive_y {
+                    // if we are touching floor (pos y), and the bottom horizontal hit but
+                    // not the top, allow us to hop up the ledge.
+
+                    discretized_y_displacement_this_frame -= TILE_HEIGHT_PX as i32;
+                } else {
+                    // if the above special case isn't true, we hit a wall
+                    new_character.x_vel = 0.0;
+
+                    // if in free fall (after beginning of jump), allow hugging wall
+                    match new_character.state {
+                        KittyStates::JumpingUp(t) => match t {
+                            0..=15 => {}
+                            _ => {
+                                new_character.state = KittyStates::HuggingWall(true);
+                            }
+                        },
+                        KittyStates::OnCeiling(_) => {
+                            new_character.state = KittyStates::HuggingWall(true);
+                        }
+                        _ => {}
+                    }
+                }
+
+                if h_col_res_lower.backed_up {
+                    discretized_x_displacement_this_frame =
+                        h_col_res_lower.allowable_displacement;
+                } else if h_col_res_upper.backed_up {
+                    discretized_x_displacement_this_frame =
+                        h_col_res_upper.allowable_displacement;
+                } else {
+                    discretized_x_displacement_this_frame =
+                        h_col_res_lower.allowable_displacement.signum()
+                            * h_col_res_upper
+                                .allowable_displacement
+                                .abs_diff(h_col_res_lower.allowable_displacement)
+                                as i32;
+                }
+            }
+            // // upward collision
+            // if character.y_vel < 0.0 {
+            //     let collision_res = raycast_axis_aligned(false, false, lowerleft_checker_location, discretized_y_displacement_this_frame, chunk);
+            //     discretized_y_displacement_this_frame = collision_res.allowable_displacement;
+            //     if collision_res.collided {
+            //         character.y_vel = 0.0;
+            //     }
+            //     if !collision_res.backed_up {
+            //         let second_collision_res = raycast_axis_aligned(false, false, lowerright_checker_location, discretized_y_displacement_this_frame, chunk);
+            //         discretized_y_displacement_this_frame = second_collision_res.allowable_displacement;
+            //         if second_collision_res.collided {
+            //             character.y_vel = 0.0;
+            //         }
+            //     }
+            // }
+
+            // // downward collision
+            // else {
+            //     let collision_res = raycast_axis_aligned(false, true, upperleft_checker_location, discretized_y_displacement_this_frame, chunk);
+            //     discretized_y_displacement_this_frame = collision_res.allowable_displacement;
+            //     if collision_res.collided {
+            //         character.y_vel = 0.0;
+            //         touching_some_ground = true;
+
+            //     } else {
+
+            //     }
+            //     if !collision_res.backed_up {
+            //         let second_collision_res = raycast_axis_aligned(false, true, upperright_checker_location, discretized_y_displacement_this_frame, chunk);
+            //         discretized_y_displacement_this_frame = second_collision_res.allowable_displacement;
+            //         if second_collision_res.collided {
+            //             touching_some_ground = true;
+            //             character.y_vel = 0.0;
+            //         }
+            //     }
+            // }
+
+            // // left collision
+            // if character.x_vel < 0.0 {
+            //     let collision_res = raycast_axis_aligned(true, false, lowerleft_checker_location, discretized_x_displacement_this_frame, chunk);
+            //     discretized_x_displacement_this_frame = collision_res.allowable_displacement;
+            //     if collision_res.collided {
+            //         // if in free fall (after beginning of jump), allow hugging wall
+            //         match character.state {
+            //             KittyStates::JumpingUp(t) => {
+            //                 match t {
+            //                     0..=15 => {
+
+            //                     },
+            //                     _ => {
+            //                         character.state = KittyStates::HuggingWall(true);
+            //                     }
+            //                 }
+            //             }
+            //             _ => {}
+            //         }
+            //         character.x_vel = 0.0;
+            //     }
+            //     if !collision_res.backed_up {
+            //         let second_collision_res = raycast_axis_aligned(true, false, upperleft_checker_location, discretized_x_displacement_this_frame, chunk);
+            //         discretized_x_displacement_this_frame = second_collision_res.allowable_displacement;
+            //         if second_collision_res.collided {
+            //             character.x_vel = 0.0;
+            //         }
+            //     }
+            // }
+
+            // // right collision
+            // else {
+
+            //     let collision_res = raycast_axis_aligned(true, true, lowerright_checker_location, discretized_x_displacement_this_frame, chunk);
+            //     discretized_x_displacement_this_frame = collision_res.allowable_displacement;
+            //     if collision_res.collided {
+            //         // if in free fall (after beginning of jump), allow hugging wall
+            //         match character.state {
+            //             KittyStates::JumpingUp(t) => {
+            //                 match t {
+            //                     0..=15 => {
+
+            //                     },
+            //                     _ => {
+            //                         character.state = KittyStates::HuggingWall(true);
+            //                     }
+            //                 }
+            //             }
+            //             _ => {}
+            //         }
+
+            //         character.x_vel = 0.0;
+            //     }
+            //     if !collision_res.backed_up {
+            //         let second_collision_res = raycast_axis_aligned(true, true, upperright_checker_location, discretized_x_displacement_this_frame, chunk);
+            //         discretized_x_displacement_this_frame = second_collision_res.allowable_displacement;
+            //         if second_collision_res.collided {
+            //             character.x_vel = 0.0;
+            //         }
+            //     }
+            // }
         }
     }
 
+    // if anyone makes it out of bounds, drop them in the center of the map
+    // (or if they use the lizard warp)
+    if !inside_at_least_one_chunk {
+        new_character.x_pos = 10.0;
+        new_character.y_pos = 10.0;
+    }
+    
+
     if !touching_some_ground {
         // if we were walking and we fall off, change state
-        match character.state {
+        match new_character.state {
             KittyStates::Walking(_) | KittyStates::Sleeping => {
-                character.state = KittyStates::JumpingUp(30);
+                new_character.state = KittyStates::JumpingUp(30);
             }
             KittyStates::OnCeiling(_) => {
-                character.state = KittyStates::JumpingUp(0);
+                new_character.state = KittyStates::JumpingUp(0);
             }
             _ => {}
         }
@@ -916,13 +893,13 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
  
 
         // if we hit the floor, stop jumping
-        match character.state {
+        match new_character.state {
             KittyStates::JumpingUp(t) => match t {
                 0..=15 => {
                     // Cloud::try_push_cloud(clouds, 0.0, 0.0, 5.0, 0.0);
                 }
                 _ => {
-                    character.state = KittyStates::Walking(0);
+                    new_character.state = KittyStates::Walking(0);
                 }
             },
             _ => {}
@@ -931,28 +908,29 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
 
     // handle warping. If down is held, warp.
     if input & BUTTON_DOWN != 0 {
-        match &mut character.warp_ability {
+        match new_character.warp_ability {
             WarpAbility::CannotWarp => {},
             WarpAbility::CanWarp(warp_state) => {
                 match warp_state {
                     WarpState::Charging(t) => {
-                        *t += 1;
-                        if *t >= 25 {
-                            character.warp_ability = WarpAbility::CanWarp(WarpState::Ready);
+                        if t >= 25 {
+                            new_character.warp_ability = WarpAbility::CanWarp(WarpState::Ready);
+                        } else {
+                            new_character.warp_ability = WarpAbility::CanWarp(WarpState::Charging(t + 1));
                         }
                     },
                     WarpState::Ready => {
-                        character.x_pos = 10.0;
-                        character.y_pos = 10.0;
-                        character.warp_ability = WarpAbility::CanWarp(WarpState::Charging(0));
+                        new_character.x_pos = 10.0;
+                        new_character.y_pos = 10.0;
+                        new_character.warp_ability = WarpAbility::CanWarp(WarpState::Charging(0));
                     }
                 }
             }
         }
     } else {
-        match character.warp_ability {
+        match new_character.warp_ability {
             WarpAbility::CanWarp(_) => {
-                character.warp_ability = WarpAbility::CanWarp(WarpState::Charging(0));
+                new_character.warp_ability = WarpAbility::CanWarp(WarpState::Charging(0));
             },
             _ => {}
         }
@@ -960,11 +938,14 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
 
     // character.current_sprite_i = get_sprite_i_from_anim_state(&character.state, discretized_y_displacement_this_frame);
 
-    character.x_pos += discretized_x_displacement_this_frame as f32;
-    character.y_pos += discretized_y_displacement_this_frame as f32;
+    new_character.x_pos += discretized_x_displacement_this_frame as f32;
+    new_character.y_pos += discretized_y_displacement_this_frame as f32;
 
-    character.x_pos = num::clamp(character.x_pos, X_LEFT_BOUND as f32, X_RIGHT_BOUND as f32);
-    character.y_pos = num::clamp(character.y_pos, Y_LOWER_BOUND as f32, Y_UPPER_BOUND as f32);
+    new_character.x_pos = num::clamp(new_character.x_pos, X_LEFT_BOUND as f32, X_RIGHT_BOUND as f32);
+    new_character.y_pos = num::clamp(new_character.y_pos, Y_LOWER_BOUND as f32, Y_UPPER_BOUND as f32);
 
-    character.count += 1;
+    new_character.count += 1;
+
+
+    (new_character, new_clouds)
 }

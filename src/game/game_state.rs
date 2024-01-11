@@ -24,7 +24,7 @@ use crate::kitty_ss;
 use crate::spritesheet::{self, KITTY_SPRITESHEET_PALETTES};
 
 
-
+#[derive(Clone)]
 pub struct GameState<'a> {
     pub players: [OptionallyEnabledPlayer; 4],
     pub npcs: Vec<Character>,

@@ -1,3 +1,4 @@
+#[derive(Clone)]
 pub struct Cloud {
     pub x: f32,
     pub y: f32,
@@ -26,11 +27,13 @@ impl Cloud {
         clouds.retain(x);
     }
 
-    pub fn try_push_cloud(clouds: &mut Vec<Cloud>, x: f32, y: f32, vx: f32, vy: f32) {
-        if (clouds.len() as u8) < CLOUD_CAP {
-            clouds.push(Cloud{
+    pub fn try_push_cloud(clouds: Vec<Cloud>, x: f32, y: f32, vx: f32, vy: f32) -> Vec<Cloud> {
+        let mut new_clouds = clouds;
+        if (new_clouds.len() as u8) < CLOUD_CAP {
+            new_clouds.push(Cloud{
                 x, y, vx, vy, t: 0
             });
         } 
+        new_clouds
     }
 }

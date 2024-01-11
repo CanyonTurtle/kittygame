@@ -1,5 +1,6 @@
 use super::{mapchunk::MapChunk, game_constants::MAX_N_TILES_IN_WHOLE_MAP};
 
+#[derive(Clone)]
 pub struct GameMap {
     pub chunks: Vec<MapChunk>,
     pub num_tiles: usize

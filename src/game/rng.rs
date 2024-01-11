@@ -21,6 +21,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#[derive(Clone)]
 pub struct Rng(u128);
 
 
@@ -40,6 +41,7 @@ impl Rng {
 }
 
 // Allow us to use RNG the same way, regardless of whether its fixed seed or input-based seeding
+#[derive(Clone)]
 pub enum GameRng {
     FixedSeed(Rng, Rng),
     Random(Rng)

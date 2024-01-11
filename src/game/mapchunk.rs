@@ -1,7 +1,7 @@
 use super::game_constants::{TILE_WIDTH_PX, TILE_HEIGHT_PX};
 
 
-
+#[derive(Clone)]
 pub struct TileAlignedBoundingBox {
     pub x: i32,
     pub y: i32,
@@ -15,6 +15,7 @@ impl TileAlignedBoundingBox {
     }
 }
 
+#[derive(Clone)]
 pub struct MapChunk {
     pub tiles: Vec<u8>,
     pub bound: TileAlignedBoundingBox

@@ -1,5 +1,6 @@
 use super::collision::AbsoluteBoundingBox;
 
+#[derive(Clone)]
 pub enum MenuTypes {
     StartGameMessage,
     StartLevel,
@@ -8,6 +9,7 @@ pub enum MenuTypes {
     Done,
 }
 
+#[derive(Clone)]
 pub struct Modal {
     pub timer: u32,
     pub target_position: AbsoluteBoundingBox<i32, u32>,
@@ -28,12 +30,14 @@ impl Modal {
     }
 }
 
+#[derive(Clone)]
 pub enum NormalPlayModes {
     MainGameplay,
     // hover modal is a text, 
     HoverModal(Modal)
 }
 
+#[derive(Clone)]
 pub enum GameMode {
     StartScreen,
     NormalPlay(NormalPlayModes),

@@ -2,36 +2,35 @@ use crate::spritesheet::{self, PresetSprites};
 
 use super::ability_cards::AbilityCardStack;
 
+#[derive(Clone)]
 pub struct Player {
     pub character: Character,
     pub card_stack: AbilityCardStack,
 }
 
+#[derive(Clone)]
 pub enum OptionallyEnabledPlayer {
     Enabled(Player),
     Disabled
-}
-
-pub enum MovingEntity<'a> {
-    OptionalPlayer(&'a mut OptionallyEnabledPlayer),
-    NPC(&'a mut Character)
 }
  
 // If a player can warp, they need to hold the button long enough.
 type WarpInputTimer = u8;
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq, Hash, Clone)]
 pub enum WarpState {
     Charging(WarpInputTimer),
     Ready,
 }
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq, Hash, Clone)]
 pub enum WarpAbility {
     CannotWarp,
     CanWarp(WarpState)
 }
 
+
+#[derive(Clone)]
 pub struct Character {
     pub x_pos: f32,
     pub y_pos: f32,
@@ -50,9 +49,7 @@ pub struct Character {
     pub warp_ability: WarpAbility,
 }
 
-#[derive(PartialEq, Eq, Hash)]
-
-
+#[derive(PartialEq, Eq, Hash, Clone)]
 pub enum KittyStates {
     Sleeping,
     Walking(u8),

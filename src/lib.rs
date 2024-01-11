@@ -15,7 +15,7 @@ mod wasm4;
 use game::{
     camera::Camera,
     collision::{check_entity_collisions, update_pos},
-    entities::{Character, MovingEntity, KittyStates, WarpAbility, WarpState},
+    entities::{Character, KittyStates, WarpAbility, WarpState},
     game_constants::{
         MAX_N_NPCS, TILE_HEIGHT_PX, TILE_WIDTH_PX, X_LEFT_BOUND, X_RIGHT_BOUND, Y_LOWER_BOUND,
         Y_UPPER_BOUND,
@@ -33,8 +33,8 @@ mod title_ss;
 use crate::{
     game::{
         collision::{get_bound_of_character, AbsoluteBoundingBox},
-        entities::OptionallyEnabledPlayer,
-        menus::{Modal, NormalPlayModes, MenuTypes}, game_constants::{COUNTDOWN_TIMER_START, START_DIFFICULTY_LEVEL, MAJOR_VERSION, MINOR_VERSION, INCR_VERSION}, popup_text::{PopTextRingbuffer, PopupIcon},
+        entities::{OptionallyEnabledPlayer, Player},
+        menus::{Modal, NormalPlayModes, MenuTypes}, game_constants::{COUNTDOWN_TIMER_START, START_DIFFICULTY_LEVEL, MAJOR_VERSION, MINOR_VERSION, INCR_VERSION}, popup_text::{PopTextRingbuffer, PopupIcon}
     },
     title_ss::OUTPUT_ONLINEPNGTOOLS
 };
@@ -91,23 +91,23 @@ fn drawcharacter(
     spritesheet: &[u8],
     spritesheet_stride: &usize,
     camera: &Camera,
-    character: MovingEntity,
+    character: &Character,
 ) {
-    let the_char: &mut Character;
+    let the_char: &Character = character;
 
-    match character {
-        MovingEntity::OptionalPlayer(optionally_enabled_player) => {
-            match optionally_enabled_player {
-                OptionallyEnabledPlayer::Enabled(p) => {
-                    the_char = &mut p.character;
-                }
-                OptionallyEnabledPlayer::Disabled => return,
-            }
-        }
-        MovingEntity::NPC(npc) => {
-            the_char = npc;
-        }
-    }
+    // match character {
+    //     MovingEntity::OptionalPlayer(optionally_enabled_player) => {
+    //         match optionally_enabled_player {
+    //             OptionallyEnabledPlayer::Enabled(p) => {
+    //                 the_char = &p.character;
+    //             }
+    //             OptionallyEnabledPlayer::Disabled => return,
+    //         }
+    //     }
+    //     MovingEntity::NPC(npc) => {
+    //         the_char = npc;
+    //     }
+    // }
 
     let i = the_char.current_sprite_i as usize;
     blit_sub(
@@ -234,11 +234,11 @@ fn layertext(t: &str, x: i32, y: i32) {
 /// Main loop that runs every frame. Progress the game state and render.
 #[no_mangle]
 fn update() {
-    let mut game_state: &mut GameState;
+    let mut game_state: GameState;
 
     // -------- INITIALIZE GAME STATE IF NEEDED ----------
     unsafe {
-        match &mut GAME_STATE_HOLDER {
+        match GAME_STATE_HOLDER {
             None => {
                 spritesheet::Sprite::init_all_sprites();
                 let mut new_game_state = GameState::new();
@@ -251,9 +251,9 @@ fn update() {
             }
             Some(_) => {}
         }
-        match &mut GAME_STATE_HOLDER {
+        match &GAME_STATE_HOLDER {
             Some(game_state_holder) => {
-                game_state = game_state_holder;
+                game_state = game_state_holder.clone();
             }
             None => unreachable!(),
         }
@@ -277,21 +277,28 @@ fn update() {
     }
 
     // SET CAMERA POSITION
-    match &mut game_state.players[player_idx as usize] {
-        OptionallyEnabledPlayer::Disabled => {}
-        OptionallyEnabledPlayer::Enabled(player) => {
-            game_state.camera.current_viewing_x_target = num::clamp(
-                player.character.x_pos - 80.0,
-                X_LEFT_BOUND as f32,
-                X_RIGHT_BOUND as f32,
-            );
-            game_state.camera.current_viewing_y_target = num::clamp(
-                player.character.y_pos - 80.0,
-                Y_LOWER_BOUND as f32,
-                Y_UPPER_BOUND as f32,
-            );
+
+    fn set_camera_position(game_state: GameState, player_idx: u8) -> GameState {
+        let mut new_game_state = game_state;
+        match &new_game_state.players[player_idx as usize] {
+            OptionallyEnabledPlayer::Disabled => {}
+            OptionallyEnabledPlayer::Enabled(player) => {
+                new_game_state.camera.current_viewing_x_target = num::clamp(
+                    player.character.x_pos - 80.0,
+                    X_LEFT_BOUND as f32,
+                    X_RIGHT_BOUND as f32,
+                );
+                new_game_state.camera.current_viewing_y_target = num::clamp(
+                    player.character.y_pos - 80.0,
+                    Y_LOWER_BOUND as f32,
+                    Y_UPPER_BOUND as f32,
+                );
+            }
         }
+        new_game_state
     }
+    game_state = set_camera_position(game_state, player_idx);
+    
 
     game_state.camera.slew();
 
@@ -322,7 +329,7 @@ fn update() {
     
     // CHECK IF CHARACTERS / CATS ARE COLLIDING
     if !showing_modal {
-        check_entity_collisions(&mut game_state);
+        game_state = check_entity_collisions(game_state);
     }
     
     // PREPARE TO RENDER THE MAP & ENTITIES
@@ -332,16 +339,20 @@ fn update() {
     unsafe { *DRAW_COLORS = spritesheet::KITTY_SPRITESHEET_DRAW_COLORS }
 
     // MOVE AND RENDER THE PLAYERS 
-    {
-        let optional_players: &mut [OptionallyEnabledPlayer; 4] = &mut game_state.players;
+    fn move_players(game_state: GameState, gamepads: [u8; 4]) -> GameState {
 
-        for (i, optional_player) in &mut optional_players.iter_mut().enumerate() {
+        let mut new_players = [
+            OptionallyEnabledPlayer::Disabled,
+            OptionallyEnabledPlayer::Disabled,
+            OptionallyEnabledPlayer::Disabled,
+            OptionallyEnabledPlayer::Disabled
+        ];
 
+        let mut new_clouds = game_state.clouds;
 
-            let mut input = match false { // showing_modal {
-                false => gamepads[i],
-                true => 0,
-            };
+        for (i, optional_player) in &mut game_state.players.iter().enumerate() {
+            let mut input = gamepads[i];
+
             if i == 0 {
                 match game_state.game_mode {
                     GameMode::StartScreen => {
@@ -362,27 +373,50 @@ fn update() {
                 }
             }
             
+            match optional_player {
+                OptionallyEnabledPlayer::Disabled => {
+                    if gamepads[i] != 0 {
 
-            update_pos(
-                &game_state.map,
-                MovingEntity::OptionalPlayer(optional_player),
-                input,
-                game_state.godmode,
-                &mut game_state.clouds,
-            );
-            
-        
+                    }
+                },
+                OptionallyEnabledPlayer::Enabled(player) => {
+                    let new_character;
+                    (new_character, new_clouds) = update_pos(
+                        &game_state.map,
+                        player.character.clone(),
+                        input,
+                        new_clouds,
+                    );
+                    new_players[i] = OptionallyEnabledPlayer::Enabled(Player{character: new_character, ..player.clone()});
+                }
+            }
+        }
 
-            drawcharacter(
-                &game_state.spritesheet,
-                &game_state.spritesheet_stride,
-                &game_state.camera,
-                MovingEntity::OptionalPlayer(optional_player),
-            );
+        GameState{
+            players: new_players,
+            clouds: new_clouds,
+            ..game_state
         }
     }
 
+    game_state = move_players(game_state, gamepads);
    
+    fn draw_players(game_state: &GameState) {
+        for player in &game_state.players {
+            match &player {
+                OptionallyEnabledPlayer::Disabled => {}
+                OptionallyEnabledPlayer::Enabled(p) => {
+                    drawcharacter(
+                        &game_state.spritesheet,
+                        &game_state.spritesheet_stride,
+                        &game_state.camera,
+                        &p.character,
+                    );
+                }
+            }  
+        }
+    }
+    draw_players(&game_state);
 
 
     // CREATE INPUTS FOR NPCS
@@ -477,27 +511,28 @@ fn update() {
                 inputs[i] = 0x0;
             }
         }
-        
 
-        // MOVE NPCS
-        for (i, npc) in game_state.npcs.iter_mut().enumerate() {
-            update_pos(
-                &game_state.map,
-                MovingEntity::NPC(npc),
-                inputs[i],
-                game_state.godmode,
-                &mut game_state.clouds,
-            );
-        }
+    }
+
+            
+
+    // MOVE NPCS
+    for i in 0..game_state.npcs.len() {
+        (game_state.npcs[i], game_state.clouds) = update_pos(
+            &game_state.map,
+            game_state.npcs[i].clone(),
+            inputs[i],
+            game_state.clouds
+        );
     }
 
     // DRAW NPCS
-    for npc in game_state.npcs.iter_mut() {
+    for npc in game_state.npcs.iter() {
         drawcharacter(
             &game_state.spritesheet,
             &game_state.spritesheet_stride,
             &game_state.camera,
-            MovingEntity::NPC(npc),
+            npc,
         );
     }
 
@@ -684,7 +719,7 @@ fn update() {
 
                                             let vx = CARD_CLOUD_SPEED * dir.0;
                                             let vy = CARD_CLOUD_SPEED * dir.1;
-                                            Cloud::try_push_cloud(&mut game_state.clouds, p.character.x_pos + 2.0, p.character.y_pos + 3.0, vx, vy);
+                                            game_state.clouds = Cloud::try_push_cloud(game_state.clouds, p.character.x_pos + 2.0, p.character.y_pos + 3.0, vx, vy);
 
                                         }
                                         game_state.popup_text_ringbuffer.add_new_popup(p.character.x_pos - 14.0, p.character.y_pos, pt, popup_icon);
@@ -1044,4 +1079,6 @@ fn update() {
             
         }
     }
+
+    unsafe {GAME_STATE_HOLDER = Some(game_state.clone());}
 }

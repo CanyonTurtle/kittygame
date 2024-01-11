@@ -1,6 +1,6 @@
 use crate::spritesheet::{PresetSprites, Sprite};
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub enum AbilityCardTypes {
     Kitty,
     Piggy,
@@ -8,6 +8,7 @@ pub enum AbilityCardTypes {
     Bird,
 }
 
+#[derive(Clone)]
 pub struct AbilityCard {
     pub card_type: AbilityCardTypes,
     pub sprite: &'static Sprite,
@@ -19,6 +20,7 @@ pub struct AbilityCard {
 
 pub const N_CARDS: usize = 5;
 
+#[derive(Clone)]
 pub struct AbilityCardStack {
     pub cards: Vec<Option<AbilityCard>>,
 }

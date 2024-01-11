@@ -1,10 +1,12 @@
 
+#[derive(Clone)]
 pub enum PopupIcon {
     None,
     Clock,
     CatHead,
 }
 
+#[derive(Clone)]
 pub struct PopupText {
     pub x_pos: f32,
     pub y_pos: f32,
@@ -15,6 +17,7 @@ pub struct PopupText {
     pub icon: PopupIcon
 }
 
+#[derive(Clone)]
 pub struct PopTextRingbuffer {
     pub texts: [Option<PopupText>; 10],
     pub next_avail_idx: u8

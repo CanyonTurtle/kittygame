@@ -111,6 +111,7 @@ pub struct Sprite {
 }
 
 #[allow(dead_code)]
+#[derive(Clone)]
 pub enum PresetSprites {
     MainCat,
     Kitty1,
