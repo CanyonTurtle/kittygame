@@ -92,7 +92,7 @@ pub const Y_UPPER_BOUND: i32 = 5000;
 
 pub const COUNTDOWN_TIMER_START: u32 = 60 * 60;
 
-pub const START_DIFFICULTY_LEVEL: u32 = 1;
+pub const START_DIFFICULTY_LEVEL: u32 = 11;
 pub const LEVELS_PER_MOOD: usize = 5;
 
 pub const MAJOR_VERSION: u8 = 1;

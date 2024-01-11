@@ -341,22 +341,17 @@ fn update() {
     // MOVE AND RENDER THE PLAYERS 
     fn move_players(game_state: GameState, gamepads: [u8; 4]) -> GameState {
 
-        let mut new_players = [
-            OptionallyEnabledPlayer::Disabled,
-            OptionallyEnabledPlayer::Disabled,
-            OptionallyEnabledPlayer::Disabled,
-            OptionallyEnabledPlayer::Disabled
-        ];
+        let mut new_players = [OptionallyEnabledPlayer::Disabled, OptionallyEnabledPlayer::Disabled, OptionallyEnabledPlayer::Disabled, OptionallyEnabledPlayer::Disabled];
 
-        let mut new_clouds = game_state.clouds;
+        let mut new_game_state = game_state;
 
-        for (i, optional_player) in &mut game_state.players.iter().enumerate() {
+        for (i, optional_player) in new_game_state.players.into_iter().enumerate() {
             let mut input = gamepads[i];
 
             if i == 0 {
-                match game_state.game_mode {
+                match new_game_state.game_mode {
                     GameMode::StartScreen => {
-                        let mut move_n = (((game_state.song_timer / 10) * 31) % 29) as u8;
+                        let mut move_n = (((new_game_state.song_timer / 10) * 31) % 29) as u8;
                         move_n &= !(BUTTON_LEFT | BUTTON_RIGHT);
                         input = move_n;
                         match move_n {
@@ -381,22 +376,20 @@ fn update() {
                 },
                 OptionallyEnabledPlayer::Enabled(player) => {
                     let new_character;
-                    (new_character, new_clouds) = update_pos(
-                        &game_state.map,
-                        player.character.clone(),
+
+                    (new_character, new_game_state.clouds) = update_pos(
+                        &new_game_state.map,
+                        player.character,
                         input,
-                        new_clouds,
+                        new_game_state.clouds,
                     );
-                    new_players[i] = OptionallyEnabledPlayer::Enabled(Player{character: new_character, ..player.clone()});
+                    new_players[i] = OptionallyEnabledPlayer::Enabled(Player {character: new_character, ..player});
                 }
             }
         }
 
-        GameState{
-            players: new_players,
-            clouds: new_clouds,
-            ..game_state
-        }
+        new_game_state.players = new_players;
+        new_game_state
     }
 
     game_state = move_players(game_state, gamepads);
@@ -515,16 +508,19 @@ fn update() {
     }
 
             
-
+    let mut new_npcs = Vec::new();
     // MOVE NPCS
-    for i in 0..game_state.npcs.len() {
-        (game_state.npcs[i], game_state.clouds) = update_pos(
+    for (i, npc) in game_state.npcs.into_iter().enumerate() {
+        let new_npc;
+        (new_npc, game_state.clouds) = update_pos(
             &game_state.map,
-            game_state.npcs[i].clone(),
+            npc,
             inputs[i],
             game_state.clouds
         );
+        new_npcs.push(new_npc);
     }
+    game_state.npcs = new_npcs;
 
     // DRAW NPCS
     for npc in game_state.npcs.iter() {
