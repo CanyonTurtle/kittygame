@@ -479,16 +479,18 @@ fn update() {
         }
         
 
-        // MOVE NPCS
-        for (i, npc) in game_state.npcs.iter_mut().enumerate() {
-            update_pos(
-                &game_state.map,
-                MovingEntity::NPC(npc),
-                inputs[i],
-                game_state.godmode,
-                &mut game_state.clouds,
-            );
-        }
+
+    }
+
+    // MOVE NPCS
+    for (i, npc) in game_state.npcs.iter_mut().enumerate() {
+        update_pos(
+            &game_state.map,
+            MovingEntity::NPC(npc),
+            inputs[i],
+            game_state.godmode,
+            &mut game_state.clouds,
+        );
     }
 
     // DRAW NPCS
