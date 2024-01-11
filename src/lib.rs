@@ -243,7 +243,7 @@ fn update() {
                 spritesheet::Sprite::init_all_sprites();
                 let mut new_game_state = GameState::new();
                 for _ in 0..20 {
-                    new_game_state.rng.next();
+                    new_game_state.rng.next_for_worldgen();
                 }
                 
                 new_game_state.regenerate_map();
@@ -299,13 +299,32 @@ fn update() {
 
     let [btns_pressed_this_frame, gamepads] = get_inputs_this_frame();
 
+    // CHECK IF WE NEED TO FREEZE CHARACTERS / GAMEPLAY ON SCREEN
+    let mut showing_modal = false;
+    match &game_state.game_mode {
+        GameMode::NormalPlay(play_mode) => {
+            
+
+            match play_mode {
+                NormalPlayModes::MainGameplay => {
+                    // handle player inputs here
+                    game_state.countdown_paused = false;
+                }
+                NormalPlayModes::HoverModal(_) => {
+                    showing_modal = true;
+                    game_state.countdown_paused = true;
+                }
+            }
+        },
+        _ => {}
+    }
     // ON TITLE SCREEN, MOVE PLAYER 1 BASED ON TIME
     
     // CHECK IF CHARACTERS / CATS ARE COLLIDING
-    check_entity_collisions(&mut game_state);
-
-
-
+    if !showing_modal {
+        check_entity_collisions(&mut game_state);
+    }
+    
     // PREPARE TO RENDER THE MAP & ENTITIES
     unsafe {
         *PALETTE = spritesheet::KITTY_SPRITESHEET_PALETTES[game_state.pallette_idx];
@@ -342,6 +361,8 @@ fn update() {
                     GameMode::NormalPlay(_) => {},
                 }
             }
+            
+
             update_pos(
                 &game_state.map,
                 MovingEntity::OptionalPlayer(optional_player),
@@ -349,6 +370,9 @@ fn update() {
                 game_state.godmode,
                 &mut game_state.clouds,
             );
+            
+        
+
             drawcharacter(
                 &game_state.spritesheet,
                 &game_state.spritesheet_stride,
@@ -358,6 +382,9 @@ fn update() {
         }
     }
 
+   
+
+
     // CREATE INPUTS FOR NPCS
     let inputs: &mut [u8; MAX_N_NPCS] = unsafe { &mut NPC_INPUTS };
     let l;
@@ -365,8 +392,8 @@ fn update() {
         l = game_state.npcs.len();
     }
     for i in 0..l {
-        let rngg = &mut game_state.rng;
-        let rand_val = (rngg.next() % 255) as u8;
+        let rng = &mut game_state.rng;
+        let rand_val = (rng.next_for_input() % 255) as u8;
         let current_npc = &mut game_state.npcs[i];
         let mut use_rng_input = false;
         match current_npc.following_i {
@@ -398,7 +425,7 @@ fn update() {
                         current_npc.x_vel = 0.0;
                         current_npc.y_vel = 0.0;
                     } else {
-                        if rngg.next() % 10 > 1 {
+                        if rng.next_for_input() % 10 > 1 {
                             inputs[i] = 0;
 
                             // if current_npc.x_pos + (npc_bound.width as f32) < p.x_pos {
@@ -450,17 +477,22 @@ fn update() {
                 inputs[i] = 0x0;
             }
         }
+        
+
+        // MOVE NPCS
+        for (i, npc) in game_state.npcs.iter_mut().enumerate() {
+            update_pos(
+                &game_state.map,
+                MovingEntity::NPC(npc),
+                inputs[i],
+                game_state.godmode,
+                &mut game_state.clouds,
+            );
+        }
     }
 
-    // MOVE AND DRAW NPCS
-    for (i, npc) in game_state.npcs.iter_mut().enumerate() {
-        update_pos(
-            &game_state.map,
-            MovingEntity::NPC(npc),
-            inputs[i],
-            game_state.godmode,
-            &mut game_state.clouds,
-        );
+    // DRAW NPCS
+    for npc in game_state.npcs.iter_mut() {
         drawcharacter(
             &game_state.spritesheet,
             &game_state.spritesheet_stride,
@@ -526,19 +558,6 @@ fn update() {
     // Depending on what gamemode we're in, we do different update steps.
     match &mut game_state.game_mode {
         GameMode::NormalPlay(play_mode) => {
-            let mut showing_modal = false;
-
-            match play_mode {
-                NormalPlayModes::MainGameplay => {
-                    // handle player inputs here
-                    game_state.countdown_paused = false;
-                }
-                NormalPlayModes::HoverModal(_) => {
-                    showing_modal = true;
-                    game_state.countdown_paused = true;
-                }
-            }
-
             // Draw blur sections for the status bars on the bottom and top of the screen.
             draw_modal_bg(
                 &AbsoluteBoundingBox {
@@ -575,10 +594,15 @@ fn update() {
                 game_state.countdown_timer_msec as u32 / 60
             ];
 
-            // UPDATE POPUPS
+            // UPDATE & DRAW POPUPS
             {
                 let popup_texts_rb: &mut PopTextRingbuffer = &mut game_state.popup_text_ringbuffer;
+
+
                 popup_texts_rb.update_popup_positions();
+                
+                
+
                 let camera = game_state.camera;
                 for popup in popup_texts_rb.texts.iter() {
                     match popup {
@@ -606,75 +630,77 @@ fn update() {
             }
 
             // USE ABILITY CARDS
-            for (p_i, pr) in game_state.players.iter_mut().enumerate() {
-                match pr {
-                    OptionallyEnabledPlayer::Enabled(p) => {
-                        if !showing_modal && btns_pressed_this_frame[p_i] & BUTTON_2 != 0 {
-                            let res = p.card_stack.try_use_cards();
-                            let added_t;
-                            let popup_t: Option<String>;
-                            let popup_icon: PopupIcon;
-                            match res {
-                                game::ability_cards::AbilityCardUsageResult::NothingHappened => {
-                                    added_t = 0;
-                                    popup_t = None;
-                                    popup_icon = PopupIcon::None;
-                                },
-                                game::ability_cards::AbilityCardUsageResult::GainedTime(t) => {
-                                    added_t = t;
-                                    popup_t = Some(format![" +{}", t]);
-                                    popup_icon = PopupIcon::Clock;
-                                },
-                                game::ability_cards::AbilityCardUsageResult::EnabledFlyAndTime(t) => {
-                                    if p.character.can_fly {
+            if !showing_modal {
+                for (p_i, pr) in game_state.players.iter_mut().enumerate() {
+                    match pr {
+                        OptionallyEnabledPlayer::Enabled(p) => {
+                            if !showing_modal && btns_pressed_this_frame[p_i] & BUTTON_2 != 0 {
+                                let res = p.card_stack.try_use_cards();
+                                let added_t;
+                                let popup_t: Option<String>;
+                                let popup_icon: PopupIcon;
+                                match res {
+                                    game::ability_cards::AbilityCardUsageResult::NothingHappened => {
+                                        added_t = 0;
+                                        popup_t = None;
+                                        popup_icon = PopupIcon::None;
+                                    },
+                                    game::ability_cards::AbilityCardUsageResult::GainedTime(t) => {
                                         added_t = t;
                                         popup_t = Some(format![" +{}", t]);
                                         popup_icon = PopupIcon::Clock;
-                                    } else {
-                                        p.character.can_fly = true;
-                                        added_t = t - 10;
-                                        popup_t = Some("fly!".to_string());
-                                        popup_icon = PopupIcon::None;
-                                    }
-                                    
-                                },
-                                game::ability_cards::AbilityCardUsageResult::EnabledWarpAndTime(t) => {
-                                    if p.character.warp_ability == WarpAbility::CannotWarp {
-                                        p.character.warp_ability = WarpAbility::CanWarp(WarpState::Charging(0));
-                                        added_t = t - 10;
-                                        popup_t = Some("hold down = warp".to_string());
-                                        popup_icon = PopupIcon::None;
-                                    } else {
-                                        added_t = 10;
-                                        popup_t = Some(format![" +{}", t]);
-                                        popup_icon = PopupIcon::Clock;
+                                    },
+                                    game::ability_cards::AbilityCardUsageResult::EnabledFlyAndTime(t) => {
+                                        if p.character.can_fly {
+                                            added_t = t;
+                                            popup_t = Some(format![" +{}", t]);
+                                            popup_icon = PopupIcon::Clock;
+                                        } else {
+                                            p.character.can_fly = true;
+                                            added_t = t - 10;
+                                            popup_t = Some("fly!".to_string());
+                                            popup_icon = PopupIcon::None;
+                                        }
+                                        
+                                    },
+                                    game::ability_cards::AbilityCardUsageResult::EnabledWarpAndTime(t) => {
+                                        if p.character.warp_ability == WarpAbility::CannotWarp {
+                                            p.character.warp_ability = WarpAbility::CanWarp(WarpState::Charging(0));
+                                            added_t = t - 10;
+                                            popup_t = Some("hold down = warp".to_string());
+                                            popup_icon = PopupIcon::None;
+                                        } else {
+                                            added_t = 10;
+                                            popup_t = Some(format![" +{}", t]);
+                                            popup_icon = PopupIcon::Clock;
+                                        }
                                     }
                                 }
-                            }
-                            match popup_t {
-                                Some(pt) => {
-                                    // spawn some clouds
-                                    for dir in [(1.0, 0.0), (0.5, 0.86), (-0.5, 0.86), (-1.0, 0.0), (-0.5, -0.86), (0.5, -0.86)] {
-                                        const CARD_CLOUD_SPEED: f32 = 4.0;
+                                match popup_t {
+                                    Some(pt) => {
+                                        // spawn some clouds
+                                        for dir in [(1.0, 0.0), (0.5, 0.86), (-0.5, 0.86), (-1.0, 0.0), (-0.5, -0.86), (0.5, -0.86)] {
+                                            const CARD_CLOUD_SPEED: f32 = 4.0;
 
-                                        let vx = CARD_CLOUD_SPEED * dir.0;
-                                        let vy = CARD_CLOUD_SPEED * dir.1;
-                                        Cloud::try_push_cloud(&mut game_state.clouds, p.character.x_pos + 2.0, p.character.y_pos + 3.0, vx, vy);
+                                            let vx = CARD_CLOUD_SPEED * dir.0;
+                                            let vy = CARD_CLOUD_SPEED * dir.1;
+                                            Cloud::try_push_cloud(&mut game_state.clouds, p.character.x_pos + 2.0, p.character.y_pos + 3.0, vx, vy);
 
+                                        }
+                                        game_state.popup_text_ringbuffer.add_new_popup(p.character.x_pos - 14.0, p.character.y_pos, pt, popup_icon);
                                     }
-                                    game_state.popup_text_ringbuffer.add_new_popup(p.character.x_pos - 14.0, p.character.y_pos, pt, popup_icon);
+                                    _ => {}
                                 }
-                                _ => {}
+                                game_state.countdown_timer_msec += added_t * 60;
+                                game_state.countdown_timer_msec = game_state.countdown_timer_msec.min(100 * 60 - 1);
+                                game_state.score += added_t * 60;
                             }
-                            game_state.countdown_timer_msec += added_t * 60;
-                            game_state.countdown_timer_msec = game_state.countdown_timer_msec.min(100 * 60 - 1);
-                            game_state.score += added_t * 60;
-                        }
-                    },
-                    OptionallyEnabledPlayer::Disabled => {},
+                        },
+                        OptionallyEnabledPlayer::Disabled => {},
+                    }
                 }
+                
             }
-            
 
             // MOVE ABILITY CARD POSITIONS
             match &mut game_state.players[player_idx as usize] {
@@ -692,6 +718,7 @@ fn update() {
                 },
                 OptionallyEnabledPlayer::Disabled => {}
             }
+
             
             // DRAW ABILITY CARDS
             unsafe { *DRAW_COLORS = spritesheet::KITTY_SPRITESHEET_DRAW_COLORS }
@@ -1010,7 +1037,7 @@ fn update() {
                 *PALETTE = spritesheet::KITTY_SPRITESHEET_PALETTES[game_state.pallette_idx];
             }
             unsafe { *DRAW_COLORS = spritesheet::KITTY_SPRITESHEET_DRAW_COLORS }
-            game_state.rng.next();
+            game_state.rng.next_for_input();
             
             // trace("updated positions");
             unsafe { *DRAW_COLORS = 0x1112 }
