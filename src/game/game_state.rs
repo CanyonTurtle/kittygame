@@ -23,6 +23,23 @@ use crate::game::music::SONGS;
 use crate::kitty_ss;
 use crate::spritesheet::{self, KITTY_SPRITESHEET_PALETTES};
 
+// Games can either be fixed-seed and timed for speedrunning, or random.
+type RunSeed = u32;
+pub enum RunType {
+    Random,
+    Speedrun(RunSeed)
+}
+
+// pub enum Difficulty {
+//     Easy,
+//     Medium,
+//     Hard
+// }
+
+pub struct GameSettings {
+    pub run_type: RunType,
+    // pub difficulty: Difficulty
+}
 
 
 pub struct GameState<'a> {
@@ -50,6 +67,8 @@ pub struct GameState<'a> {
     pub tutorial_text_counter: u8,
     pub clouds: Vec<Cloud>,
     pub countdown_and_score_bonus: u32,
+    pub settings: GameSettings,
+    pub speedrun_timer_msec: u32,
 }
 
 impl GameState<'static> {
@@ -64,7 +83,7 @@ impl GameState<'static> {
             OptionallyEnabledPlayer::Disabled,
         ];
 
-        let rng = GameRng::FixedSeed(Rng::new(), Rng::new());
+        let rng = GameRng::Random(Rng::new());
 
         GameState {
             players: characters,
@@ -100,6 +119,11 @@ impl GameState<'static> {
             tutorial_text_counter: 0,
             clouds: Vec::new(),
             countdown_and_score_bonus: 0,
+            settings: GameSettings{
+                run_type: RunType::Random,
+                // difficulty: Difficulty::Medium
+            },
+            speedrun_timer_msec: 0,
         }
     }
 

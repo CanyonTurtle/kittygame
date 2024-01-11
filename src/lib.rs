@@ -34,7 +34,7 @@ use crate::{
     game::{
         collision::{get_bound_of_character, AbsoluteBoundingBox},
         entities::OptionallyEnabledPlayer,
-        menus::{Modal, NormalPlayModes, MenuTypes}, game_constants::{COUNTDOWN_TIMER_START, START_DIFFICULTY_LEVEL, MAJOR_VERSION, MINOR_VERSION, INCR_VERSION}, popup_text::{PopTextRingbuffer, PopupIcon},
+        menus::{Modal, NormalPlayModes, MenuTypes, SelectSetup, SelectMenuFocuses}, game_constants::{COUNTDOWN_TIMER_START, START_DIFFICULTY_LEVEL, MAJOR_VERSION, MINOR_VERSION, INCR_VERSION}, popup_text::{PopTextRingbuffer, PopupIcon}, rng::{GameRng, Rng},
     },
     title_ss::OUTPUT_ONLINEPNGTOOLS
 };
@@ -155,8 +155,8 @@ const TOP_UI_TEXT_Y: i32 = 2;
 const BOTTOM_UI_TEXT_Y: i32 = 160 - 8; // 160 - 8 - 2;
 
 /// DRAW BLURRED BACKGROUND BEHIND SCORE AND TIME TEXTS IN-GAME
-fn draw_modal_bg(pf: &AbsoluteBoundingBox<f32, f32>, style: u8) {
-    unsafe { *DRAW_COLORS = 0x0001 }
+fn draw_modal_bg(pf: &AbsoluteBoundingBox<f32, f32>, style: u8, color: u16) {
+    unsafe { *DRAW_COLORS = color }
     let p: AbsoluteBoundingBox<i32, u32> = AbsoluteBoundingBox {
         x: pf.x as i32,
         y: pf.y as i32,
@@ -195,7 +195,7 @@ fn draw_modal_bg(pf: &AbsoluteBoundingBox<f32, f32>, style: u8) {
         }
     }
 
-    unsafe { *DRAW_COLORS = 0x0002 }
+    unsafe { *DRAW_COLORS = color }
     // borders
 
     match style {
@@ -229,6 +229,30 @@ fn layertext(t: &str, x: i32, y: i32) {
     unsafe { *DRAW_COLORS = 0x0002 }
 
     text(t, x, y);
+}
+
+const TIMER_INTERACTIVE_START: u32 = 100;
+const TITLE_Y: i32 = 15;
+
+fn render_title(game_state: &GameState, y: i32) {
+    // RENDER THE TITLE
+    unsafe { *DRAW_COLORS = 0x0034 }
+    const TITLE_X: i32 = 5;
+    let title_y_osc = match game_state.song_timer {
+        0..=TIMER_INTERACTIVE_START => {
+            0
+        }
+        _ => {
+            (5f32 * num::Float::sin((game_state.song_timer - TIMER_INTERACTIVE_START) as f32 * 0.05f32)) as i32
+        }
+    };
+    for row in 0..OUTPUT_ONLINEPNGTOOLS_HEIGHT as i32 {
+        blit_sub(&OUTPUT_ONLINEPNGTOOLS, TITLE_X + (3000000f32 * (1f32 / (1f32 + num::Float::powf(game_state.song_timer as f32, 3f32))) * num::Float::sin((game_state.song_timer as f32 + row as f32 * 4f32) * 0.1f32)) as i32, y + title_y_osc + row, OUTPUT_ONLINEPNGTOOLS_WIDTH, 1, 0, row as u32, OUTPUT_ONLINEPNGTOOLS_WIDTH, OUTPUT_ONLINEPNGTOOLS_FLAGS)
+    }
+    unsafe {
+        *PALETTE = spritesheet::KITTY_SPRITESHEET_PALETTES[game_state.pallette_idx];
+    }
+    unsafe { *DRAW_COLORS = spritesheet::KITTY_SPRITESHEET_DRAW_COLORS }
 }
 
 /// Main loop that runs every frame. Progress the game state and render.
@@ -358,7 +382,7 @@ fn update() {
                             _ => {}
                         }
                     },
-                    GameMode::NormalPlay(_) => {},
+                    _ => {},
                 }
             }
             
@@ -538,24 +562,24 @@ fn update() {
     }
 
     // just draw a spriteframe at a location. Put a colored layer behind it, like layertext() does.
-    let draw_spriteframe = |spriteframe: &spritesheet::SpriteFrame, x: i32, y: i32| {
+    fn draw_spriteframe (spritesheet: &[u8], spriteframe: &spritesheet::SpriteFrame, spritesheet_stride: u32, x: i32, y: i32) {
         let cf = spriteframe;
         for (xx, yy, colors) in [(x, y, 0x1111), (x+1, y+1, 0x1111), (x, y, spritesheet::KITTY_SPRITESHEET_DRAW_COLORS)] {
             unsafe {*DRAW_COLORS = colors}
             blit_sub(
-                &game_state.spritesheet,
+                spritesheet,
                 xx,
                 yy,
                 cf.width as u32,
                 cf.height as u32,
                 cf.start_x as u32,
                 cf.start_y as u32,
-                game_state.spritesheet_stride as u32,
+                spritesheet_stride as u32,
                 spritesheet::KITTY_SPRITESHEET_FLAGS
             );
         }
         
-    };
+    }
 
     // Depending on what gamemode we're in, we do different update steps.
     match &mut game_state.game_mode {
@@ -569,6 +593,7 @@ fn update() {
                     height: 10.0,
                 },
                 0,
+                0x0001,
             );
 
             draw_modal_bg(
@@ -579,6 +604,7 @@ fn update() {
                     height: 10.0,
                 },
                 0,
+                0x0001,
             );
 
 
@@ -590,7 +616,14 @@ fn update() {
 
             // COMPUTE SCORE, LEVEL, # KITTIES (used later either in modal or normal screen)
             let world_level_text = &format!["W{}-L{}", ((game_state.difficulty_level - 1) / 5) + 1, ((game_state.difficulty_level - 1) % 5) + 1];
-            let score_text = &format!["Sc. {}", game_state.score];
+            let score_text = match game_state.settings.run_type {
+                game::game_state::RunType::Random => {
+                    format!["Sc: {}p", game_state.score]
+                },
+                game::game_state::RunType::Speedrun(n) => {
+                    format!["Sd.{}: {}s", n, game_state.speedrun_timer_msec/ 60]
+                },
+            };
             let found_kitties_text = &format![
                 "{:<5} {:<3}", &format!["{:.2}/{:.2}", current_found_npcs, game_state.total_npcs_to_find],
                 game_state.countdown_timer_msec as u32 / 60
@@ -616,10 +649,10 @@ fn update() {
                                 match p.icon {
                                     PopupIcon::None => {},
                                     PopupIcon::Clock => {
-                                        draw_spriteframe( &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::Clock).frames[0], dx, dy-1)
+                                        draw_spriteframe(&game_state.spritesheet,  &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::Clock).frames[0], game_state.spritesheet_stride as u32, dx, dy-1)
                                     }
                                     PopupIcon::CatHead => {
-                                        draw_spriteframe( &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::CatHead).frames[0], dx+1, dy+1)
+                                        draw_spriteframe(&game_state.spritesheet,  &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::CatHead).frames[0], game_state.spritesheet_stride as u32, dx+1, dy+1)
                                     }
                                 }
                             }
@@ -777,7 +810,7 @@ fn update() {
 
                             ready_to_show_text = (actual_position.width - target_position.width as f32).abs() < TOL;
 
-                            draw_modal_bg(&actual_position, 1);
+                            draw_modal_bg(&actual_position, 1, 0x0002);
                         
                         }
 
@@ -851,11 +884,8 @@ fn update() {
                                     modal_text("Start!", 16, 22);
                                     modal_text(&format!["+{}", game_state.countdown_and_score_bonus / 60], 33, 35);
                                     let (xx, yy) = modal_offs(25, 34);
-                                    draw_spriteframe(
-                                        &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::Clock).frames[0], 
-                                        xx, 
-                                        yy
-                                    );
+                                    draw_spriteframe(&game_state.spritesheet,  &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::Clock).frames[0], game_state.spritesheet_stride as u32, xx, yy);
+
                                     let mut start_normal_play = false;
                                     if text_timer > 100 {
                                         start_normal_play = true;
@@ -881,7 +911,8 @@ fn update() {
                                     }
 
                                     modal_text(&format!["End: {}", world_level_text], 8, 30);
-                                    modal_text(&format!["Sc: {} pts", game_state.score], 8, 40);
+                                    modal_text(&score_text, 8, 40);
+                                    
 
                                     match btn_pressed {
                                         true => {
@@ -899,17 +930,12 @@ fn update() {
                                     modal_text("< > to move,", 24, 114); 
                                     modal_text("x=jump, z=card", 16, 126);
                                     let (xx, yy) = modal_offs(0, 0);
-                                    draw_spriteframe(
-                                        &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::CatHead).frames[0], 
-                                        xx + 20, 
-                                        yy + 62
-                                    );
+ 
+                                    draw_spriteframe(&game_state.spritesheet,  &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::CatHead).frames[0], game_state.spritesheet_stride as u32, xx+20, yy+62);
+
                                     modal_text(" = # kittes", 28, 62);
-                                    draw_spriteframe(
-                                        &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::Clock).frames[0], 
-                                        xx + 20, 
-                                        yy + 78
-                                    );
+                                    draw_spriteframe(&game_state.spritesheet,  &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::Clock).frames[0], game_state.spritesheet_stride as u32, xx+20, yy+78);
+
                                     modal_text(" = time left", 28, 78);
                                     match btn_pressed {
                                         true => {
@@ -957,6 +983,7 @@ fn update() {
 
                 // PROGRESS TIME, CHECK FOR GAME END
                 if !game_state.countdown_paused {
+                    game_state.speedrun_timer_msec += 1;
                     game_state.countdown_timer_msec -= 1;
             
                     // ---- LOSE CONDITION ----
@@ -980,10 +1007,11 @@ fn update() {
 
                 // DRAW SCORE, LEVEL, # KITTIES during normal play
                 layertext(world_level_text, 0, BOTTOM_UI_TEXT_Y);
-                layertext(score_text, 80, BOTTOM_UI_TEXT_Y);
+                layertext(&score_text, 60, BOTTOM_UI_TEXT_Y);
                 layertext(found_kitties_text, 9, TOP_UI_TEXT_Y);
-                draw_spriteframe( &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::Clock).frames[0], 48, TOP_UI_TEXT_Y - 1);
-                draw_spriteframe( &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::CatHead).frames[0], 1, TOP_UI_TEXT_Y + 1);
+
+                draw_spriteframe(&game_state.spritesheet,  &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::Clock).frames[0], game_state.spritesheet_stride as u32, 48, TOP_UI_TEXT_Y - 1);
+                draw_spriteframe(&game_state.spritesheet,  &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::CatHead).frames[0], game_state.spritesheet_stride as u32, 1, TOP_UI_TEXT_Y + 1);
 
                 
             }
@@ -996,7 +1024,6 @@ fn update() {
             unsafe { *DRAW_COLORS = 0x0002 }
 
             // SHOW TITLE-SCREEN SUBTEXT
-            const TIMER_INTERACTIVE_START: u32 = 100;
             if game_state.song_timer >= TIMER_INTERACTIVE_START {
                 draw_modal_bg(
                     &AbsoluteBoundingBox {
@@ -1006,7 +1033,9 @@ fn update() {
                         height: 40.0,
                     },
                     0,
+                    0x0001,
                 );
+                unsafe{*DRAW_COLORS = 0x0002};
                 if game_state.song_timer % 30 >= 15 {
                     text("Any key: start", 20, 110);
                 }
@@ -1015,34 +1044,144 @@ fn update() {
                 text(" & BurntSugar  ", 20, 135);
                 text(format!["ver. {}.{}.{}", MAJOR_VERSION, MINOR_VERSION, INCR_VERSION], 40, 150);
                 if btns_pressed_this_frame[0] != 0 {
-                    game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::MainGameplay);
-                    game_state.regenerate_map();
+                    // game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::MainGameplay);
+                    game_state.game_mode = GameMode::SelectScreen(SelectSetup{current_selection: SelectMenuFocuses::RunType});
+                    // game_state.regenerate_map();
                 }
             }
             
-            // RENDER THE TITLE
-            unsafe { *DRAW_COLORS = 0x0034 }
-            const TITLE_Y: i32 = 15;
-            const TITLE_X: i32 = 5;
-            let title_y_osc = match game_state.song_timer {
-                0..=TIMER_INTERACTIVE_START => {
-                    0
-                }
-                _ => {
-                    (5f32 * num::Float::sin((game_state.song_timer - TIMER_INTERACTIVE_START) as f32 * 0.05f32)) as i32
-                }
-            };
-            for row in 0..OUTPUT_ONLINEPNGTOOLS_HEIGHT as i32 {
-                blit_sub(&OUTPUT_ONLINEPNGTOOLS, TITLE_X + (3000000f32 * (1f32 / (1f32 + num::Float::powf(game_state.song_timer as f32, 3f32))) * num::Float::sin((game_state.song_timer as f32 + row as f32 * 4f32) * 0.1f32)) as i32, TITLE_Y + title_y_osc + row, OUTPUT_ONLINEPNGTOOLS_WIDTH, 1, 0, row as u32, OUTPUT_ONLINEPNGTOOLS_WIDTH, OUTPUT_ONLINEPNGTOOLS_FLAGS)
-            }
-            unsafe {
-                *PALETTE = spritesheet::KITTY_SPRITESHEET_PALETTES[game_state.pallette_idx];
-            }
-            unsafe { *DRAW_COLORS = spritesheet::KITTY_SPRITESHEET_DRAW_COLORS }
+
+            render_title(&game_state, TITLE_Y);
             game_state.rng.next_for_input();
             
             // trace("updated positions");
             unsafe { *DRAW_COLORS = 0x1112 }
+            
+        },
+        GameMode::SelectScreen(select_setup) => {
+
+            const BOX_LEFT_MARGIN: i32 = 15;
+            const BOX_RIGHT_MARGIN: i32 = BOX_LEFT_MARGIN;
+            const BOX_WIDTH: i32 = 160 - BOX_LEFT_MARGIN - BOX_RIGHT_MARGIN;
+            const BOX_HEIGHT: i32 = 60;
+
+            const RUN_TYPE_Y: i32 = 66;
+            // const DIFFICULTY_Y: i32 = 33;
+            // const CHARACTER_Y: i32 = 46;
+            const START_Y: i32 = 130;
+            const START_X: i32 = 48;
+
+            const START_WIDTH: i32 = 60;
+            const START_HEIGHT: i32 = 19;
+
+            const SETTING_GROUP_INLAY_DIST: i32 = 5;
+
+            // let mut selected_box_dims = (0, 0, 0, 0);
+
+            fn draw_selected_box(dims: (i32, i32, i32, i32), style: u8, color: u16) {
+                draw_modal_bg(&AbsoluteBoundingBox{x: dims.0 as f32, y: dims.1 as f32, width: dims.2 as f32, height: dims.3 as f32}, style, color);
+            }
+
+            // draw background for menus
+            draw_modal_bg(&AbsoluteBoundingBox{x: 0f32, y: 0f32, width: 159f32, height: 159f32}, 0, 0x0001);
+            draw_selected_box((BOX_LEFT_MARGIN, RUN_TYPE_Y, BOX_WIDTH, BOX_HEIGHT), 0, 0x0001);
+
+            // draw options that get overdrawn later if they're not selected
+            // layertext("Run Type", BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST, RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST);
+            // layertext("Difficulty", BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST, DIFFICULTY_Y + SETTING_GROUP_INLAY_DIST);
+            // layertext("Character", BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST, CHARACTER_Y + SETTING_GROUP_INLAY_DIST);
+
+            if btns_pressed_this_frame[0] & BUTTON_DOWN != 0 {
+                select_setup.current_selection = match select_setup.current_selection {
+                    SelectMenuFocuses::RunType => SelectMenuFocuses::StartGameBtn,
+                    // SelectMenuFocuses::Difficulty => SelectMenuFocuses::CharacterSelect,
+                    // SelectMenuFocuses::CharacterSelect => SelectMenuFocuses::StartGameBtn,
+                    SelectMenuFocuses::StartGameBtn => SelectMenuFocuses::StartGameBtn,
+                }   
+            }
+
+            if btns_pressed_this_frame[0] & BUTTON_UP != 0 {
+                select_setup.current_selection = match select_setup.current_selection {
+                    SelectMenuFocuses::RunType => SelectMenuFocuses::RunType,
+                    // SelectMenuFocuses::Difficulty => SelectMenuFocuses::RunType,
+                    // SelectMenuFocuses::CharacterSelect => SelectMenuFocuses::Difficulty,
+                    SelectMenuFocuses::StartGameBtn => SelectMenuFocuses::RunType,
+                }   
+            }
+
+            match select_setup.current_selection {
+                SelectMenuFocuses::RunType => {
+                    if btns_pressed_this_frame[0] & (BUTTON_RIGHT | BUTTON_LEFT) != 0 {
+                        game_state.settings.run_type = match game_state.settings.run_type {
+                            game::game_state::RunType::Random => game::game_state::RunType::Speedrun(0),
+                            game::game_state::RunType::Speedrun(_) => game::game_state::RunType::Random,
+                        }   
+                    }
+                    // draw box around run type
+                    draw_selected_box((BOX_LEFT_MARGIN, RUN_TYPE_Y, BOX_WIDTH, BOX_HEIGHT), 1, 0x0004);
+                    // layertext("Run Type", BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST, RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST);
+
+                    if game_state.song_timer % 30 >= 15 {
+                        unsafe {*DRAW_COLORS = 0x0004}
+                        text(">", 151, 96);
+                        text("v", 75, 127);
+                    }
+
+                    if btns_pressed_this_frame[0] & (BUTTON_1) != 0 {
+                        if let game::game_state::RunType::Speedrun(n) = game_state.settings.run_type {
+                            game_state.settings.run_type = game::game_state::RunType::Speedrun(n + 1);
+                        }
+                    }
+
+                    layertext("Start!", START_X + SETTING_GROUP_INLAY_DIST + 3, START_Y + SETTING_GROUP_INLAY_DIST + 1);
+                },
+                // SelectMenuFocuses::Difficulty => {
+                //     // draw box around difficulty
+                //     draw_selected_box((BOX_LEFT_MARGIN, DIFFICULTY_Y, BOX_WIDTH, BOX_HEIGHT));
+                //     layertext("Difficulty", BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST, DIFFICULTY_Y + SETTING_GROUP_INLAY_DIST);
+                // },
+                // SelectMenuFocuses::CharacterSelect => {
+                //     draw_selected_box((BOX_LEFT_MARGIN, CHARACTER_Y, BOX_WIDTH, BOX_HEIGHT));
+                //     layertext("Character", BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST, CHARACTER_Y + SETTING_GROUP_INLAY_DIST);
+
+                // },
+                SelectMenuFocuses::StartGameBtn => {
+                    draw_selected_box((START_X, START_Y, START_WIDTH, START_HEIGHT), 1, 0x0004);
+                    if btns_pressed_this_frame[0] & (BUTTON_1 | BUTTON_2) != 0 {
+                        game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::MainGameplay);
+                        if let game::game_state::RunType::Speedrun(n) = game_state.settings.run_type {
+                            game_state.rng = GameRng::FixedSeed(Rng::new_from_seed(n), Rng::new_from_seed(n));
+                        }
+                        game_state.regenerate_map();
+                    }
+
+                    if game_state.song_timer % 30 >= 15 {
+                        layertext("Start!", START_X + SETTING_GROUP_INLAY_DIST + 3, START_Y + SETTING_GROUP_INLAY_DIST + 1);
+                    }
+                }
+            }
+
+            match game_state.settings.run_type {
+                game::game_state::RunType::Random => {
+                    layertext("Normal Mode", BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST + 20, RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST);
+                    layertext("Random levels.", BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST, RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST + 15);
+                    layertext("Find kitties", BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST, RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST + 25);
+                    layertext("in time!", BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST, RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST + 35);
+
+                },
+                game::game_state::RunType::Speedrun(n) => {
+                    layertext("Seed Mode", BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST + 25, RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST);
+                    layertext("Fixed maps", BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST, RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST + 15);
+                    layertext("For speedruns!", BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST, RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST + 25);
+                    layertext(&format!["z/x for seed: {}", n],BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST, RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST + 35);
+                },
+            }
+            
+
+            // Draw box around selection
+            // draw_modal_bg(&AbsoluteBoundingBox{x: selected_box_dims.0 as f32, y: selected_box_dims.1 as f32, width: selected_box_dims.2 as f32, height: selected_box_dims.3 as f32}, 1);
+
+            render_title(&game_state, TITLE_Y - 8);
             
         }
     }

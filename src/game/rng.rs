@@ -31,6 +31,14 @@ impl Rng {
         Self(0x7369787465656E2062797465206E756Du128 | 1)
     }
 
+    pub fn new_from_seed(n_prefix_draws: u32) -> Self {
+        let mut new_rng = Rng::new();
+        for _ in 0..n_prefix_draws {
+            new_rng.next();
+        }
+        new_rng
+    }
+
     pub fn next(&mut self) -> u64 {
         self.0 = self.0.wrapping_mul(0x2360ED051FC65DA44385DF649FCCF645);
         let rot = (self.0 >> 122) as u32;

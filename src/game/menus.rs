@@ -34,9 +34,21 @@ pub enum NormalPlayModes {
     HoverModal(Modal)
 }
 
+pub enum SelectMenuFocuses {
+    // Difficulty,
+    RunType,
+    // CharacterSelect,
+    StartGameBtn
+}
+
+pub struct SelectSetup{
+    pub current_selection: SelectMenuFocuses
+}
+
 pub enum GameMode {
     StartScreen,
     NormalPlay(NormalPlayModes),
+    SelectScreen(SelectSetup)
 }
 
 
