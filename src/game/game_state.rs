@@ -197,7 +197,7 @@ impl GameState<'static> {
         self.score += self.countdown_and_score_bonus;
 
         match self.difficulty_level {
-            1 => {
+            START_DIFFICULTY_LEVEL => {
                 self.countdown_timer_msec = COUNTDOWN_TIMER_START;
                 self.score = 0;
                 self.tutorial_text_counter = 0;

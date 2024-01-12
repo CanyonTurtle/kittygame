@@ -34,7 +34,7 @@ use crate::{
     game::{
         collision::{get_bound_of_character, AbsoluteBoundingBox},
         entities::OptionallyEnabledPlayer,
-        menus::{Modal, NormalPlayModes, MenuTypes, SelectSetup, SelectMenuFocuses}, game_constants::{COUNTDOWN_TIMER_START, START_DIFFICULTY_LEVEL, MAJOR_VERSION, MINOR_VERSION, INCR_VERSION}, popup_text::{PopTextRingbuffer, PopupIcon}, rng::{GameRng, Rng},
+        menus::{Modal, NormalPlayModes, MenuTypes, SelectSetup, SelectMenuFocuses}, game_constants::{COUNTDOWN_TIMER_START, START_DIFFICULTY_LEVEL, MAJOR_VERSION, MINOR_VERSION, INCR_VERSION, FINAL_LEVEL}, popup_text::{PopTextRingbuffer, PopupIcon}, rng::{GameRng, Rng}, game_state::RunType,
     },
     title_ss::OUTPUT_ONLINEPNGTOOLS
 };
@@ -653,6 +653,9 @@ fn update() {
                                     }
                                     PopupIcon::CatHead => {
                                         draw_spriteframe(&game_state.spritesheet,  &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::CatHead).frames[0], game_state.spritesheet_stride as u32, dx+1, dy+1)
+                                    },
+                                    PopupIcon::DownArrow => {
+                                        text([b'\x87'], dx+40, dy);
                                     }
                                 }
                             }
@@ -702,8 +705,8 @@ fn update() {
                                         if p.character.warp_ability == WarpAbility::CannotWarp {
                                             p.character.warp_ability = WarpAbility::CanWarp(WarpState::Charging(0));
                                             added_t = t - 10;
-                                            popup_t = Some("hold down = warp".to_string());
-                                            popup_icon = PopupIcon::None;
+                                            popup_t = Some("hold   : warp".to_string());
+                                            popup_icon = PopupIcon::DownArrow;
                                         } else {
                                             added_t = 10;
                                             popup_t = Some(format![" +{}", t]);
@@ -922,15 +925,50 @@ fn update() {
                                         _ => {}
                                     }
                                 },
+                                MenuTypes::WonGame => {
+                                    const BLINK_START: u32 = 50;
+                                    const BLINK_TITLE_PERIOD: u32 = 17;
+                                    if text_timer < BLINK_START || (text_timer / BLINK_TITLE_PERIOD) % 2 == 0 {
+                                        modal_text("YOU WON!!!", 20, 14);
+                                    }
+
+                                    modal_text(&format!["End: {}", world_level_text], 8, 30);
+                                    modal_text(&score_text, 8, 40);
+                                    match game_state.settings.run_type {
+                                        RunType::Random => {
+                                            modal_text(&format!["Time: {}s", game_state.speedrun_timer_msec / 60], 8, 50);
+                                        },
+                                        _ => {}
+                                    }
+
+                                    match btn_pressed {
+                                        true => {
+                                            game_state.difficulty_level = START_DIFFICULTY_LEVEL;
+                                            game_state.game_mode = GameMode::StartScreen;
+                                        }
+                                        _ => {}
+                                    }
+                                },
                                 MenuTypes::StartGameMessage => {
                                     modal_text("-- GOAL --", 30, 10);
                                     modal_text("Find all the", 20, 25);
                                     modal_text("kitties in time!", 10, 40);
                                     modal_text("-- CONTROLS --", 14, 100);
-                                    modal_text("< > to move,", 24, 114); 
-                                    modal_text("x=jump, z=card", 16, 126);
+
+
+
+                                    modal_text("     to move,", 24, 114); 
+                                    modal_text(" =jump,  =card", 16, 126);
                                     let (xx, yy) = modal_offs(0, 0);
  
+                                    if game_state.song_timer % 30 >= 15 {
+                                        unsafe {*DRAW_COLORS = 0x0004}
+                                        text([b'\x84'], xx+32, yy+114);
+                                        text([ b'\x85'], xx+48, yy+114);
+                                        text([b'\x80'], xx+15, yy+126);
+                                        text([ b'\x81'], xx+79, yy+126);
+                                    }
+                                    
                                     draw_spriteframe(&game_state.spritesheet,  &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::CatHead).frames[0], game_state.spritesheet_stride as u32, xx+20, yy+62);
 
                                     modal_text(" = # kittes", 28, 62);
@@ -967,7 +1005,20 @@ fn update() {
 
                 // ------- LEVEL WIN CONDITION -----------
                 if game_state.total_npcs_to_find == current_found_npcs {
-                    game_state.game_mode =
+                    if game_state.difficulty_level == FINAL_LEVEL {
+                        game_state.game_mode =
+                        GameMode::NormalPlay(NormalPlayModes::HoverModal(Modal::new(
+                            AbsoluteBoundingBox {
+                                x: 25,
+                                y: 35,
+                                width: 110,
+                                height: 65,
+                            },
+                            MenuTypes::WonGame
+                        )));
+                        game_state.song_idx = 0;
+                    } else {
+                        game_state.game_mode =
                         GameMode::NormalPlay(NormalPlayModes::HoverModal(Modal::new(
                             AbsoluteBoundingBox {
                                 x: 40,
@@ -977,7 +1028,9 @@ fn update() {
                             },
                             MenuTypes::WonLevel
                         )));
-                    game_state.song_idx = 0;
+                        game_state.song_idx = 0;
+                    }
+
                     game_state.song_timer = 0;
                 }
 
@@ -1037,7 +1090,7 @@ fn update() {
                 );
                 unsafe{*DRAW_COLORS = 0x0002};
                 if game_state.song_timer % 30 >= 15 {
-                    text("Any key: start", 20, 110);
+                    text("Any key: play", 24, 110);
                 }
                 
                 text("by CanyonTurtle", 20, 125);
@@ -1071,8 +1124,8 @@ fn update() {
             const START_Y: i32 = 130;
             const START_X: i32 = 48;
 
-            const START_WIDTH: i32 = 60;
-            const START_HEIGHT: i32 = 19;
+            // const START_WIDTH: i32 = 60;
+            // const START_HEIGHT: i32 = 19;
 
             const SETTING_GROUP_INLAY_DIST: i32 = 5;
 
@@ -1091,23 +1144,23 @@ fn update() {
             // layertext("Difficulty", BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST, DIFFICULTY_Y + SETTING_GROUP_INLAY_DIST);
             // layertext("Character", BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST, CHARACTER_Y + SETTING_GROUP_INLAY_DIST);
 
-            if btns_pressed_this_frame[0] & BUTTON_DOWN != 0 {
-                select_setup.current_selection = match select_setup.current_selection {
-                    SelectMenuFocuses::RunType => SelectMenuFocuses::StartGameBtn,
-                    // SelectMenuFocuses::Difficulty => SelectMenuFocuses::CharacterSelect,
-                    // SelectMenuFocuses::CharacterSelect => SelectMenuFocuses::StartGameBtn,
-                    SelectMenuFocuses::StartGameBtn => SelectMenuFocuses::StartGameBtn,
-                }   
-            }
+            // if btns_pressed_this_frame[0] & BUTTON_DOWN != 0 {
+            //     select_setup.current_selection = match select_setup.current_selection {
+            //         SelectMenuFocuses::RunType => SelectMenuFocuses::StartGameBtn,
+            //         // SelectMenuFocuses::Difficulty => SelectMenuFocuses::CharacterSelect,
+            //         // SelectMenuFocuses::CharacterSelect => SelectMenuFocuses::StartGameBtn,
+            //         SelectMenuFocuses::StartGameBtn => SelectMenuFocuses::StartGameBtn,
+            //     }   
+            // }
 
-            if btns_pressed_this_frame[0] & BUTTON_UP != 0 {
-                select_setup.current_selection = match select_setup.current_selection {
-                    SelectMenuFocuses::RunType => SelectMenuFocuses::RunType,
-                    // SelectMenuFocuses::Difficulty => SelectMenuFocuses::RunType,
-                    // SelectMenuFocuses::CharacterSelect => SelectMenuFocuses::Difficulty,
-                    SelectMenuFocuses::StartGameBtn => SelectMenuFocuses::RunType,
-                }   
-            }
+            // if btns_pressed_this_frame[0] & BUTTON_UP != 0 {
+            //     select_setup.current_selection = match select_setup.current_selection {
+            //         SelectMenuFocuses::RunType => SelectMenuFocuses::RunType,
+            //         // SelectMenuFocuses::Difficulty => SelectMenuFocuses::RunType,
+            //         // SelectMenuFocuses::CharacterSelect => SelectMenuFocuses::Difficulty,
+            //         SelectMenuFocuses::StartGameBtn => SelectMenuFocuses::RunType,
+            //     }   
+            // }
 
             match select_setup.current_selection {
                 SelectMenuFocuses::RunType => {
@@ -1123,17 +1176,25 @@ fn update() {
 
                     if game_state.song_timer % 30 >= 15 {
                         unsafe {*DRAW_COLORS = 0x0004}
-                        text(">", 151, 96);
-                        text("v", 75, 127);
+                        text(&[b'\x85'], 132, 72);
+                        text(&[b'\x80'], 45, 136);
                     }
 
-                    if btns_pressed_this_frame[0] & (BUTTON_1) != 0 {
+                    if btns_pressed_this_frame[0] & (BUTTON_2) != 0 {
                         if let game::game_state::RunType::Speedrun(n) = game_state.settings.run_type {
                             game_state.settings.run_type = game::game_state::RunType::Speedrun(n + 1);
                         }
                     }
 
                     layertext("Start!", START_X + SETTING_GROUP_INLAY_DIST + 3, START_Y + SETTING_GROUP_INLAY_DIST + 1);
+
+                    if btns_pressed_this_frame[0] & BUTTON_1 != 0 {
+                        game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::MainGameplay);
+                        if let game::game_state::RunType::Speedrun(n) = game_state.settings.run_type {
+                            game_state.rng = GameRng::FixedSeed(Rng::new_from_seed(n), Rng::new_from_seed(n));
+                        }
+                        game_state.regenerate_map();
+                    }
                 },
                 // SelectMenuFocuses::Difficulty => {
                 //     // draw box around difficulty
@@ -1145,20 +1206,14 @@ fn update() {
                 //     layertext("Character", BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST, CHARACTER_Y + SETTING_GROUP_INLAY_DIST);
 
                 // },
-                SelectMenuFocuses::StartGameBtn => {
-                    draw_selected_box((START_X, START_Y, START_WIDTH, START_HEIGHT), 1, 0x0004);
-                    if btns_pressed_this_frame[0] & (BUTTON_1 | BUTTON_2) != 0 {
-                        game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::MainGameplay);
-                        if let game::game_state::RunType::Speedrun(n) = game_state.settings.run_type {
-                            game_state.rng = GameRng::FixedSeed(Rng::new_from_seed(n), Rng::new_from_seed(n));
-                        }
-                        game_state.regenerate_map();
-                    }
+                // SelectMenuFocuses::StartGameBtn => {
+                //     draw_selected_box((START_X, START_Y, START_WIDTH, START_HEIGHT), 1, 0x0004);
 
-                    if game_state.song_timer % 30 >= 15 {
-                        layertext("Start!", START_X + SETTING_GROUP_INLAY_DIST + 3, START_Y + SETTING_GROUP_INLAY_DIST + 1);
-                    }
-                }
+
+                //     if game_state.song_timer % 30 >= 15 {
+                //         layertext("Start!", START_X + SETTING_GROUP_INLAY_DIST + 3, START_Y + SETTING_GROUP_INLAY_DIST + 1);
+                //     }
+                // }
             }
 
             match game_state.settings.run_type {
@@ -1173,7 +1228,12 @@ fn update() {
                     layertext("Seed Mode", BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST + 25, RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST);
                     layertext("Fixed maps", BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST, RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST + 15);
                     layertext("For speedruns!", BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST, RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST + 25);
-                    layertext(&format!["z/x for seed: {}", n],BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST, RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST + 35);
+                    layertext(&format![" for seed: {}", n],BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST + 1, RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST + 35);
+                    if game_state.song_timer % 30 >= 15 {
+                        unsafe {*DRAW_COLORS = 0x0004}
+
+                        text([b'\x81'], BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST, RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST + 35);
+                    }
                 },
             }
             
