@@ -6,6 +6,7 @@ pub enum MenuTypes {
     // Options,
     WonLevel,
     Done,
+    WonGame
 }
 
 pub struct Modal {
@@ -38,7 +39,7 @@ pub enum SelectMenuFocuses {
     // Difficulty,
     RunType,
     // CharacterSelect,
-    StartGameBtn
+    // StartGameBtn
 }
 
 pub struct SelectSetup{

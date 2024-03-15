@@ -3,6 +3,7 @@ pub enum PopupIcon {
     None,
     Clock,
     CatHead,
+    DownArrow
 }
 
 pub struct PopupText {
