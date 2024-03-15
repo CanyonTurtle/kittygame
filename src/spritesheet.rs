@@ -8,20 +8,10 @@ pub const KITTY_SPRITESHEET_STRIDE: u8 = KITTY_SPRITESHEET_PAGE_WIDTH * 6;
 
 pub const KITTY_SPRITESHEET_PALETTES: [[u32; 4]; 9] = [
     [
-        // Teal & Gold Palette
-        0x57dab2, // pig (Cool Teal)
-
-        0xe4f288, // background (Cool Teal)
-        0xdff6633, // lizard (Warm Goldenrod)
-
-        0xf8ffd2, // foreground (Warm Wheat)
-        // Teal & Gold Palette
-        // 0x8adab2, // pig (Cool Teal)
-
-        // 0xd0f288, // background (Cool Teal)
-        // 0xdf826c, // lizard (Warm Goldenrod)
-
-        // 0xf8ffd2, // foreground (Warm Wheat)
+        0xade0cd, // background
+        0xe4f288, // foreground / walls
+        0xdff6633, // pig, lizard, bird
+        0xf8ffd2, // players / cats 
     ],
     [
         // Pinky
