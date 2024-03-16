@@ -27,7 +27,7 @@ use crate::spritesheet::{self, KITTY_SPRITESHEET_PALETTES};
 type RunSeed = u32;
 pub enum RunType {
     Casual,
-    Random,
+    TimedMode,
     Speedrun(RunSeed)
 }
 
