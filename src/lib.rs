@@ -603,12 +603,10 @@ fn update() {
             
             let mut speedrun_seed_text = "".to_owned();
             match game_state.settings.run_type {
-                RunType::TimedMode | RunType::Casual => {
-                    
-                },
                 RunType::Speedrun(n) => {
                     speedrun_seed_text = format!["Sd.{}: {}s", n, game_state.speedrun_timer_msec/ 60];
                 },
+                _ => {}
             };
             let found_kitties_text = &format!["{:.2}/{:.2}", current_found_npcs, game_state.total_npcs_to_find];
             let time_left_text = &format!["{:<3}", game_state.countdown_timer_msec as u32 / 60];
@@ -1198,7 +1196,8 @@ fn update() {
                         game_state.settings.run_type = match game_state.settings.run_type {
                             RunType::Casual => RunType::TimedMode,
                             game::game_state::RunType::TimedMode => game::game_state::RunType::Speedrun(0),
-                            game::game_state::RunType::Speedrun(_) => game::game_state::RunType::Casual,
+                            game::game_state::RunType::Speedrun(_) => game::game_state::RunType::Chaos,
+                            RunType::Chaos => RunType::Casual
                         }   
                     }
                     // draw box around run type
@@ -1272,6 +1271,13 @@ fn update() {
 
                         text([b'\x81'], BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST, RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST + 35);
                     }
+                },
+                RunType::Chaos => {
+                    layertext("??? mode", BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST + 20, RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST);
+                    layertext("For the", BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST, RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST + 15);
+                    layertext("chaotic", BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST, RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST + 25);
+                    layertext("kittens...", BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST, RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST + 35);
+
                 },
             }
             

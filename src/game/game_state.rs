@@ -1,7 +1,6 @@
-
 use super::cloud::Cloud;
 use super::entities::{Player, WarpAbility};
-use super::game_constants::{COUNTDOWN_TIMER_START, START_DIFFICULTY_LEVEL, LEVELS_PER_MOOD, MAP_GEN_SETTINGS};
+use super::game_constants::{MapGenSetting, COUNTDOWN_TIMER_START, LEVELS_PER_MOOD, MAP_GEN_SETTINGS, START_DIFFICULTY_LEVEL};
 use super::menus::GameMode;
 use super::popup_text::PopTextRingbuffer;
 use super::rng::GameRng;
@@ -28,7 +27,8 @@ type RunSeed = u32;
 pub enum RunType {
     Casual,
     TimedMode,
-    Speedrun(RunSeed)
+    Speedrun(RunSeed),
+    Chaos
 }
 
 // pub enum Difficulty {
@@ -133,8 +133,7 @@ impl GameState<'static> {
 
 
         
-        let new_song_idx =
-            1 + ((self.difficulty_level as usize - 1) / LEVELS_PER_MOOD) % (SONGS.len() - 1);
+        let new_song_idx = 1 + ((self.difficulty_level as usize - 1) / LEVELS_PER_MOOD) % (SONGS.len() - 1);
 
         let new_pallete_idx = ((self.difficulty_level as usize - 1) / LEVELS_PER_MOOD) % KITTY_SPRITESHEET_PALETTES.len();
         self.pallette_idx = new_pallete_idx;
@@ -155,9 +154,30 @@ impl GameState<'static> {
             self.map_gen_settings_idx = ((self.difficulty_level as usize - 1) / LEVELS_PER_MOOD) % MAP_GEN_SETTINGS.len();
         }
 
-
-
-        let map_gen_setting = &MAP_GEN_SETTINGS[self.map_gen_settings_idx];
+        let mut map_gen_setting = &MAP_GEN_SETTINGS[self.map_gen_settings_idx];
+        let msl = (self.rng.next_for_worldgen() % 10 + 6) as usize;
+        let max_diff = (self.rng.next_for_worldgen() % 20 + 1) as usize;
+        let mnt = (((self.rng.next_for_worldgen() % 40) * 40 + 100) as usize).min(msl*(msl+max_diff+10));
+        let lmm = if mnt < 500 {
+            0.7
+        } else {
+            1.0
+        };
+        let chaotic_map = MapGenSetting{
+            chunk_min_side_len: msl,
+            chunk_max_side_len: msl + max_diff,
+            max_n_tiles_per_chunk: mnt,
+            linear_mapsize_mult: lmm,
+        };
+        match self.settings.run_type {
+            RunType::Chaos => {
+                map_gen_setting = &chaotic_map;
+                self.tileset_idx = self.rng.next_for_worldgen() as usize % MAP_TILESETS.len();
+                self.pallette_idx = self.rng.next_for_worldgen() as usize % KITTY_SPRITESHEET_PALETTES.len();
+                self.song_idx = 1 + (self.rng.next_for_worldgen() as usize) % (SONGS.len() - 1);
+            },
+            _ => {}
+        }
         let map_chunk_min_side_len = map_gen_setting.chunk_min_side_len;
         let map_chunk_max_side_len = map_gen_setting.chunk_max_side_len;
         let max_n_tiles_in_chunk = map_gen_setting.max_n_tiles_per_chunk;
