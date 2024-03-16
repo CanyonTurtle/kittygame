@@ -60,7 +60,7 @@ fn drawmap(game_state: &GameState) {
                         let y_loc = (chunk_y_offset + row as i32 * TILE_WIDTH_PX as i32)
                             - camera.current_viewing_y_offset as i32;
 
-                        if x_loc >= 0 && x_loc < 160 && y_loc > 0 && y_loc < 160 {
+                        if x_loc >= 0 - TILE_WIDTH_PX as i32 && x_loc < 160 && y_loc >= 0 - TILE_HEIGHT_PX as i32 && y_loc < 160 {
                             blit_sub(
                                 &game_state.spritesheet,
                                 x_loc,
