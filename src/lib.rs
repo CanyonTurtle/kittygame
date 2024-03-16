@@ -5,7 +5,7 @@
 /// This is essentially the entrypoint of the game, providing the update() loop. 
 /// This has all the drawing code and lots of update logic.
 
-#[cfg(feature = "buddy-alloc")]
+
 mod alloc;
 mod kitty_ss;
 mod spritesheet;
@@ -17,8 +17,7 @@ use game::{
     collision::{check_entity_collisions, update_pos},
     entities::{Character, MovingEntity, KittyStates, WarpAbility, WarpState},
     game_constants::{
-        MAX_N_NPCS, TILE_HEIGHT_PX, TILE_WIDTH_PX, X_LEFT_BOUND, X_RIGHT_BOUND, Y_LOWER_BOUND,
-        Y_UPPER_BOUND,
+        MAX_N_NPCS, TILE_HEIGHT_PX, TILE_WIDTH_PX
     },
     game_state::GameState,
     menus::GameMode,
@@ -31,12 +30,9 @@ use wasm4::*;
 mod title_ss;
 
 use crate::{
-    game::{
-        collision::{get_bound_of_character, AbsoluteBoundingBox},
-        entities::OptionallyEnabledPlayer,
-        menus::{Modal, NormalPlayModes, MenuTypes, SelectSetup, SelectMenuFocuses}, game_constants::{COUNTDOWN_TIMER_START, START_DIFFICULTY_LEVEL, MAJOR_VERSION, MINOR_VERSION, INCR_VERSION, FINAL_LEVEL}, popup_text::{PopTextRingbuffer, PopupIcon}, rng::{GameRng, Rng}, game_state::RunType,
-    },
-    title_ss::OUTPUT_ONLINEPNGTOOLS
+    alloc::init_heap, game::{
+        collision::{get_bound_of_character, AbsoluteBoundingBox}, entities::OptionallyEnabledPlayer, game_constants::{COUNTDOWN_TIMER_START, FINAL_LEVEL, INCR_VERSION, LEVELS_PER_MOOD, MAJOR_VERSION, MINOR_VERSION, START_DIFFICULTY_LEVEL}, game_state::RunType, menus::{MenuTypes, Modal, NormalPlayModes, SelectMenuFocuses, SelectSetup}, popup_text::{PopTextRingbuffer, PopupIcon}, rng::{GameRng, Rng}
+    }, title_ss::OUTPUT_ONLINEPNGTOOLS
 };
 
 /// draw the tiles in the map, relative to the camera.
@@ -264,6 +260,7 @@ fn update() {
     unsafe {
         match &mut GAME_STATE_HOLDER {
             None => {
+                init_heap();
                 spritesheet::Sprite::init_all_sprites();
                 let mut new_game_state = GameState::new();
                 for _ in 0..20 {
@@ -304,16 +301,8 @@ fn update() {
     match &mut game_state.players[player_idx as usize] {
         OptionallyEnabledPlayer::Disabled => {}
         OptionallyEnabledPlayer::Enabled(player) => {
-            game_state.camera.current_viewing_x_target = num::clamp(
-                player.character.x_pos - 80.0,
-                X_LEFT_BOUND as f32,
-                X_RIGHT_BOUND as f32,
-            );
-            game_state.camera.current_viewing_y_target = num::clamp(
-                player.character.y_pos - 80.0,
-                Y_LOWER_BOUND as f32,
-                Y_UPPER_BOUND as f32,
-            );
+            game_state.camera.current_viewing_x_target = player.character.x_pos - 80.0;
+            game_state.camera.current_viewing_y_target = player.character.y_pos - 80.0;
         }
     }
 
@@ -615,7 +604,7 @@ fn update() {
                 .fold(0, |acc, e| acc + match e.following_i {None => 0, Some(_) => 1});
 
             // COMPUTE SCORE, LEVEL, # KITTIES (used later either in modal or normal screen)
-            let world_level_text = &format!["W{}-L{}", ((game_state.difficulty_level - 1) / 5) + 1, ((game_state.difficulty_level - 1) % 5) + 1];
+            let world_level_text = &format!["W{}-L{}", ((game_state.difficulty_level - 1) / LEVELS_PER_MOOD as u32) + 1, ((game_state.difficulty_level - 1) % LEVELS_PER_MOOD as u32) + 1];
             let score_text = match game_state.settings.run_type {
                 game::game_state::RunType::Random => {
                     format!["Sc: {}p", game_state.score]

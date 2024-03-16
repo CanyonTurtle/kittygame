@@ -9,7 +9,8 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-buddy-alloc = { version = "0.4.1", optional = true }
+
+linked_list_allocator = "0.10.5"
 num = "0.4.1"
 
 [profile.release]
@@ -22,4 +23,4 @@ strip = true        # Strip symbols from binary*
 
 [features]
 # use `--no-default-features` or comment out next line to disable allocator
-default = ["buddy-alloc"]
+

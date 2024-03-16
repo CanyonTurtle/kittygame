@@ -6,76 +6,18 @@ pub const KITTY_SPRITESHEET_PAGE_WIDTH: u8 = 32;
 
 pub const KITTY_SPRITESHEET_STRIDE: u8 = KITTY_SPRITESHEET_PAGE_WIDTH * 6;
 
+#[rustfmt::skip]
 pub const KITTY_SPRITESHEET_PALETTES: [[u32; 4]; 9] = [
-    [
-        0xade0cd, // background
-        0xe4f288, // foreground / walls
-        0xdff6633, // pig, lizard, bird
-        0xf8ffd2, // players / cats 
-    ],
-    [
-        // Pinky
-        0x4B0082, // Indigo
-        0xFF69B4, // Hot Pink
-        0xFFA500, // Orange
-        0x90EE90, // Light Green
-    ],
-    [
-        // Midnight Serenade
-        0x050540, // Midnight Blue
-        0xFFFFFF, // White
-        0xFF3311, // Red
-        0xf6f666, // Gold
-    ],
-    [
-        // red and golden
-        0x440000, // Dark Red
-        0xFFF7D9, // Cream
-        0xFF6347, // Tomato
-        0x99E64E, // Light Green
-    ],
-    [
-        // Pine & Rose Palette
-        0x0b4221, // background (Dark Pine Green)
-        0xffaac8, // foreground (Light Rose)
-        0xff69b4, // pig (Cool Pink)
-        0x00ff88, // lizard
-    ],
-    [
-        // Maroon & Turquoise Palette
-        0x800000, // background (Warm Maroon)
-        0x40e0d0, // foreground (Cool Turquoise)
-        0xff4500, // pig (Warm Red-Orange)
-        0x00f080, // lizard (Cool Teal)
-    ],
-    [
-        // Slate & Peach Palette
-        0x3a4c52, // background (Dark Slate Blue)
-        0xffdab9, // foreground (Light Peach)
-        0xff69b4, // pig (Cool Pink)
-        0x00ffaa, // lizard
-    ],
-    [
-        // Spring Bloom Palette
-        0x56b88c, // Bright Blue-Green (Ball/Overlay/Smoke)
-        0xceedc7, // Light Orange (Background)
-        0xffd4b2, // Medium Orange-Pink (Alternate Text)
-        0xfff6bd, // Bright Blue-Green (Paddles)
-    ],
-    [
-        // very cool: Black, Orange Red, Gold, Dark Turquoise
-        0x000000, // bg: black
-        0xFF4500, // fg: red
-        0xFFD700, // pig: yellow
-        0x00CED1, // lizard: teal
-    ],
-    // [
-    //     // RGB
-    //     0x000000, // Black
-    //     0xFFFFFF, // White
-    //     0xFF0000, // R
-    //     0x00FF00, // G
-    // ],
+    //   bg,      fg,     enemy,     cat
+    [0x58ad8d, 0xadfa9c, 0xf9a462, 0xfceb82],
+    [0x4B0082, 0xFF69B4, 0xFFA500, 0x90EE90],
+    [0x050540, 0xFFFFFF, 0xFF3311, 0xf6f666],
+    [0x440000, 0xFFF7D9, 0xFF6347, 0x99E64E],
+    [0x0b423e, 0xf78fb4, 0xfc58dc, 0x75fd2c],
+    [0x650515, 0x4af1da, 0xf97c32, 0x93fc23],
+    [0x3a4c52, 0xffdab9, 0xff69b4, 0x00ffaa],
+    [0xade0d1, 0xf0ff8c, 0xff6633, 0xfcffec],
+    [0x000000, 0xFF4500, 0xFFD700, 0x00CED1]
 ];
 
 // KITTY_SPRITESHEET

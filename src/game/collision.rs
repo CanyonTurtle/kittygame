@@ -7,7 +7,7 @@ use crate::{
 use super::{
     entities::{Character, KittyStates, MovingEntity, OptionallyEnabledPlayer},
     game_constants::{
-        TILE_HEIGHT_PX, TILE_WIDTH_PX, X_LEFT_BOUND, X_RIGHT_BOUND, Y_LOWER_BOUND, Y_UPPER_BOUND,
+        TILE_HEIGHT_PX, TILE_WIDTH_PX
     },
     game_map::GameMap,
     game_state::GameState,
@@ -962,9 +962,6 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
 
     character.x_pos += discretized_x_displacement_this_frame as f32;
     character.y_pos += discretized_y_displacement_this_frame as f32;
-
-    character.x_pos = num::clamp(character.x_pos, X_LEFT_BOUND as f32, X_RIGHT_BOUND as f32);
-    character.y_pos = num::clamp(character.y_pos, Y_LOWER_BOUND as f32, Y_UPPER_BOUND as f32);
 
     character.count += 1;
 }

@@ -85,11 +85,6 @@ pub const MAX_N_NPCS: usize = 20;
 pub const TILE_WIDTH_PX: usize = 5;
 pub const TILE_HEIGHT_PX: usize = 5;
 
-pub const X_LEFT_BOUND: i32 = -5000;
-pub const X_RIGHT_BOUND: i32 = 5000;
-pub const Y_LOWER_BOUND: i32 = -5000;
-pub const Y_UPPER_BOUND: i32 = 5000;
-
 pub const COUNTDOWN_TIMER_START: u32 = 60 * 60;
 
 pub const START_DIFFICULTY_LEVEL: u32 = 1;
@@ -97,5 +92,5 @@ pub const FINAL_LEVEL: u32 = 45;
 pub const LEVELS_PER_MOOD: usize = 5;
 
 pub const MAJOR_VERSION: u8 = 1;
-pub const MINOR_VERSION: u8 = 2;
-pub const INCR_VERSION: u8 = 1;
+pub const MINOR_VERSION: u8 = 3;
+pub const INCR_VERSION: u8 = 0;
