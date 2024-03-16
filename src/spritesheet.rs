@@ -9,7 +9,7 @@ pub const KITTY_SPRITESHEET_STRIDE: u8 = KITTY_SPRITESHEET_PAGE_WIDTH * 6;
 #[rustfmt::skip]
 pub const KITTY_SPRITESHEET_PALETTES: [[u32; 4]; 9] = [
     //   bg,      fg,     enemy,     cat
-    [0x58ad8d, 0xadfa9c, 0xf9a462, 0xfceb82],
+    [0x70efc8, 0xf0ff8c, 0xff6633, 0xfcffec],
     [0x4B0082, 0xFF69B4, 0xFFA500, 0x90EE90],
     [0x050540, 0xFFFFFF, 0xFF3311, 0xf6f666],
     [0x440000, 0xFFF7D9, 0xFF6347, 0x99E64E],
