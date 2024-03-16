@@ -183,8 +183,8 @@ pub fn check_entity_collisions(game_state: &mut GameState) {
                     p.card_stack.try_push_card(abil_card_type, npc_p.0, npc_p.1);
 
 
-                    let gained_amount = 1 * 60;
-                    game_state.countdown_timer_msec += gained_amount;
+                    let gained_amount = 1;
+                    game_state.countdown_timer_msec += gained_amount * 60;
                     game_state.countdown_timer_msec = game_state.countdown_timer_msec.min(100 * 60 - 1);
                     game_state.score += gained_amount;
                 }

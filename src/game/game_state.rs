@@ -26,6 +26,7 @@ use crate::spritesheet::{self, KITTY_SPRITESHEET_PALETTES};
 // Games can either be fixed-seed and timed for speedrunning, or random.
 type RunSeed = u32;
 pub enum RunType {
+    Casual,
     Random,
     Speedrun(RunSeed)
 }
@@ -120,7 +121,7 @@ impl GameState<'static> {
             clouds: Vec::new(),
             countdown_and_score_bonus: 0,
             settings: GameSettings{
-                run_type: RunType::Random,
+                run_type: RunType::Casual,
                 // difficulty: Difficulty::Medium
             },
             speedrun_timer_msec: 0,
@@ -190,9 +191,9 @@ impl GameState<'static> {
         self.total_npcs_to_find =
             (1 + (self.difficulty_level / 3) + rng.next_for_worldgen() as u32 % 3).min(MAX_N_NPCS as u32);
 
-        self.countdown_and_score_bonus = (4 + self.difficulty_level.min(20) / 3) * 60;
+        self.countdown_and_score_bonus = 4 + self.difficulty_level.min(20) / 3;
 
-        self.countdown_timer_msec += self.countdown_and_score_bonus;
+        self.countdown_timer_msec += self.countdown_and_score_bonus * 60;
         self.countdown_timer_msec = self.countdown_timer_msec.min(100 * 60 - 1);
         self.score += self.countdown_and_score_bonus;
 

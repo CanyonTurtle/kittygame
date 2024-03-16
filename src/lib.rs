@@ -600,17 +600,15 @@ fn update() {
             // COMPUTE SCORE, LEVEL, # KITTIES (used later either in modal or normal screen)
             let world_level_text = &format!["W{}-L{}", ((game_state.difficulty_level - 1) / LEVELS_PER_MOOD as u32) + 1, ((game_state.difficulty_level - 1) % LEVELS_PER_MOOD as u32) + 1];
             let score_text = match game_state.settings.run_type {
-                game::game_state::RunType::Random => {
+                game::game_state::RunType::Random | RunType::Casual => {
                     format!["Sc: {}p", game_state.score]
                 },
                 game::game_state::RunType::Speedrun(n) => {
                     format!["Sd.{}: {}s", n, game_state.speedrun_timer_msec/ 60]
                 },
             };
-            let found_kitties_text = &format![
-                "{:<5} {:<3}", &format!["{:.2}/{:.2}", current_found_npcs, game_state.total_npcs_to_find],
-                game_state.countdown_timer_msec as u32 / 60
-            ];
+            let found_kitties_text = &format!["{:.2}/{:.2}", current_found_npcs, game_state.total_npcs_to_find];
+            let time_left_text = &format!["{:<3}", game_state.countdown_timer_msec as u32 / 60];
 
             // UPDATE & DRAW POPUPS
             {
@@ -632,7 +630,14 @@ fn update() {
                                 match p.icon {
                                     PopupIcon::None => {},
                                     PopupIcon::Clock => {
-                                        draw_spriteframe(&game_state.spritesheet,  &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::Clock).frames[0], game_state.spritesheet_stride as u32, dx, dy-1)
+                                        match game_state.settings.run_type {
+                                            RunType::Casual => {
+                                                layertext("Sc", dx-8, dy);
+                                            },
+                                            _ => {
+                                                draw_spriteframe(&game_state.spritesheet,  &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::Clock).frames[0], game_state.spritesheet_stride as u32, dx, dy-1);
+                                            }
+                                        }
                                     }
                                     PopupIcon::CatHead => {
                                         draw_spriteframe(&game_state.spritesheet,  &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::CatHead).frames[0], game_state.spritesheet_stride as u32, dx+1, dy+1)
@@ -678,7 +683,7 @@ fn update() {
                                             popup_icon = PopupIcon::Clock;
                                         } else {
                                             p.character.can_fly = true;
-                                            added_t = t - 10;
+                                            added_t = t;
                                             popup_t = Some("fly!".to_string());
                                             popup_icon = PopupIcon::None;
                                         }
@@ -714,7 +719,7 @@ fn update() {
                                 }
                                 game_state.countdown_timer_msec += added_t * 60;
                                 game_state.countdown_timer_msec = game_state.countdown_timer_msec.min(100 * 60 - 1);
-                                game_state.score += added_t * 60;
+                                game_state.score += added_t;
                             }
                         },
                         OptionallyEnabledPlayer::Disabled => {},
@@ -868,9 +873,17 @@ fn update() {
                                 MenuTypes::StartLevel => {
                                     modal_text(world_level_text, 16, 12);
                                     modal_text("Start!", 16, 22);
-                                    modal_text(&format!["+{}", game_state.countdown_and_score_bonus / 60], 33, 35);
+                                    modal_text(&format!["+{}", game_state.countdown_and_score_bonus], 33, 35);
                                     let (xx, yy) = modal_offs(25, 34);
-                                    draw_spriteframe(&game_state.spritesheet,  &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::Clock).frames[0], game_state.spritesheet_stride as u32, xx, yy);
+
+                                    match game_state.settings.run_type {
+                                        RunType::Casual => {
+                                            modal_text("Sc", 33-2*8, 35);
+                                        },
+                                        _ => {
+                                            draw_spriteframe(&game_state.spritesheet,  &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::Clock).frames[0], game_state.spritesheet_stride as u32, xx, yy);
+                                        }
+                                    }
 
                                     let mut start_normal_play = false;
                                     if text_timer > 100 {
@@ -955,9 +968,15 @@ fn update() {
                                     draw_spriteframe(&game_state.spritesheet,  &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::CatHead).frames[0], game_state.spritesheet_stride as u32, xx+20, yy+62);
 
                                     modal_text(" = # kittes", 28, 62);
-                                    draw_spriteframe(&game_state.spritesheet,  &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::Clock).frames[0], game_state.spritesheet_stride as u32, xx+20, yy+78);
 
-                                    modal_text(" = time left", 28, 78);
+                                    match game_state.settings.run_type {
+                                        RunType::Casual => {}
+                                        _ => {
+                                            draw_spriteframe(&game_state.spritesheet,  &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::Clock).frames[0], game_state.spritesheet_stride as u32, xx+20, yy+78);
+                                            modal_text(" = time left", 28, 78);
+                                        }
+                                    }
+
                                     match btn_pressed {
                                         true => {
                                             game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::MainGameplay);
@@ -1021,22 +1040,30 @@ fn update() {
                 if !game_state.countdown_paused {
                     game_state.speedrun_timer_msec += 1;
                     game_state.countdown_timer_msec -= 1;
+                    
+                    
             
                     // ---- LOSE CONDITION ----
-                    if game_state.countdown_timer_msec <= 0 {
+                    match game_state.settings.run_type {
+                        RunType::Casual => {}
+                        _ => {
+                            if game_state.countdown_timer_msec <= 0 {
             
-                        game_state.song_idx = 0;
-            
-                        game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::HoverModal(Modal::new(
-                            AbsoluteBoundingBox {
-                                x: 15,
-                                y: 50,
-                                width: 130,
-                                height: 60,
-                            },
-                            MenuTypes::Done
-                        )));
+                                game_state.song_idx = 0;
+                    
+                                game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::HoverModal(Modal::new(
+                                    AbsoluteBoundingBox {
+                                        x: 15,
+                                        y: 50,
+                                        width: 130,
+                                        height: 60,
+                                    },
+                                    MenuTypes::Done
+                                )));
+                            }
+                        }
                     }
+                 
                 }
 
 
@@ -1045,8 +1072,13 @@ fn update() {
                 layertext(world_level_text, 0, BOTTOM_UI_TEXT_Y);
                 layertext(&score_text, 60, BOTTOM_UI_TEXT_Y);
                 layertext(found_kitties_text, 9, TOP_UI_TEXT_Y);
-
-                draw_spriteframe(&game_state.spritesheet,  &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::Clock).frames[0], game_state.spritesheet_stride as u32, 48, TOP_UI_TEXT_Y - 1);
+                match game_state.settings.run_type {
+                    RunType::Casual => {}
+                    _ => {
+                        draw_spriteframe(&game_state.spritesheet,  &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::Clock).frames[0], game_state.spritesheet_stride as u32, 48, TOP_UI_TEXT_Y - 1);
+                        layertext(time_left_text, 9 + 6*8, TOP_UI_TEXT_Y);
+                    }
+                }
                 draw_spriteframe(&game_state.spritesheet,  &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::CatHead).frames[0], game_state.spritesheet_stride as u32, 1, TOP_UI_TEXT_Y + 1);
 
                 
@@ -1149,8 +1181,9 @@ fn update() {
                 SelectMenuFocuses::RunType => {
                     if btns_pressed_this_frame[0] & (BUTTON_RIGHT | BUTTON_LEFT) != 0 {
                         game_state.settings.run_type = match game_state.settings.run_type {
+                            RunType::Casual => RunType::Random,
                             game::game_state::RunType::Random => game::game_state::RunType::Speedrun(0),
-                            game::game_state::RunType::Speedrun(_) => game::game_state::RunType::Random,
+                            game::game_state::RunType::Speedrun(_) => game::game_state::RunType::Casual,
                         }   
                     }
                     // draw box around run type
@@ -1200,8 +1233,15 @@ fn update() {
             }
 
             match game_state.settings.run_type {
+                game::game_state::RunType::Casual => {
+                    layertext("Casual Mode", BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST + 20, RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST);
+                    layertext("Random levels.", BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST, RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST + 15);
+                    layertext("Find all the", BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST, RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST + 25);
+                    layertext("kitties!", BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST, RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST + 35);
+
+                },
                 game::game_state::RunType::Random => {
-                    layertext("Normal Mode", BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST + 20, RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST);
+                    layertext("Timed Mode", BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST + 20, RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST);
                     layertext("Random levels.", BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST, RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST + 15);
                     layertext("Find kitties", BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST, RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST + 25);
                     layertext("in time!", BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST, RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST + 35);
