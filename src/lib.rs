@@ -599,12 +599,15 @@ fn update() {
 
             // COMPUTE SCORE, LEVEL, # KITTIES (used later either in modal or normal screen)
             let world_level_text = &format!["W{}-L{}", ((game_state.difficulty_level - 1) / LEVELS_PER_MOOD as u32) + 1, ((game_state.difficulty_level - 1) % LEVELS_PER_MOOD as u32) + 1];
-            let score_text = match game_state.settings.run_type {
-                game::game_state::RunType::TimedMode | RunType::Casual => {
-                    format!["Sc: {}p", game_state.score]
+            let score_text = format!["Sc: {}p", game_state.score];
+            
+            let mut speedrun_seed_text = "".to_owned();
+            match game_state.settings.run_type {
+                RunType::TimedMode | RunType::Casual => {
+                    
                 },
-                game::game_state::RunType::Speedrun(n) => {
-                    format!["Sd.{}: {}s", n, game_state.speedrun_timer_msec/ 60]
+                RunType::Speedrun(n) => {
+                    speedrun_seed_text = format!["Sd.{}: {}s", n, game_state.speedrun_timer_msec/ 60];
                 },
             };
             let found_kitties_text = &format!["{:.2}/{:.2}", current_found_npcs, game_state.total_npcs_to_find];
@@ -932,11 +935,13 @@ fn update() {
 
                                     modal_text(&format!["End: {}", world_level_text], 8, 30);
                                     modal_text(&score_text, 8, 40);
+
                                     match game_state.settings.run_type {
-                                        RunType::TimedMode => {
-                                            modal_text(&format!["Time: {}s", game_state.speedrun_timer_msec / 60], 8, 50);
-                                        },
-                                        _ => {}
+                                        RunType::Speedrun(_) => {
+                                            modal_text(&speedrun_seed_text, 8, 50);
+                                        }
+                                        _ => {
+                                        }
                                     }
 
                                     match btn_pressed {
@@ -1081,6 +1086,12 @@ fn update() {
                         draw_spriteframe(&game_state.spritesheet,  &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::Clock).frames[0], game_state.spritesheet_stride as u32, 48, TOP_UI_TEXT_Y - 1);
                         layertext(time_left_text, 9 + 6*8, TOP_UI_TEXT_Y);
                     },
+
+                    RunType::Speedrun(_) => {
+                        layertext(&speedrun_seed_text, 1, TOP_UI_TEXT_Y + 10);
+                    },
+                    
+                    
                     _ => {}
                 }
                 draw_spriteframe(&game_state.spritesheet,  &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::CatHead).frames[0], game_state.spritesheet_stride as u32, 1, TOP_UI_TEXT_Y + 1);

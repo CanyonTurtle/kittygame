@@ -88,7 +88,7 @@ pub const TILE_HEIGHT_PX: usize = 5;
 pub const COUNTDOWN_TIMER_START: u32 = 60 * 60;
 
 pub const START_DIFFICULTY_LEVEL: u32 = 1;
-pub const FINAL_LEVEL: u32 = 45;
+pub const FINAL_LEVEL: u32 = 2;
 pub const LEVELS_PER_MOOD: usize = 5;
 
 pub const MAJOR_VERSION: u8 = 1;

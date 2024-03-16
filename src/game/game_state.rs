@@ -179,6 +179,11 @@ impl GameState<'static> {
                     p.character.x_pos = 10.0;
                     p.character.y_pos = 10.0;
                     p.character.can_fly = false;
+                    if self.difficulty_level == START_DIFFICULTY_LEVEL {
+                        p.card_stack = AbilityCardStack{
+                            cards: Vec::new()
+                        }
+                    } 
                 }
                 OptionallyEnabledPlayer::Disabled => {}
             }
@@ -202,6 +207,7 @@ impl GameState<'static> {
                 self.countdown_timer_msec = COUNTDOWN_TIMER_START;
                 self.score = 0;
                 self.tutorial_text_counter = 0;
+                self.speedrun_timer_msec = 0;
 
                 // Reset warping ability only on a new game. Keep the ability each level.
                 for optional_player in self.players.iter_mut() {
