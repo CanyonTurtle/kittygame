@@ -13,15 +13,9 @@ mod spritesheet;
 mod wasm4;
 
 use game::{
-    camera::Camera,
-    collision::{check_entity_collisions, update_pos},
-    entities::{Character, MovingEntity, KittyStates, WarpAbility, WarpState},
-    game_constants::{
-        MAX_N_NPCS, TILE_HEIGHT_PX, TILE_WIDTH_PX
-    },
-    game_state::GameState,
-    menus::GameMode,
-    music::{play_bgm, SONGS}, game_map::MAP_TILESETS, cloud::Cloud,
+    camera::Camera, cloud::Cloud, collision::{check_entity_collisions, update_pos}, entities::{Character, KittyStates, MovingEntity, WarpAbility, WarpState}, game_constants::{
+        MAX_N_NPCS, SCREEN_HEIGHT_PX, SCREEN_WIDTH_PX, TILE_HEIGHT_PX, TILE_WIDTH_PX
+    }, game_map::MAP_TILESETS, game_state::GameState, menus::GameMode, music::{play_bgm, SONGS}
 };
 
 use title_ss::{OUTPUT_ONLINEPNGTOOLS_WIDTH, OUTPUT_ONLINEPNGTOOLS_HEIGHT, OUTPUT_ONLINEPNGTOOLS_FLAGS};
@@ -60,7 +54,7 @@ fn drawmap(game_state: &GameState) {
                         let y_loc = (chunk_y_offset + row as i32 * TILE_WIDTH_PX as i32)
                             - camera.current_viewing_y_offset as i32;
 
-                        if x_loc >= 0 - TILE_WIDTH_PX as i32 && x_loc < 160 && y_loc >= 0 - TILE_HEIGHT_PX as i32 && y_loc < 160 {
+                        if x_loc >= 0 - TILE_WIDTH_PX as i32 && x_loc < SCREEN_WIDTH_PX as i32 && y_loc >= 0 - TILE_HEIGHT_PX as i32 && y_loc < SCREEN_HEIGHT_PX as i32 {
                             blit_sub(
                                 &game_state.spritesheet,
                                 x_loc,
@@ -148,7 +142,7 @@ fn get_inputs_this_frame() -> [[u8; 4]; 2] {
 }
 
 const TOP_UI_TEXT_Y: i32 = 2;
-const BOTTOM_UI_TEXT_Y: i32 = 160 - 8; // 160 - 8 - 2;
+const BOTTOM_UI_TEXT_Y: i32 = SCREEN_HEIGHT_PX as i32 - 8;
 
 /// DRAW BLURRED BACKGROUND BEHIND SCORE AND TIME TEXTS IN-GAME
 fn draw_modal_bg(pf: &AbsoluteBoundingBox<f32, f32>, style: u8, color: u16) {
@@ -422,7 +416,7 @@ fn update() {
                     let needs_teleport;
                     {
                         // teleportAyh-shon if needed
-                        const TELEPORT_AXIS_MIN_DIST: u32 = 160;
+                        const TELEPORT_AXIS_MIN_DIST: u32 = SCREEN_HEIGHT_PX as u32;
                         if p_bound.x.abs_diff(npc_bound.x) > TELEPORT_AXIS_MIN_DIST
                             || p_bound.y.abs_diff(npc_bound.y) > TELEPORT_AXIS_MIN_DIST
                         {
@@ -1104,7 +1098,7 @@ fn update() {
 
             const BOX_LEFT_MARGIN: i32 = 15;
             const BOX_RIGHT_MARGIN: i32 = BOX_LEFT_MARGIN;
-            const BOX_WIDTH: i32 = 160 - BOX_LEFT_MARGIN - BOX_RIGHT_MARGIN;
+            const BOX_WIDTH: i32 = SCREEN_WIDTH_PX as i32 - BOX_LEFT_MARGIN - BOX_RIGHT_MARGIN;
             const BOX_HEIGHT: i32 = 60;
 
             const RUN_TYPE_Y: i32 = 66;
