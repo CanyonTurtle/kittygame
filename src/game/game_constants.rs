@@ -7,7 +7,6 @@
 // const N_BUILDINGS_PER_CHUNK: usize = 30;
 // const USING_DOORS: bool = true;
 
-
 pub struct MapGenSetting {
     pub chunk_min_side_len: usize,
     pub chunk_max_side_len: usize,
@@ -16,55 +15,64 @@ pub struct MapGenSetting {
 }
 
 pub const MAP_GEN_SETTINGS: [MapGenSetting; 9] = [
-    MapGenSetting { // normal
+    MapGenSetting {
+        // normal
         chunk_min_side_len: 6,
         chunk_max_side_len: 50,
         max_n_tiles_per_chunk: 400,
         linear_mapsize_mult: 1.0,
     },
-    MapGenSetting{ // oblong
+    MapGenSetting {
+        // oblong
         chunk_min_side_len: 6,
         chunk_max_side_len: 25,
         max_n_tiles_per_chunk: 2000,
         linear_mapsize_mult: 1.0,
     },
-    MapGenSetting{ // teeny tunnels
+    MapGenSetting {
+        // teeny tunnels
         chunk_min_side_len: 6,
         chunk_max_side_len: 12,
         max_n_tiles_per_chunk: 800,
         linear_mapsize_mult: 0.7,
     },
-    MapGenSetting{ // large normal
+    MapGenSetting {
+        // large normal
         chunk_min_side_len: 20,
         chunk_max_side_len: 40,
         max_n_tiles_per_chunk: 1400,
         linear_mapsize_mult: 1.0,
     },
-    MapGenSetting{ // small
+    MapGenSetting {
+        // small
         chunk_min_side_len: 6,
         chunk_max_side_len: 30,
         max_n_tiles_per_chunk: 500,
         linear_mapsize_mult: 1.0,
     },
-    MapGenSetting{ // ridiculous tunnel
+    MapGenSetting {
+        // ridiculous tunnel
         chunk_min_side_len: 8,
         chunk_max_side_len: 10,
         max_n_tiles_per_chunk: 500,
         linear_mapsize_mult: 0.4,
     },
-    MapGenSetting{ // chaotic
+    MapGenSetting {
+        // chaotic
         chunk_min_side_len: 5,
         chunk_max_side_len: 60,
         max_n_tiles_per_chunk: 500,
         linear_mapsize_mult: 1.0,
     },
-    MapGenSetting{ // spacey
+    MapGenSetting {
+        // spacey
         chunk_min_side_len: 12,
         chunk_max_side_len: 40,
         max_n_tiles_per_chunk: 2000,
         linear_mapsize_mult: 1.0,
     },
-    MapGenSetting{ // underworld
+    MapGenSetting {
+        // underworld
         chunk_min_side_len: 5,
         chunk_max_side_len: 80,
         max_n_tiles_per_chunk: 5000,
@@ -81,7 +89,7 @@ pub const MAP_GEN_SETTINGS: [MapGenSetting; 9] = [
 pub const MAX_N_TILES_IN_WHOLE_MAP: usize = 25 * 2048;
 
 pub const MAX_N_NPCS: usize = 20;
-  
+
 pub const TILE_WIDTH_PX: usize = 5;
 pub const TILE_HEIGHT_PX: usize = 5;
 

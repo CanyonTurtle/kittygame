@@ -29,8 +29,6 @@ pub const KITTY_SPRITESHEET_PALETTES: [[u32; 4]; 9] = [
 
 pub const KITTY_SPRITESHEET_FLAGS: u32 = 1; // BLIT_2BPP
 
-    
-
 #[derive(Clone, Copy)]
 pub struct SpriteFrame {
     pub width: u8,

@@ -1,31 +1,33 @@
-use super::game_constants::{TILE_WIDTH_PX, TILE_HEIGHT_PX};
-
-
+use super::game_constants::{TILE_HEIGHT_PX, TILE_WIDTH_PX};
 
 pub struct TileAlignedBoundingBox {
     pub x: i32,
     pub y: i32,
     pub width: usize,
-    pub height: usize
+    pub height: usize,
 }
 
 impl TileAlignedBoundingBox {
     pub fn init(x: i32, y: i32, w: usize, h: usize) -> Self {
-        return TileAlignedBoundingBox { x:x, y: y, width: w, height: h }
+        return TileAlignedBoundingBox {
+            x: x,
+            y: y,
+            width: w,
+            height: h,
+        };
     }
 }
 
 pub struct MapChunk {
     pub tiles: Vec<u8>,
-    pub bound: TileAlignedBoundingBox
+    pub bound: TileAlignedBoundingBox,
 }
 
 pub enum OutOfChunkBound {
-    OUT
+    OUT,
 }
 
 impl MapChunk {
-
     pub fn init() -> Self {
         let chunk = MapChunk {
             tiles: Vec::new(),
@@ -34,7 +36,7 @@ impl MapChunk {
                 x: 1,
                 width: 1,
                 height: 1,
-            }
+            },
         };
 
         chunk
@@ -48,8 +50,6 @@ impl MapChunk {
     pub fn set_tile(self: &mut Self, x: usize, y: usize, val: u8) {
         let clamped_coords = self.clamp_coords(x, y);
 
-        
-
         let logical_idx = clamped_coords.1 * self.bound.width as usize + clamped_coords.0;
         let actual_idx = logical_idx / 2;
         // crate::trace(format!["l: {}", logical_idx]);
@@ -61,15 +61,13 @@ impl MapChunk {
         {
             prior = self.tiles[actual_idx];
         }
-        
 
-        if logical_idx % 2 == 0 { 
-            prior &= 0xf0; 
+        if logical_idx % 2 == 0 {
+            prior &= 0xf0;
             prior |= val & 0x0f;
             self.tiles[actual_idx] = prior;
             // crate::trace("e1");
-        }
-        else {
+        } else {
             prior &= 0x0f;
             prior |= (((val as u32) << 4) & 0xf0) as u8;
             self.tiles[actual_idx] = prior;
@@ -90,11 +88,10 @@ impl MapChunk {
         {
             current = self.tiles[actual_idx];
         }
-        
+
         if logical_idx % 2 == 0 {
             current & 0x0f
-        }
-        else {
+        } else {
             // 0// (current << 4) & 0xf0
             (((current as u32) >> 4) & 0x0f) as u8
         }
@@ -105,7 +102,7 @@ impl MapChunk {
             if x < self.bound.width as i32 {
                 if y >= 0 {
                     if y < self.bound.height as i32 {
-                        return true
+                        return true;
                     }
                 }
             }
@@ -114,8 +111,10 @@ impl MapChunk {
     }
 
     pub fn get_tile_abs(self: &Self, abs_x: i32, abs_y: i32) -> Result<u8, OutOfChunkBound> {
-        let rel_x = ((abs_x - self.bound.x * TILE_WIDTH_PX as i32) as f32 / TILE_WIDTH_PX as f32) as i32;
-        let rel_y = ((abs_y - self.bound.y * TILE_HEIGHT_PX as i32) as f32 / TILE_HEIGHT_PX as f32) as i32;
+        let rel_x =
+            ((abs_x - self.bound.x * TILE_WIDTH_PX as i32) as f32 / TILE_WIDTH_PX as f32) as i32;
+        let rel_y =
+            ((abs_y - self.bound.y * TILE_HEIGHT_PX as i32) as f32 / TILE_HEIGHT_PX as f32) as i32;
 
         if self.is_tile_idx_inside_tile_aligned_bound(rel_x, rel_y) {
             return Result::Ok(self.get_tile(rel_x as usize, rel_y as usize));

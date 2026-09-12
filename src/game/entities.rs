@@ -9,14 +9,14 @@ pub struct Player {
 
 pub enum OptionallyEnabledPlayer {
     Enabled(Player),
-    Disabled
+    Disabled,
 }
 
 pub enum MovingEntity<'a> {
     OptionalPlayer(&'a mut OptionallyEnabledPlayer),
-    NPC(&'a mut Character)
+    NPC(&'a mut Character),
 }
- 
+
 // If a player can warp, they need to hold the button long enough.
 type WarpInputTimer = u8;
 
@@ -29,7 +29,7 @@ pub enum WarpState {
 #[derive(PartialEq, Eq, Hash)]
 pub enum WarpAbility {
     CannotWarp,
-    CanWarp(WarpState)
+    CanWarp(WarpState),
 }
 
 pub struct Character {
@@ -52,16 +52,13 @@ pub struct Character {
 
 #[derive(PartialEq, Eq, Hash)]
 
-
 pub enum KittyStates {
     Sleeping,
     Walking(u8),
     JumpingUp(u8),
     HuggingWall(bool),
-    OnCeiling(u8)
+    OnCeiling(u8),
 }
-
-
 
 impl Character {
     pub fn new(sprite_type: PresetSprites) -> Character {
@@ -80,7 +77,7 @@ impl Character {
             following_i: None,
             can_fly: false,
             sprite_type,
-            warp_ability: WarpAbility::CannotWarp
+            warp_ability: WarpAbility::CannotWarp,
         }
     }
 }

@@ -23,13 +23,16 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
-          components: clippy
+          components: clippy, rustfmt
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
 
       - uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        run: cargo fmt --check
 
       - name: Lint
         run: cargo clippy --release

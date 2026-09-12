@@ -23,9 +23,6 @@
 
 pub struct Rng(u128);
 
-
-
-
 impl Rng {
     pub fn new() -> Self {
         Self(0x7369787465656E2062797465206E756Du128 | 1)
@@ -43,32 +40,28 @@ impl Rng {
         self.0 = self.0.wrapping_mul(0x2360ED051FC65DA44385DF649FCCF645);
         let rot = (self.0 >> 122) as u32;
         let xsl = ((self.0 >> 64) as u64) ^ (self.0 as u64);
-        xsl.rotate_right(rot)     
+        xsl.rotate_right(rot)
     }
 }
 
 // Allow us to use RNG the same way, regardless of whether its fixed seed or input-based seeding
 pub enum GameRng {
     FixedSeed(Rng, Rng),
-    Random(Rng)
+    Random(Rng),
 }
 
 impl GameRng {
     pub fn next_for_worldgen(&mut self) -> u64 {
         match self {
-            Self::FixedSeed(fixed_rng, _) => {
-                fixed_rng.next()
-            },
-            Self::Random(rng) => rng.next()
+            Self::FixedSeed(fixed_rng, _) => fixed_rng.next(),
+            Self::Random(rng) => rng.next(),
         }
     }
 
     pub fn next_for_input(&mut self) -> u64 {
         match self {
-            Self::FixedSeed(_, input_rng) => {
-                input_rng.next()
-            },
-            Self::Random(rng) => rng.next()
+            Self::FixedSeed(_, input_rng) => input_rng.next(),
+            Self::Random(rng) => rng.next(),
         }
     }
 }

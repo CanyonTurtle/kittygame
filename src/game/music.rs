@@ -12,7 +12,8 @@ pub struct Song {
 }
 
 pub const SONGS: [Song; 10] = [
-    Song { // happy cat
+    Song {
+        // happy cat
         name: "happy",
         scale: [294, 330, 370, 392, 440, 494, 554, 587],
         f1_pitchchange_timer: 5,
@@ -22,7 +23,8 @@ pub const SONGS: [Song; 10] = [
         f2_note_duration: 3,
         time_signature: (3, 4),
     },
-    Song { // it works but how
+    Song {
+        // it works but how
         name: "ptdyl",
         scale: [330, 370, 415, 440, 494, 554, 622, 659],
         f1_pitchchange_timer: 3,
@@ -32,7 +34,8 @@ pub const SONGS: [Song; 10] = [
         f2_note_duration: 44,
         time_signature: (2, 4),
     },
-    Song { // sneak cat
+    Song {
+        // sneak cat
         name: "sneak",
         scale: [196, 220, 247, 262, 294, 330, 370, 392],
         f1_pitchchange_timer: 17,
@@ -42,7 +45,8 @@ pub const SONGS: [Song; 10] = [
         f2_note_duration: 20,
         time_signature: (1, 3),
     },
-    Song { // rando_cat
+    Song {
+        // rando_cat
         name: "boop!",
         scale: [247, 277, 311, 330, 370, 415, 466, 494],
         // scale: [196, 220, 247, 262, 294, 330, 370, 392],
@@ -53,7 +57,8 @@ pub const SONGS: [Song; 10] = [
         f2_note_duration: 26,
         time_signature: (4, 4),
     },
-    Song { // explore cat
+    Song {
+        // explore cat
         name: "explr",
         scale: [196, 220, 247, 262, 294, 330, 370, 392],
         // scale: [196, 220, 247, 262, 294, 330, 370, 392],
@@ -64,7 +69,8 @@ pub const SONGS: [Song; 10] = [
         f2_note_duration: 18,
         time_signature: (12, 3),
     },
-    Song { // c6 minor
+    Song {
+        // c6 minor
         name: "ionos",
         scale: [523, 587, 622, 698, 784, 831, 932, 1047],
         f1_pitchchange_timer: 10,
@@ -74,7 +80,8 @@ pub const SONGS: [Song; 10] = [
         f2_note_duration: 16,
         time_signature: (4, 3),
     },
-    Song { // a flat
+    Song {
+        // a flat
         name: "crpkt",
         scale: [415, 466, 523, 554, 622, 698, 784, 831],
         f1_pitchchange_timer: 11,
@@ -84,7 +91,8 @@ pub const SONGS: [Song; 10] = [
         f2_note_duration: 24,
         time_signature: (1, 3),
     },
-    Song { // g sharp
+    Song {
+        // g sharp
         name: "blopy",
         scale: [415, 466, 523, 554, 622, 698, 784, 831],
         f1_pitchchange_timer: 2,
@@ -94,7 +102,8 @@ pub const SONGS: [Song; 10] = [
         f2_note_duration: 7,
         time_signature: (4, 6),
     },
-    Song { // f
+    Song {
+        // f
         name: "Yumbo",
         scale: [175, 196, 220, 233, 262, 293, 330, 349],
         f1_pitchchange_timer: 5,
@@ -104,7 +113,8 @@ pub const SONGS: [Song; 10] = [
         f2_note_duration: 17,
         time_signature: (4, 16),
     },
-    Song { // f
+    Song {
+        // f
         name: "Underworld",
         scale: [523, 587, 622, 698, 784, 831, 932, 1047],
         f1_pitchchange_timer: 7,
@@ -116,20 +126,26 @@ pub const SONGS: [Song; 10] = [
     },
 ];
 
-
 pub fn play_bgm(timer: u32, song: &Song) {
-        
-
     let freq1: usize = (timer as usize / song.f1_pitchchange_timer as usize) % song.scale.len();
     let freq2: usize = (timer as usize / song.f2_pitchchange_timer as usize) % song.scale.len();
 
-
-    let time_signature_numerator: u32 = song.time_signature.0 as u32*song.measure_length as u32;
-    let time_signature_denominator: u32 = song.time_signature.1 as u32*song.measure_length as u32;
+    let time_signature_numerator: u32 = song.time_signature.0 as u32 * song.measure_length as u32;
+    let time_signature_denominator: u32 = song.time_signature.1 as u32 * song.measure_length as u32;
     if timer % time_signature_numerator == 0 {
-        tone(song.scale[freq1] as u32, song.f1_note_duration as u32, 20, TONE_PULSE1);
+        tone(
+            song.scale[freq1] as u32,
+            song.f1_note_duration as u32,
+            20,
+            TONE_PULSE1,
+        );
     }
     if timer % time_signature_denominator == 0 && (freq2 as i32).abs_diff(freq1 as i32) > 1 {
-        tone(song.scale[freq2] as u32, song.f2_note_duration as u32, 20, TONE_PULSE2);
+        tone(
+            song.scale[freq2] as u32,
+            song.f2_note_duration as u32,
+            20,
+            TONE_PULSE2,
+        );
     }
 }

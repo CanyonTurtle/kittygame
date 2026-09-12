@@ -1,17 +1,19 @@
-
 use crate::{
-    game::{ability_cards::{AbilityCardStack, AbilityCardTypes}, entities::{Player, WarpAbility, WarpState}, popup_text::{PopTextRingbuffer, PopupIcon}},
+    game::{
+        ability_cards::{AbilityCardStack, AbilityCardTypes},
+        entities::{Player, WarpAbility, WarpState},
+        popup_text::{PopTextRingbuffer, PopupIcon},
+    },
     spritesheet,
 };
 
 use super::{
+    cloud::Cloud,
     entities::{Character, KittyStates, MovingEntity, OptionallyEnabledPlayer},
-    game_constants::{
-        TILE_HEIGHT_PX, TILE_WIDTH_PX
-    },
+    game_constants::{TILE_HEIGHT_PX, TILE_WIDTH_PX},
     game_map::GameMap,
     game_state::GameState,
-    mapchunk::{MapChunk, TileAlignedBoundingBox}, cloud::Cloud,
+    mapchunk::{MapChunk, TileAlignedBoundingBox},
 };
 
 use crate::wasm4::*;
@@ -158,11 +160,19 @@ pub fn check_entity_collisions(game_state: &mut GameState) {
 
                     let gained_amount = 1 * 60;
 
-                    popup_texts_rb.add_new_popup(pop_x - 7.0, pop_y, format![" +{}", gained_amount/60].to_string(), PopupIcon::CatHead);
+                    popup_texts_rb.add_new_popup(
+                        pop_x - 7.0,
+                        pop_y,
+                        format![" +{}", gained_amount / 60].to_string(),
+                        PopupIcon::CatHead,
+                    );
 
                     // add card
                     let abil_card_type = match npc.sprite_type {
-                        spritesheet::PresetSprites::Kitty1 | spritesheet::PresetSprites::Kitty2 | spritesheet::PresetSprites::Kitty3 | spritesheet::PresetSprites::Kitty4 => AbilityCardTypes::Kitty,
+                        spritesheet::PresetSprites::Kitty1
+                        | spritesheet::PresetSprites::Kitty2
+                        | spritesheet::PresetSprites::Kitty3
+                        | spritesheet::PresetSprites::Kitty4 => AbilityCardTypes::Kitty,
                         spritesheet::PresetSprites::Pig => AbilityCardTypes::Piggy,
                         spritesheet::PresetSprites::Lizard => AbilityCardTypes::Lizard,
                         spritesheet::PresetSprites::BirdIsntReal => AbilityCardTypes::Bird,
@@ -170,22 +180,36 @@ pub fn check_entity_collisions(game_state: &mut GameState) {
                     };
 
                     // spawn some clouds
-                    for dir in [(1.0, 0.0), (0.5, 0.86), (-0.5, 0.86), (-1.0, 0.0), (-0.5, -0.86), (0.5, -0.86)] {
+                    for dir in [
+                        (1.0, 0.0),
+                        (0.5, 0.86),
+                        (-0.5, 0.86),
+                        (-1.0, 0.0),
+                        (-0.5, -0.86),
+                        (0.5, -0.86),
+                    ] {
                         const CARD_CLOUD_SPEED: f32 = 4.0;
 
                         let vx = CARD_CLOUD_SPEED * dir.0;
                         let vy = CARD_CLOUD_SPEED * dir.1;
-                        Cloud::try_push_cloud(&mut game_state.clouds, npc.x_pos + 2.0, npc.y_pos + 3.0, vx, vy);
-
+                        Cloud::try_push_cloud(
+                            &mut game_state.clouds,
+                            npc.x_pos + 2.0,
+                            npc.y_pos + 3.0,
+                            vx,
+                            vy,
+                        );
                     }
 
-                    let npc_p = game_state.camera.cvt_world_to_screen_coords(npc.x_pos, npc.y_pos);
+                    let npc_p = game_state
+                        .camera
+                        .cvt_world_to_screen_coords(npc.x_pos, npc.y_pos);
                     p.card_stack.try_push_card(abil_card_type, npc_p.0, npc_p.1);
-
 
                     let gained_amount = 1;
                     game_state.countdown_timer_msec += gained_amount * 60;
-                    game_state.countdown_timer_msec = game_state.countdown_timer_msec.min(100 * 60 - 1);
+                    game_state.countdown_timer_msec =
+                        game_state.countdown_timer_msec.min(100 * 60 - 1);
                     game_state.score += gained_amount;
                 }
                 Some(_) => {}
@@ -333,7 +357,13 @@ pub fn raycast_axis_aligned(
 }
 
 // handle inputs of players and other characters.
-pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode: bool, clouds:&mut Vec<Cloud>) {
+pub fn update_pos(
+    map: &GameMap,
+    moving_entity: MovingEntity,
+    input: u8,
+    godmode: bool,
+    clouds: &mut Vec<Cloud>,
+) {
     let character: &mut Character;
 
     match moving_entity {
@@ -346,9 +376,7 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
                     if input != 0 {
                         *optionally_enabled_player = OptionallyEnabledPlayer::Enabled(Player {
                             character: Character::new(spritesheet::PresetSprites::MainCat),
-                            card_stack: AbilityCardStack {
-                                cards: Vec::new()
-                            },
+                            card_stack: AbilityCardStack { cards: Vec::new() },
                         });
                         match optionally_enabled_player {
                             OptionallyEnabledPlayer::Enabled(ch) => {
@@ -410,18 +438,21 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
 
     fn handle_jumping(the_char: &mut Character, input: u8, clouds: &mut Vec<Cloud>) -> bool {
         let mut allow_jump = true;
-        match the_char.state { 
+        match the_char.state {
             KittyStates::JumpingUp(t) => match t {
                 0 => {}
                 1 => {
-                    
                     const CLOUD_VX: f32 = 2.0;
                     const CLOUD_VY: f32 = 1.0;
-                    let y = the_char.y_pos + (the_char.sprite.frames[the_char.current_sprite_i as usize].height as f32) * 1.2;
-                    let x = the_char.x_pos + (the_char.sprite.frames[the_char.current_sprite_i as usize].width as f32) * 0.5;
+                    let y = the_char.y_pos
+                        + (the_char.sprite.frames[the_char.current_sprite_i as usize].height
+                            as f32)
+                            * 1.2;
+                    let x = the_char.x_pos
+                        + (the_char.sprite.frames[the_char.current_sprite_i as usize].width as f32)
+                            * 0.5;
                     Cloud::try_push_cloud(clouds, x, y, CLOUD_VX, CLOUD_VY);
                     Cloud::try_push_cloud(clouds, x, y, -CLOUD_VX, CLOUD_VY);
-
                 }
                 2..=10 => {}
                 _ => {
@@ -532,7 +563,7 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
                 }
             }
             handle_jumping(character, input, clouds);
-        },
+        }
         KittyStates::OnCeiling(t) => {
             let ret = handle_horizontal_input(character, input);
 
@@ -550,12 +581,11 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
                     // character.state = KittyStates::Sleeping;
                 }
             }
-            
+
             if t > 30 {
                 handle_jumping(character, input, clouds);
             }
-            
-        },
+        }
     }
 
     fn get_sprite_i_from_anim_state(state: &KittyStates, discrete_y_vel: i32) -> i32 {
@@ -723,7 +753,7 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
                     // if we collided against the top, automatically hang
                     if positive_y == false {
                         character.state = match character.state {
-                            KittyStates::OnCeiling(t) => KittyStates::OnCeiling(t+1),
+                            KittyStates::OnCeiling(t) => KittyStates::OnCeiling(t + 1),
                             KittyStates::HuggingWall(t) => KittyStates::HuggingWall(t),
                             _ => KittyStates::OnCeiling(0),
                         };
@@ -912,9 +942,6 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
             _ => {}
         }
     } else {
-
- 
-
         // if we hit the floor, stop jumping
         match character.state {
             KittyStates::JumpingUp(t) => match t {
@@ -932,28 +959,26 @@ pub fn update_pos(map: &GameMap, moving_entity: MovingEntity, input: u8, godmode
     // handle warping. If down is held, warp.
     if input & BUTTON_DOWN != 0 {
         match &mut character.warp_ability {
-            WarpAbility::CannotWarp => {},
-            WarpAbility::CanWarp(warp_state) => {
-                match warp_state {
-                    WarpState::Charging(t) => {
-                        *t += 1;
-                        if *t >= 25 {
-                            character.warp_ability = WarpAbility::CanWarp(WarpState::Ready);
-                        }
-                    },
-                    WarpState::Ready => {
-                        character.x_pos = 10.0;
-                        character.y_pos = 10.0;
-                        character.warp_ability = WarpAbility::CanWarp(WarpState::Charging(0));
+            WarpAbility::CannotWarp => {}
+            WarpAbility::CanWarp(warp_state) => match warp_state {
+                WarpState::Charging(t) => {
+                    *t += 1;
+                    if *t >= 25 {
+                        character.warp_ability = WarpAbility::CanWarp(WarpState::Ready);
                     }
                 }
-            }
+                WarpState::Ready => {
+                    character.x_pos = 10.0;
+                    character.y_pos = 10.0;
+                    character.warp_ability = WarpAbility::CanWarp(WarpState::Charging(0));
+                }
+            },
         }
     } else {
         match character.warp_ability {
             WarpAbility::CanWarp(_) => {
                 character.warp_ability = WarpAbility::CanWarp(WarpState::Charging(0));
-            },
+            }
             _ => {}
         }
     }

@@ -64,8 +64,8 @@ impl AbilityCardStack {
                     const CARD_PID_P: f32 = 0.125;
                     c.x_pos += CARD_PID_P * (c.target_x - c.x_pos);
                     c.y_pos += CARD_PID_P * (c.target_y - c.y_pos);
-                },
-                None => {},
+                }
+                None => {}
             }
         }
     }
@@ -103,13 +103,13 @@ impl AbilityCardStack {
                     AbilityCardTypes::Kitty => AbilityCardUsageResult::GainedTime(
                         (n_consumed as f32 * (n_consumed as f32 + 1.0) / 2.0) as u32,
                     ),
-                    AbilityCardTypes::Piggy => {
-                        AbilityCardUsageResult::GainedTime(n_consumed * 10)
-                    },
+                    AbilityCardTypes::Piggy => AbilityCardUsageResult::GainedTime(n_consumed * 10),
                     AbilityCardTypes::Lizard => {
                         AbilityCardUsageResult::EnabledWarpAndTime(n_consumed * 3)
-                    },
-                    AbilityCardTypes::Bird => AbilityCardUsageResult::EnabledFlyAndTime(n_consumed * 3),
+                    }
+                    AbilityCardTypes::Bird => {
+                        AbilityCardUsageResult::EnabledFlyAndTime(n_consumed * 3)
+                    }
                 };
 
                 // remove cards off the end (to ensure correct ordering)

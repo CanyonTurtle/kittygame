@@ -1,9 +1,8 @@
-
 pub enum PopupIcon {
     None,
     Clock,
     CatHead,
-    DownArrow
+    DownArrow,
 }
 
 pub struct PopupText {
@@ -13,12 +12,12 @@ pub struct PopupText {
     pub target_y_pos: f32,
     pub duration_timer: u32,
     pub text: String,
-    pub icon: PopupIcon
+    pub icon: PopupIcon,
 }
 
 pub struct PopTextRingbuffer {
     pub texts: [Option<PopupText>; 10],
-    pub next_avail_idx: u8
+    pub next_avail_idx: u8,
 }
 
 impl PopTextRingbuffer {
@@ -32,7 +31,7 @@ impl PopTextRingbuffer {
             target_y_pos: y + POPUP_Y_OFFSET - POPUP_RISE_DIST,
             duration_timer: 0,
             text: s,
-            icon
+            icon,
         });
         self.next_avail_idx += 1;
         self.next_avail_idx %= self.texts.len() as u8;
@@ -47,12 +46,11 @@ impl PopTextRingbuffer {
                     if p.duration_timer > POPUP_TEXT_DURATION {
                         *popup = None;
                     }
-                },
+                }
                 None => {}
             }
         }
     }
-    
 }
 
 impl PopupText {

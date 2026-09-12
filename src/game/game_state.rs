@@ -1,6 +1,8 @@
 use super::cloud::Cloud;
 use super::entities::{Player, WarpAbility};
-use super::game_constants::{MapGenSetting, COUNTDOWN_TIMER_START, LEVELS_PER_MOOD, MAP_GEN_SETTINGS, START_DIFFICULTY_LEVEL};
+use super::game_constants::{
+    MapGenSetting, COUNTDOWN_TIMER_START, LEVELS_PER_MOOD, MAP_GEN_SETTINGS, START_DIFFICULTY_LEVEL,
+};
 use super::menus::GameMode;
 use super::popup_text::PopTextRingbuffer;
 use super::rng::GameRng;
@@ -10,7 +12,8 @@ use super::{
     game_constants::{
         // MAX_N_TILES_IN_CHUNK, MAP_CHUNK_MAX_SIDE_LEN, MAP_CHUNK_MIN_SIDE_LEN,
         MAX_N_NPCS,
-        TILE_HEIGHT_PX, TILE_WIDTH_PX,
+        TILE_HEIGHT_PX,
+        TILE_WIDTH_PX,
     },
     game_map::GameMap,
     mapchunk::{MapChunk, TileAlignedBoundingBox},
@@ -28,7 +31,7 @@ pub enum RunType {
     Casual,
     TimedMode,
     Speedrun(RunSeed),
-    Chaos
+    Chaos,
 }
 
 // pub enum Difficulty {
@@ -41,7 +44,6 @@ pub struct GameSettings {
     pub run_type: RunType,
     // pub difficulty: Difficulty
 }
-
 
 pub struct GameState<'a> {
     pub players: [OptionallyEnabledPlayer; 4],
@@ -120,7 +122,7 @@ impl GameState<'static> {
             tutorial_text_counter: 0,
             clouds: Vec::new(),
             countdown_and_score_bonus: 0,
-            settings: GameSettings{
+            settings: GameSettings {
                 run_type: RunType::Casual,
                 // difficulty: Difficulty::Medium
             },
@@ -131,11 +133,11 @@ impl GameState<'static> {
     pub fn regenerate_map(self: &mut Self) {
         self.godmode = false;
 
+        let new_song_idx =
+            1 + ((self.difficulty_level as usize - 1) / LEVELS_PER_MOOD) % (SONGS.len() - 1);
 
-        
-        let new_song_idx = 1 + ((self.difficulty_level as usize - 1) / LEVELS_PER_MOOD) % (SONGS.len() - 1);
-
-        let new_pallete_idx = ((self.difficulty_level as usize - 1) / LEVELS_PER_MOOD) % KITTY_SPRITESHEET_PALETTES.len();
+        let new_pallete_idx = ((self.difficulty_level as usize - 1) / LEVELS_PER_MOOD)
+            % KITTY_SPRITESHEET_PALETTES.len();
         self.pallette_idx = new_pallete_idx;
 
         if new_song_idx != self.song_idx {
@@ -145,25 +147,23 @@ impl GameState<'static> {
 
         // set the tileset
         {
-            self.tileset_idx = ((self.difficulty_level as usize - 1) / LEVELS_PER_MOOD) % MAP_TILESETS.len();
+            self.tileset_idx =
+                ((self.difficulty_level as usize - 1) / LEVELS_PER_MOOD) % MAP_TILESETS.len();
         }
-        
 
         // set the map generation settings
         {
-            self.map_gen_settings_idx = ((self.difficulty_level as usize - 1) / LEVELS_PER_MOOD) % MAP_GEN_SETTINGS.len();
+            self.map_gen_settings_idx =
+                ((self.difficulty_level as usize - 1) / LEVELS_PER_MOOD) % MAP_GEN_SETTINGS.len();
         }
 
         let mut map_gen_setting = &MAP_GEN_SETTINGS[self.map_gen_settings_idx];
         let msl = (self.rng.next_for_worldgen() % 10 + 6) as usize;
         let max_diff = (self.rng.next_for_worldgen() % 20 + 1) as usize;
-        let mnt = (((self.rng.next_for_worldgen() % 40) * 40 + 100) as usize).min(msl*(msl+max_diff+10));
-        let lmm = if mnt < 500 {
-            0.7
-        } else {
-            1.0
-        };
-        let chaotic_map = MapGenSetting{
+        let mnt = (((self.rng.next_for_worldgen() % 40) * 40 + 100) as usize)
+            .min(msl * (msl + max_diff + 10));
+        let lmm = if mnt < 500 { 0.7 } else { 1.0 };
+        let chaotic_map = MapGenSetting {
             chunk_min_side_len: msl,
             chunk_max_side_len: msl + max_diff,
             max_n_tiles_per_chunk: mnt,
@@ -173,20 +173,21 @@ impl GameState<'static> {
             RunType::Chaos => {
                 map_gen_setting = &chaotic_map;
                 self.tileset_idx = self.rng.next_for_worldgen() as usize % MAP_TILESETS.len();
-                self.pallette_idx = self.rng.next_for_worldgen() as usize % KITTY_SPRITESHEET_PALETTES.len();
+                self.pallette_idx =
+                    self.rng.next_for_worldgen() as usize % KITTY_SPRITESHEET_PALETTES.len();
                 self.song_idx = 1 + (self.rng.next_for_worldgen() as usize) % (SONGS.len() - 1);
-            },
+            }
             _ => {}
         }
         let map_chunk_min_side_len = map_gen_setting.chunk_min_side_len;
         let map_chunk_max_side_len = map_gen_setting.chunk_max_side_len;
         let max_n_tiles_in_chunk = map_gen_setting.max_n_tiles_per_chunk;
-        
+
         // an average-sized map is ~ 30x30 = 900 blocks. Anything smaller is more twisty and denser. Make those
         // twistier maps smaller by a linear factor.
 
-        let max_n_tiles_in_map: u32 = (0.7 * 2048.0) as u32 + (map_gen_setting.linear_mapsize_mult * 0.25 * 2048.0) as u32 * self.difficulty_level;
-
+        let max_n_tiles_in_map: u32 = (0.7 * 2048.0) as u32
+            + (map_gen_setting.linear_mapsize_mult * 0.25 * 2048.0) as u32 * self.difficulty_level;
 
         let map = &mut self.map;
         map.num_tiles = 0;
@@ -200,10 +201,8 @@ impl GameState<'static> {
                     p.character.y_pos = 10.0;
                     p.character.can_fly = false;
                     if self.difficulty_level == START_DIFFICULTY_LEVEL {
-                        p.card_stack = AbilityCardStack{
-                            cards: Vec::new()
-                        }
-                    } 
+                        p.card_stack = AbilityCardStack { cards: Vec::new() }
+                    }
                 }
                 OptionallyEnabledPlayer::Disabled => {}
             }
@@ -214,7 +213,8 @@ impl GameState<'static> {
         npcs.clear();
 
         self.total_npcs_to_find =
-            (1 + (self.difficulty_level / 3) + rng.next_for_worldgen() as u32 % 3).min(MAX_N_NPCS as u32);
+            (1 + (self.difficulty_level / 3) + rng.next_for_worldgen() as u32 % 3)
+                .min(MAX_N_NPCS as u32);
 
         self.countdown_and_score_bonus = 4 + self.difficulty_level.min(20) / 3;
 
@@ -250,9 +250,9 @@ impl GameState<'static> {
                 201..=400 => spritesheet::PresetSprites::Kitty2, // 20 % chance
                 401..=600 => spritesheet::PresetSprites::Kitty3, // 20 % chance
                 601..=800 => spritesheet::PresetSprites::Kitty4, // 20 % chance
-                801..=900 => spritesheet::PresetSprites::Pig, // 10 % chance
+                801..=900 => spritesheet::PresetSprites::Pig,  // 10 % chance
                 901..=980 => spritesheet::PresetSprites::BirdIsntReal, // 8 % chance
-                _ => spritesheet::PresetSprites::Lizard, // <2 % chance
+                _ => spritesheet::PresetSprites::Lizard,       // <2 % chance
             };
             npcs.push(Character::new(preset));
         }
@@ -283,9 +283,11 @@ impl GameState<'static> {
                 let mut chunk_hei: usize;
                 'find_place_for_chunk: loop {
                     chunk_wid = map_chunk_min_side_len
-                        + (rng.next_for_worldgen() as usize % (map_chunk_max_side_len - map_chunk_min_side_len));
+                        + (rng.next_for_worldgen() as usize
+                            % (map_chunk_max_side_len - map_chunk_min_side_len));
                     chunk_hei = map_chunk_min_side_len
-                        + (rng.next_for_worldgen() as usize % (map_chunk_max_side_len - map_chunk_min_side_len));
+                        + (rng.next_for_worldgen() as usize
+                            % (map_chunk_max_side_len - map_chunk_min_side_len));
                     if chunk_hei * chunk_wid <= max_n_tiles_in_chunk {
                         if map.try_fit_chunk_into(chunk_wid, chunk_hei) {
                             break 'find_place_for_chunk;
@@ -379,7 +381,11 @@ impl GameState<'static> {
                 }
 
                 // ensure it shares enough adjacency with source chunk
-                if !shares_enough_axes_with_other_bounds(&rand_bound, &new_chunk_location, map_chunk_min_side_len) {
+                if !shares_enough_axes_with_other_bounds(
+                    &rand_bound,
+                    &new_chunk_location,
+                    map_chunk_min_side_len,
+                ) {
                     is_viable_spot = false;
                 }
 
@@ -397,7 +403,11 @@ impl GameState<'static> {
                         }
                     }
                     // if it doesn't collide, but it share too little with any adjacent chunks, it's also invalid
-                    if !shares_enough_axes_with_other_bounds(&other_bound, &new_chunk_location, map_chunk_min_side_len) {
+                    if !shares_enough_axes_with_other_bounds(
+                        &other_bound,
+                        &new_chunk_location,
+                        map_chunk_min_side_len,
+                    ) {
                         is_viable_spot = false;
                     }
                 }
@@ -464,7 +474,11 @@ impl GameState<'static> {
 
             // corners
             chunk.set_tile(0, 0, 8);
-            chunk.set_tile(chunk.bound.width as usize - 1, chunk.bound.height as usize - 1, 4);
+            chunk.set_tile(
+                chunk.bound.width as usize - 1,
+                chunk.bound.height as usize - 1,
+                4,
+            );
             chunk.set_tile(chunk.bound.width as usize - 1, 0, 2);
             chunk.set_tile(0, chunk.bound.height as usize - 1, 6);
 
