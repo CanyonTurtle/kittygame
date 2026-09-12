@@ -1,0 +1,61 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: clippy
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Lint
+        run: cargo clippy --release
+
+      - name: Build cart
+        run: cargo build --release
+
+      - name: Bundle standalone web build
+        run: |
+          mkdir -p dist
+          cp target/wasm32-unknown-unknown/release/cart.wasm dist/kittygame.wasm
+          npx --yes -p wasm4 w4 bundle dist/kittygame.wasm \
+            --html dist/index.html \
+            --title "kittygame" \
+            --description "Find the kitties! A WASM-4 game with 2-4 player netplay."
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

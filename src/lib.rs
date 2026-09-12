@@ -1053,7 +1053,7 @@ fn update() {
                     match game_state.settings.run_type {
                         
                         RunType::TimedMode => {
-                            if game_state.countdown_timer_msec <= 0 {
+                            if game_state.countdown_timer_msec == 0 {
             
                                 game_state.song_idx = 0;
                     

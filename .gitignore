@@ -2,3 +2,5 @@
 target
 binaryen*
 output.wasm
+.direnv
+dist

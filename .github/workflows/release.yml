@@ -1,0 +1,72 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: clippy
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Verify Cargo.toml version matches the tag
+        run: |
+          TAG="${GITHUB_REF#refs/tags/v}"
+          CARGO_VERSION=$(grep -oP '(?<=^version = ")[^"]+' Cargo.toml)
+          if [ "$CARGO_VERSION" != "$TAG" ]; then
+            echo "Cargo.toml version ($CARGO_VERSION) does not match tag (v$TAG)"
+            exit 1
+          fi
+
+      - name: Lint
+        run: cargo clippy --release
+
+      - name: Build release cart
+        run: cargo build --release
+
+      - name: Bundle standalone web build
+        run: |
+          mkdir -p dist
+          cp target/wasm32-unknown-unknown/release/cart.wasm dist/kittygame.wasm
+          cp kittygame.png dist/kittygame.png
+          cp kittygame.md dist/kittygame.md
+          npx --yes -p wasm4 w4 bundle dist/kittygame.wasm \
+            --html dist/kittygame.html \
+            --title "kittygame" \
+            --description "Find the kitties! A WASM-4 game with 2-4 player netplay."
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: kittygame ${{ github.ref_name }}
+          body: |
+            ![title screen](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/kittygame.png)
+
+            See the [README](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/README.md)
+            for how to play.
+
+            `kittygame.wasm`/`kittygame.png`/`kittygame.md` are the 3 files
+            [wasm4.org's distribution guide](https://wasm4.org/docs/guides/distribution/#publish-on-wasm4org)
+            expects in a fork's `/site/static/carts` -- copy them there
+            (renaming to your chosen game id) to submit.
+          files: |
+            dist/kittygame.wasm
+            dist/kittygame.png
+            dist/kittygame.md
+            dist/kittygame.html

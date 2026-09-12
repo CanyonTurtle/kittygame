@@ -3,6 +3,11 @@ target = "wasm32-unknown-unknown"
 
 [target.wasm32-unknown-unknown]
 rustflags = [
+    # wasm4.rs declares WASM-4's host functions as plain `extern "C"` (no
+    # wasm_import_module attribute); newer wasm-ld refuses undefined symbols
+    # by default, so tell it to keep them as imports instead of erroring.
+    "-C", "link-arg=--allow-undefined",
+
     # Import memory from WASM-4
     "-C", "link-arg=--import-memory",
     "-C", "link-arg=--initial-memory=65536",
