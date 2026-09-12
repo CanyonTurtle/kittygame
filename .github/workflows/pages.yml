@@ -34,6 +34,9 @@ jobs:
       - name: Check formatting
         run: cargo fmt --check
 
+      - name: Verify generated assets match their source PNGs
+        run: node tools/verify-assets.js
+
       - name: Lint
         run: cargo clippy --release
 

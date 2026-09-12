@@ -38,8 +38,10 @@ npx -p wasm4 w4 png2src --rust kitty_title.png --output title_ss.rs
 ```
 
 This has been verified to reproduce the exact byte arrays currently committed
-in both files. After generating, two manual steps are still needed before the
-output matches what's checked in:
+in both files, and CI checks it on every push via `node tools/verify-assets.js`
+-- if you edit either PNG without regenerating its `.rs` file (or vice versa),
+that check fails. After generating, two manual steps are still needed before
+the output matches what's checked in:
 
 1. Add `pub` to the generated `const` declarations (`png2src` emits private
    `const`s).
