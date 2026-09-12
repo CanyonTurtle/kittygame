@@ -28,43 +28,28 @@ For more info about setting up WASM-4, see the [quickstart guide](https://wasm4.
 
 ## Assets
 
-`src/kitty_ss.rs` and `src/title_ss.rs` aren't hand-written -- they're generated
-from `kitty-ss.png` (192x64) and `kitty_title.png` (152x50) by WASM-4's
-`png2src` tool:
+`kitty-ss.png` (192x64) and `kitty_title.png` (152x50) are the actual source
+of the game's spritesheet data -- `src/kitty_ss.rs` and `src/title_ss.rs`
+are just tiny stubs that `include!()` code generated at build time by
+`build.rs`, which shells out to WASM-4's `png2src` tool. Editing either PNG
+and running `cargo build` (or `cargo clippy`, `cargo test`, etc.) picks up
+the change automatically -- there's no separate "regenerate the source"
+step to remember or forget, and no way for the compiled game to drift from
+the PNGs.
 
-```shell
-npx -p wasm4 w4 png2src --rust kitty-ss.png --output kitty_ss.rs
-npx -p wasm4 w4 png2src --rust kitty_title.png --output title_ss.rs
-```
+`build.rs` only re-runs `png2src` when the corresponding PNG actually
+changes (via `cargo:rerun-if-changed`), and patches the generated `const`s
+to `pub const` since `png2src` emits them private.
 
-This has been verified to reproduce the exact byte arrays currently committed
-in both files, and CI checks it on every push via `node tools/verify-assets.js`
--- if you edit either PNG without regenerating its `.rs` file (or vice versa),
-that check fails. After generating, two manual steps are still needed before
-the output matches what's checked in:
-
-1. Add `pub` to the generated `const` declarations (`png2src` emits private
-   `const`s).
-2. Run `cargo fmt` on the file to get the wrapped, multi-line array
-   formatting used elsewhere in the repo.
-
-Gotchas if you regenerate:
-
-- `title_ss.rs`'s constant prefix, `OUTPUT_ONLINEPNGTOOLS`, comes from
-  whatever the source file was named at the time it was first generated
-  (`output_onlinepngtools.png` -- a typical export name from an online PNG
-  editor), not from `kitty_title.png`'s current name. `png2src` derives
-  constant names from the input filename, so regenerating from a
-  differently-named file produces different constant names and breaks the
-  `use title_ss::{OUTPUT_ONLINEPNGTOOLS_WIDTH, ...}` imports in `lib.rs`.
-  Rename your source file to `output_onlinepngtools.png` before running the
-  command above, or update those imports afterward.
-- `kitty_ss.rs` doesn't carry the `KITTY_SS_WIDTH`/`_HEIGHT`/`_FLAGS`
-  constants `png2src` normally emits alongside the byte array -- they were
-  stripped after generation. The commented-out lines in `src/spritesheet.rs`
-  (`// const KITTY_SS_WIDTH: u32 = 192;` etc.) are what they looked like;
-  the game actually uses the differently-named `KITTY_SPRITESHEET_*`
-  constants defined right below those comments instead.
+One naming quirk lives entirely inside `build.rs` now and needs no manual
+handling: `png2src` derives its Rust constant names from the input
+filename, and `title_ss.rs`'s constants (`OUTPUT_ONLINEPNGTOOLS_*`) were
+first named after a PNG called `output_onlinepngtools.png` (a typical
+export name from an online PNG editor), not `kitty_title.png`'s current
+name. `build.rs` feeds `png2src` a renamed copy of `kitty_title.png` to
+keep reproducing those same constant names, so nothing downstream
+(`lib.rs`'s `use title_ss::{OUTPUT_ONLINEPNGTOOLS_WIDTH, ...}`) needs to
+change.
 
 ## Links
 
