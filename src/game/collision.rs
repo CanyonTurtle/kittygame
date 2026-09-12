@@ -2,6 +2,7 @@ use crate::{
     game::{
         ability_cards::{AbilityCardStack, AbilityCardTypes},
         entities::{Player, WarpAbility, WarpState},
+        game_constants::{TILE_ORIGIN_X, TILE_ORIGIN_Y},
         popup_text::{PopTextRingbuffer, PopupIcon},
     },
     spritesheet,
@@ -925,8 +926,8 @@ pub fn update_pos(
         // if anyone makes it out of bounds, drop them in the center of the map
         // (or if they use the lizard warp)
         if !inside_at_least_one_chunk {
-            character.x_pos = 10.0;
-            character.y_pos = 10.0;
+            character.x_pos = 10.0 + TILE_ORIGIN_X as f32;
+            character.y_pos = 10.0 + TILE_ORIGIN_Y as f32;
         }
     }
 
@@ -968,8 +969,8 @@ pub fn update_pos(
                     }
                 }
                 WarpState::Ready => {
-                    character.x_pos = 10.0;
-                    character.y_pos = 10.0;
+                    character.x_pos = 10.0 + TILE_ORIGIN_X as f32;
+                    character.y_pos = 10.0 + TILE_ORIGIN_Y as f32;
                     character.warp_ability = WarpAbility::CanWarp(WarpState::Charging(0));
                 }
             },

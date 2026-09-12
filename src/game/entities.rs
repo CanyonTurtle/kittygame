@@ -1,4 +1,7 @@
-use crate::spritesheet::{self, PresetSprites};
+use crate::{
+    game::game_constants::{TILE_ORIGIN_X, TILE_ORIGIN_Y},
+    spritesheet::{self, PresetSprites},
+};
 
 use super::ability_cards::AbilityCardStack;
 
@@ -63,8 +66,8 @@ pub enum KittyStates {
 impl Character {
     pub fn new(sprite_type: PresetSprites) -> Character {
         Character {
-            x_pos: 10 as f32,
-            y_pos: 10.0,
+            x_pos: 10.0 + TILE_ORIGIN_X as f32,
+            y_pos: 10.0 + TILE_ORIGIN_Y as f32,
             x_vel: 0.0,
             y_vel: 0.0,
             x_vel_cap: 2.0,

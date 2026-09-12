@@ -20,6 +20,7 @@ use super::{
     rng::Rng,
 };
 use crate::game::ability_cards::AbilityCardStack;
+use crate::game::game_constants::{TILE_ORIGIN_X, TILE_ORIGIN_Y};
 use crate::game::game_map::MAP_TILESETS;
 use crate::game::music::SONGS;
 use crate::kitty_ss;
@@ -187,7 +188,7 @@ impl GameState<'static> {
         // twistier maps smaller by a linear factor.
 
         let max_n_tiles_in_map: u32 = (0.7 * 2048.0) as u32
-            + (map_gen_setting.linear_mapsize_mult * 0.25 * 2048.0) as u32 * self.difficulty_level;
+            + (map_gen_setting.linear_mapsize_mult * 2048.0) as u32 * self.difficulty_level;
 
         let map = &mut self.map;
         map.num_tiles = 0;
@@ -197,8 +198,8 @@ impl GameState<'static> {
         for optional_player in self.players.iter_mut() {
             match optional_player {
                 OptionallyEnabledPlayer::Enabled(p) => {
-                    p.character.x_pos = 10.0;
-                    p.character.y_pos = 10.0;
+                    p.character.x_pos = 10.0 + TILE_ORIGIN_X as f32;
+                    p.character.y_pos = 10.0 + TILE_ORIGIN_Y as f32;
                     p.character.can_fly = false;
                     if self.difficulty_level == START_DIFFICULTY_LEVEL {
                         p.card_stack = AbilityCardStack { cards: Vec::new() }
@@ -261,7 +262,12 @@ impl GameState<'static> {
 
         match current_chunk_locations.try_reserve(1) {
             Ok(_) => {
-                current_chunk_locations.push(TileAlignedBoundingBox::init(0, 0, 32, 32));
+                current_chunk_locations.push(TileAlignedBoundingBox::init(
+                    TILE_ORIGIN_X / TILE_WIDTH_PX as i32,
+                    TILE_ORIGIN_Y / TILE_HEIGHT_PX as i32,
+                    32,
+                    32,
+                ));
             }
             Err(_) => {
                 return;
