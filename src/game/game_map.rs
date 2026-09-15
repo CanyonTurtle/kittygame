@@ -63,7 +63,7 @@ pub const MAP_TILESETS: [[u8; 16]; 9] = [
 ];
 
 impl GameMap {
-    pub fn try_fit_chunk_into(self: &mut Self, width: usize, height: usize) -> bool {
+    pub fn try_fit_chunk_into(&mut self, width: usize, height: usize) -> bool {
         let new_tile_size = width * height;
         let new_prospective_size = self.num_tiles + new_tile_size;
         if new_prospective_size <= MAX_N_TILES_IN_WHOLE_MAP {
@@ -74,7 +74,7 @@ impl GameMap {
         false
     }
 
-    pub fn link_chunk_to_touching_chunks(self: &mut Self, chunk: &mut MapChunk) {
+    pub fn link_chunk_to_touching_chunks(&mut self, chunk: &mut MapChunk) {
         for other_chunk in self.chunks.iter_mut() {
             fn fuse_horizontal(chunk: &mut MapChunk, other_chunk: &mut MapChunk) {
                 // check to see if the other chunk touches the top of the new chunk
@@ -91,14 +91,14 @@ impl GameMap {
                         let rel_chunk_x = absolute_coord_x - chunk.bound.x;
                         let rel_other_chunk_x = absolute_coord_x - other_chunk.bound.x;
                         if rel_chunk_x > 0 && rel_chunk_x < chunk.bound.width as i32 - 1 {
-                            chunk.set_tile(rel_chunk_x as usize, 0 as usize, 0);
+                            chunk.set_tile(rel_chunk_x as usize, 0, 0);
                         }
                         if rel_other_chunk_x > 0
                             && rel_other_chunk_x < other_chunk.bound.width as i32 - 1
                         {
                             other_chunk.set_tile(
                                 rel_other_chunk_x as usize,
-                                other_chunk.bound.height as usize - 1,
+                                other_chunk.bound.height - 1,
                                 0,
                             )
                         }
@@ -107,10 +107,10 @@ impl GameMap {
                             || rel_chunk_x == 0
                             || rel_chunk_x == chunk.bound.width as i32 - 1
                         {
-                            chunk.set_tile(rel_chunk_x as usize, 0 as usize, 9);
+                            chunk.set_tile(rel_chunk_x as usize, 0, 9);
                             other_chunk.set_tile(
                                 rel_other_chunk_x as usize,
-                                other_chunk.bound.height as usize - 1,
+                                other_chunk.bound.height - 1,
                                 9,
                             )
                         }
@@ -139,7 +139,7 @@ impl GameMap {
                             && rel_other_chunk_y < other_chunk.bound.height as i32 - 1
                         {
                             other_chunk.set_tile(
-                                other_chunk.bound.width as usize - 1,
+                                other_chunk.bound.width - 1,
                                 rel_other_chunk_y as usize,
                                 0,
                             )
@@ -151,7 +151,7 @@ impl GameMap {
                         {
                             chunk.set_tile(0, rel_chunk_y as usize, 9);
                             other_chunk.set_tile(
-                                other_chunk.bound.width as usize - 1,
+                                other_chunk.bound.width - 1,
                                 rel_other_chunk_y as usize,
                                 9,
                             )
@@ -168,7 +168,7 @@ impl GameMap {
         }
     }
 
-    pub fn add_chunk(self: &mut Self, mut chunk: MapChunk) {
+    pub fn add_chunk(&mut self, mut chunk: MapChunk) {
         self.link_chunk_to_touching_chunks(&mut chunk);
         self.chunks.push(chunk);
     }
@@ -176,11 +176,9 @@ impl GameMap {
     pub fn create_map() -> GameMap {
         let chunks: Vec<MapChunk> = Vec::new();
 
-        let map = GameMap {
-            chunks: chunks,
+        GameMap {
+            chunks,
             num_tiles: 0,
-        };
-
-        map
+        }
     }
 }

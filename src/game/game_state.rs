@@ -75,6 +75,14 @@ pub struct GameState<'a> {
     pub speedrun_timer_msec: u32,
 }
 
+pub struct GameStateText {
+    pub world_level_text: String,
+    pub score_text: String,
+    pub speedrun_seed_text: String,
+    pub found_kitties_text: String,
+    pub time_left_text: String,
+}
+
 impl GameState<'static> {
     pub fn new() -> GameState<'static> {
         let characters = [
@@ -130,8 +138,7 @@ impl GameState<'static> {
             speedrun_timer_msec: 0,
         }
     }
-
-    pub fn regenerate_map(self: &mut Self) {
+    pub fn regenerate_map(&mut self) {
         self.godmode = false;
 
         let new_song_idx =
@@ -170,15 +177,12 @@ impl GameState<'static> {
             max_n_tiles_per_chunk: mnt,
             linear_mapsize_mult: lmm,
         };
-        match self.settings.run_type {
-            RunType::Chaos => {
-                map_gen_setting = &chaotic_map;
-                self.tileset_idx = self.rng.next_for_worldgen() as usize % MAP_TILESETS.len();
-                self.pallette_idx =
-                    self.rng.next_for_worldgen() as usize % KITTY_SPRITESHEET_PALETTES.len();
-                self.song_idx = 1 + (self.rng.next_for_worldgen() as usize) % (SONGS.len() - 1);
-            }
-            _ => {}
+        if let RunType::Chaos = self.settings.run_type {
+            map_gen_setting = &chaotic_map;
+            self.tileset_idx = self.rng.next_for_worldgen() as usize % MAP_TILESETS.len();
+            self.pallette_idx =
+                self.rng.next_for_worldgen() as usize % KITTY_SPRITESHEET_PALETTES.len();
+            self.song_idx = 1 + (self.rng.next_for_worldgen() as usize) % (SONGS.len() - 1);
         }
         let map_chunk_min_side_len = map_gen_setting.chunk_min_side_len;
         let map_chunk_max_side_len = map_gen_setting.chunk_max_side_len;
@@ -223,24 +227,21 @@ impl GameState<'static> {
         self.countdown_timer_msec = self.countdown_timer_msec.min(100 * 60 - 1);
         self.score += self.countdown_and_score_bonus;
 
-        match self.difficulty_level {
-            START_DIFFICULTY_LEVEL => {
-                self.countdown_timer_msec = COUNTDOWN_TIMER_START;
-                self.score = 0;
-                self.tutorial_text_counter = 0;
-                self.speedrun_timer_msec = 0;
+        if START_DIFFICULTY_LEVEL == self.difficulty_level {
+            self.countdown_timer_msec = COUNTDOWN_TIMER_START;
+            self.score = 0;
+            self.tutorial_text_counter = 0;
+            self.speedrun_timer_msec = 0;
 
-                // Reset warping ability only on a new game. Keep the ability each level.
-                for optional_player in self.players.iter_mut() {
-                    match optional_player {
-                        OptionallyEnabledPlayer::Enabled(p) => {
-                            p.character.warp_ability = WarpAbility::CannotWarp;
-                        }
-                        OptionallyEnabledPlayer::Disabled => {}
+            // Reset warping ability only on a new game. Keep the ability each level.
+            for optional_player in self.players.iter_mut() {
+                match optional_player {
+                    OptionallyEnabledPlayer::Enabled(p) => {
+                        p.character.warp_ability = WarpAbility::CannotWarp;
                     }
+                    OptionallyEnabledPlayer::Disabled => {}
                 }
             }
-            _ => {}
         }
 
         // generate the NPCs before making the chunks.
@@ -361,34 +362,30 @@ impl GameState<'static> {
                         b2: &TileAlignedBoundingBox,
                         side_len: usize,
                     ) -> bool {
+                        // if we're adjacent vertically, make sure there is a big enough horizontal
+                        // tunnel
                         if b1.y + b1.height as i32 == b2.y {
-                            if (b1.x + b1.width as i32 - b2.x).min(b2.x + b2.width as i32 - b1.x)
-                                >= side_len as i32
-                            {
-                                return true;
-                            } else {
-                                return false;
-                            }
+                            return (b1.x + b1.width as i32 - b2.x)
+                                .min(b2.x + b2.width as i32 - b1.x)
+                                >= side_len as i32;
                         }
 
+                        // likewise, if we're adjacent horizontally, make sure there's a big enough
+                        // vertical tunnel
                         if b1.x + b1.width as i32 == b2.x {
-                            if (b1.y + b1.height as i32 - b2.y).min(b2.y + b2.height as i32 - b1.y)
-                                >= side_len as i32
-                            {
-                                return true;
-                            } else {
-                                return false;
-                            }
+                            return (b1.y + b1.height as i32 - b2.y)
+                                .min(b2.y + b2.height as i32 - b1.y)
+                                >= side_len as i32;
                         }
                         true
                     }
 
-                    do_for_one_side(&b1, &b2, side_len) && do_for_one_side(&b2, b1, side_len)
+                    do_for_one_side(b1, b2, side_len) && do_for_one_side(b2, b1, side_len)
                 }
 
                 // ensure it shares enough adjacency with source chunk
                 if !shares_enough_axes_with_other_bounds(
-                    &rand_bound,
+                    rand_bound,
                     &new_chunk_location,
                     map_chunk_min_side_len,
                 ) {
@@ -397,20 +394,16 @@ impl GameState<'static> {
 
                 for other_bound in &current_chunk_locations {
                     // if it collides with existing chunk, disallow
-                    if new_chunk_location.y + new_chunk_location.height as i32 > other_bound.y {
-                        if new_chunk_location.y < other_bound.y + other_bound.height as i32 {
-                            if new_chunk_location.x + new_chunk_location.width as i32
-                                > other_bound.x
-                            {
-                                if new_chunk_location.x < other_bound.x + other_bound.width as i32 {
-                                    is_viable_spot = false;
-                                }
-                            }
-                        }
+                    if new_chunk_location.y + new_chunk_location.height as i32 > other_bound.y
+                        && new_chunk_location.y < other_bound.y + other_bound.height as i32
+                        && new_chunk_location.x + new_chunk_location.width as i32 > other_bound.x
+                        && new_chunk_location.x < other_bound.x + other_bound.width as i32
+                    {
+                        is_viable_spot = false;
                     }
                     // if it doesn't collide, but it share too little with any adjacent chunks, it's also invalid
                     if !shares_enough_axes_with_other_bounds(
-                        &other_bound,
+                        other_bound,
                         &new_chunk_location,
                         map_chunk_min_side_len,
                     ) {
@@ -458,50 +451,83 @@ impl GameState<'static> {
             }
 
             // left and right walls
-            for row in 1..chunk.bound.height - 1 as usize {
+            for row in 1..chunk.bound.height - 1 {
                 let corrupt_material: u8 =
                     corrupt_materials[rng.next_for_worldgen() as usize % corrupt_materials.len()];
                 let left_material = get_material(7, corrupt_material, CORRUPT_CHANCE, rng);
                 let right_material = get_material(3, corrupt_material, CORRUPT_CHANCE, rng);
 
                 chunk.set_tile(0, row, left_material);
-                chunk.set_tile(chunk.bound.width as usize - 1, row, right_material);
+                chunk.set_tile(chunk.bound.width - 1, row, right_material);
             }
 
             // top and bottom walls
-            for col in 1..chunk.bound.width - 1 as usize {
+            for col in 1..chunk.bound.width - 1 {
                 let corrupt_material: u8 =
                     corrupt_materials[rng.next_for_worldgen() as usize % corrupt_materials.len()];
                 let top_material = get_material(1, corrupt_material, CORRUPT_CHANCE, rng);
                 let bottom_material = get_material(5, corrupt_material, CORRUPT_CHANCE, rng);
                 chunk.set_tile(col, 0, top_material);
-                chunk.set_tile(col, chunk.bound.height as usize - 1, bottom_material);
+                chunk.set_tile(col, chunk.bound.height - 1, bottom_material);
             }
 
             // corners
             chunk.set_tile(0, 0, 8);
-            chunk.set_tile(
-                chunk.bound.width as usize - 1,
-                chunk.bound.height as usize - 1,
-                4,
-            );
-            chunk.set_tile(chunk.bound.width as usize - 1, 0, 2);
-            chunk.set_tile(0, chunk.bound.height as usize - 1, 6);
+            chunk.set_tile(chunk.bound.width - 1, chunk.bound.height - 1, 4);
+            chunk.set_tile(chunk.bound.width - 1, 0, 2);
+            chunk.set_tile(0, chunk.bound.height - 1, 6);
 
             map.add_chunk(chunk);
         }
 
         // spawn npcs (disallow spawning in origin chunk)
-        for i in 0..npcs.len() {
+        (0..npcs.len()).for_each(|i| {
             let rand_chunk_i = rng.next_for_worldgen() as usize % (map.chunks.len() - 1) + 1;
             let chunk: &MapChunk = &map.chunks[rand_chunk_i];
             npcs[i].x_pos = chunk.bound.x as f32 * TILE_WIDTH_PX as f32 + 10.0;
             npcs[i].y_pos = chunk.bound.y as f32 * TILE_HEIGHT_PX as f32 + 10.0;
-        }
+        });
 
         // reset NPCs
         for npc in npcs.iter_mut() {
             npc.following_i = None;
+        }
+    }
+}
+
+impl<'a> GameState<'a> {
+    pub fn current_found_npcs(&self) -> u32 {
+        self.npcs.iter().fold(0, |acc, e| {
+            acc + match e.following_i {
+                None => 0,
+                Some(_) => 1,
+            }
+        })
+    }
+    pub fn get_texts(&self) -> GameStateText {
+        GameStateText {
+            // COMPUTE SCORE, LEVEL, # KITTIES (used later either in modal or normal screen)
+            world_level_text: format![
+                "W{}-L{}",
+                ((self.difficulty_level - 1) / LEVELS_PER_MOOD as u32) + 1,
+                ((self.difficulty_level - 1) % LEVELS_PER_MOOD as u32) + 1
+            ]
+            .to_owned(),
+            score_text: format!["Sc: {}p", self.score].to_owned(),
+            speedrun_seed_text: {
+                if let RunType::Speedrun(n) = self.settings.run_type {
+                    format!["Sd.{}: {}s", n, self.speedrun_timer_msec / 60].to_owned()
+                } else {
+                    "".to_owned()
+                }
+            },
+            found_kitties_text: format![
+                "{:.2}/{:.2}",
+                self.current_found_npcs(),
+                self.total_npcs_to_find
+            ]
+            .to_owned(),
+            time_left_text: format!["{:<3}", self.countdown_timer_msec / 60].to_owned(),
         }
     }
 }

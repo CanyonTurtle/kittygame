@@ -31,16 +31,10 @@ pub fn check_absolute_point_inside_tile_aligned_bound(
     let bound_absolute_upper_y: i32 =
         bound_absolute_lower_y + bound.height as i32 * TILE_HEIGHT_PX as i32;
 
-    if x > bound_absolute_left_x {
-        if x < bound_absolute_right_x {
-            if y > bound_absolute_lower_y {
-                if y < bound_absolute_upper_y {
-                    return true;
-                }
-            }
-        }
-    }
-    false
+    x > bound_absolute_left_x
+        && x < bound_absolute_right_x
+        && y > bound_absolute_lower_y
+        && y < bound_absolute_upper_y
 }
 
 pub struct AbsoluteBoundingBox<P, W> {
@@ -66,29 +60,22 @@ pub fn check_absolue_bound_partially_inside_tile_aligned_bound(
         absolute_bound.x + absolute_bound.width as i32,
         absolute_bound.y + absolute_bound.height as i32,
     );
-    if !check_absolute_point_inside_tile_aligned_bound(lowerleft.0, lowerleft.1, tile_aligned_bound)
-    {
-        if !check_absolute_point_inside_tile_aligned_bound(
+    check_absolute_point_inside_tile_aligned_bound(lowerleft.0, lowerleft.1, tile_aligned_bound)
+        || check_absolute_point_inside_tile_aligned_bound(
             lowerright.0,
             lowerright.1,
             tile_aligned_bound,
-        ) {
-            if !check_absolute_point_inside_tile_aligned_bound(
-                upperleft.0,
-                upperleft.1,
-                tile_aligned_bound,
-            ) {
-                if !check_absolute_point_inside_tile_aligned_bound(
-                    upperright.0,
-                    upperright.1,
-                    tile_aligned_bound,
-                ) {
-                    return false;
-                }
-            }
-        }
-    }
-    true
+        )
+        || check_absolute_point_inside_tile_aligned_bound(
+            upperleft.0,
+            upperleft.1,
+            tile_aligned_bound,
+        )
+        || check_absolute_point_inside_tile_aligned_bound(
+            upperright.0,
+            upperright.1,
+            tile_aligned_bound,
+        )
 }
 
 pub fn check_absolute_bounding_box_partially_inside_another(
@@ -130,15 +117,10 @@ pub fn check_entity_collisions(game_state: &mut GameState) {
                         &npc2_bound,
                     );
                 }
-                match did_hit {
-                    true => {
-                        // npcs hit
-                        if hitlist_i < npc_hitlist.len() as u8 {
-                            npc_hitlist[hitlist_i as usize] = (i as u8, j as u8);
-                            hitlist_i += 1;
-                        }
-                    }
-                    _ => {}
+                // npcs hit
+                if did_hit && hitlist_i < npc_hitlist.len() as u8 {
+                    npc_hitlist[hitlist_i as usize] = (i as u8, j as u8);
+                    hitlist_i += 1;
                 }
             }
         }
@@ -153,67 +135,62 @@ pub fn check_entity_collisions(game_state: &mut GameState) {
             let pop_x = npc.x_pos;
             let pop_y = npc.y_pos;
 
-            match npc.following_i {
-                None => {
-                    // add score popup if this was newly found, update score
-                    let popup_texts_rb: &mut PopTextRingbuffer =
-                        &mut game_state.popup_text_ringbuffer;
+            if !npc.following_i.is_some() {
+                // add score popup if this was newly found, update score
+                let popup_texts_rb: &mut PopTextRingbuffer = &mut game_state.popup_text_ringbuffer;
 
-                    let gained_amount = 1 * 60;
+                let gained_amount = 60;
 
-                    popup_texts_rb.add_new_popup(
-                        pop_x - 7.0,
-                        pop_y,
-                        format![" +{}", gained_amount / 60].to_string(),
-                        PopupIcon::CatHead,
+                popup_texts_rb.add_new_popup(
+                    pop_x - 7.0,
+                    pop_y,
+                    format![" +{}", gained_amount / 60].to_string(),
+                    PopupIcon::CatHead,
+                );
+
+                // add card
+                let abil_card_type = match npc.sprite_type {
+                    spritesheet::PresetSprites::Kitty1
+                    | spritesheet::PresetSprites::Kitty2
+                    | spritesheet::PresetSprites::Kitty3
+                    | spritesheet::PresetSprites::Kitty4 => AbilityCardTypes::Kitty,
+                    spritesheet::PresetSprites::Pig => AbilityCardTypes::Piggy,
+                    spritesheet::PresetSprites::Lizard => AbilityCardTypes::Lizard,
+                    spritesheet::PresetSprites::BirdIsntReal => AbilityCardTypes::Bird,
+                    _ => AbilityCardTypes::Kitty,
+                };
+
+                // spawn some clouds
+                for dir in [
+                    (1.0, 0.0),
+                    (0.5, 0.86),
+                    (-0.5, 0.86),
+                    (-1.0, 0.0),
+                    (-0.5, -0.86),
+                    (0.5, -0.86),
+                ] {
+                    const CARD_CLOUD_SPEED: f32 = 4.0;
+
+                    let vx = CARD_CLOUD_SPEED * dir.0;
+                    let vy = CARD_CLOUD_SPEED * dir.1;
+                    Cloud::try_push_cloud(
+                        &mut game_state.clouds,
+                        npc.x_pos + 2.0,
+                        npc.y_pos + 3.0,
+                        vx,
+                        vy,
                     );
-
-                    // add card
-                    let abil_card_type = match npc.sprite_type {
-                        spritesheet::PresetSprites::Kitty1
-                        | spritesheet::PresetSprites::Kitty2
-                        | spritesheet::PresetSprites::Kitty3
-                        | spritesheet::PresetSprites::Kitty4 => AbilityCardTypes::Kitty,
-                        spritesheet::PresetSprites::Pig => AbilityCardTypes::Piggy,
-                        spritesheet::PresetSprites::Lizard => AbilityCardTypes::Lizard,
-                        spritesheet::PresetSprites::BirdIsntReal => AbilityCardTypes::Bird,
-                        _ => AbilityCardTypes::Kitty,
-                    };
-
-                    // spawn some clouds
-                    for dir in [
-                        (1.0, 0.0),
-                        (0.5, 0.86),
-                        (-0.5, 0.86),
-                        (-1.0, 0.0),
-                        (-0.5, -0.86),
-                        (0.5, -0.86),
-                    ] {
-                        const CARD_CLOUD_SPEED: f32 = 4.0;
-
-                        let vx = CARD_CLOUD_SPEED * dir.0;
-                        let vy = CARD_CLOUD_SPEED * dir.1;
-                        Cloud::try_push_cloud(
-                            &mut game_state.clouds,
-                            npc.x_pos + 2.0,
-                            npc.y_pos + 3.0,
-                            vx,
-                            vy,
-                        );
-                    }
-
-                    let npc_p = game_state
-                        .camera
-                        .cvt_world_to_screen_coords(npc.x_pos, npc.y_pos);
-                    p.card_stack.try_push_card(abil_card_type, npc_p.0, npc_p.1);
-
-                    let gained_amount = 1;
-                    game_state.countdown_timer_msec += gained_amount * 60;
-                    game_state.countdown_timer_msec =
-                        game_state.countdown_timer_msec.min(100 * 60 - 1);
-                    game_state.score += gained_amount;
                 }
-                Some(_) => {}
+
+                let npc_p = game_state
+                    .camera
+                    .cvt_world_to_screen_coords(npc.x_pos, npc.y_pos);
+                p.card_stack.try_push_card(abil_card_type, npc_p.0, npc_p.1);
+
+                let gained_amount = 1;
+                game_state.countdown_timer_msec += gained_amount * 60;
+                game_state.countdown_timer_msec = game_state.countdown_timer_msec.min(100 * 60 - 1);
+                game_state.score += gained_amount;
             }
 
             // p.y_pos -= 2.0;
@@ -282,10 +259,7 @@ pub fn raycast_axis_aligned(
 
     loop {
         // make sure this ray even is in the chunk in the first place
-        match chunk.get_tile_abs(
-            start_pt.0 + horizontal_ray as i32,
-            start_pt.1 + vertical_ray as i32,
-        ) {
+        match chunk.get_tile_abs(start_pt.0 + horizontal_ray, start_pt.1 + vertical_ray) {
             Ok(tile) => {
                 if tile != 0 {
                     collision_result.collided = true;
@@ -391,7 +365,7 @@ pub fn update_pos(
                 }
             }
         }
-        MovingEntity::NPC(npc) => {
+        MovingEntity::Npc(npc) => {
             character = npc;
         }
     }
@@ -408,7 +382,6 @@ pub fn update_pos(
     }
 
     fn handle_horizontal_input(the_char: &mut Character, input: u8) -> HorizontalMovementOutcome {
-        let ret;
         let previous_direction = the_char.is_facing_right;
 
         let mut moving_now = false;
@@ -426,21 +399,20 @@ pub fn update_pos(
         }
 
         if moving_now && the_char.state == KittyStates::Sleeping {
-            ret = HorizontalMovementOutcome::StartedMoving;
+            HorizontalMovementOutcome::StartedMoving
         } else if moving_now && previous_direction != the_char.is_facing_right {
-            ret = HorizontalMovementOutcome::ChangedDirection;
+            HorizontalMovementOutcome::ChangedDirection
         } else if !moving_now && the_char.state != KittyStates::Sleeping {
-            ret = HorizontalMovementOutcome::StoppedMoving;
+            HorizontalMovementOutcome::StoppedMoving
         } else {
-            ret = HorizontalMovementOutcome::DoingSameThing;
+            HorizontalMovementOutcome::DoingSameThing
         }
-        ret
     }
 
     fn handle_jumping(the_char: &mut Character, input: u8, clouds: &mut Vec<Cloud>) -> bool {
         let mut allow_jump = true;
-        match the_char.state {
-            KittyStates::JumpingUp(t) => match t {
+        if let KittyStates::JumpingUp(t) = the_char.state {
+            match t {
                 0 => {}
                 1 => {
                     const CLOUD_VX: f32 = 2.0;
@@ -459,20 +431,17 @@ pub fn update_pos(
                 _ => {
                     allow_jump = false;
                 }
-            },
-            _ => {}
+            }
         }
 
         if the_char.can_fly {
             allow_jump = true;
         }
 
-        if allow_jump {
-            if input & BUTTON_1 != 0 {
-                the_char.state = KittyStates::JumpingUp(0);
-                the_char.y_vel = HOP_V;
-                return true;
-            }
+        if allow_jump && input & BUTTON_1 != 0 {
+            the_char.state = KittyStates::JumpingUp(0);
+            the_char.y_vel = HOP_V;
+            return true;
         }
         false
     }
@@ -503,14 +472,12 @@ pub fn update_pos(
         KittyStates::JumpingUp(t) => {
             handle_horizontal_input(character, input);
             handle_jumping(character, input, clouds);
-            character.state = KittyStates::JumpingUp((t + 1).min(255));
+            character.state = KittyStates::JumpingUp(t + 1);
         }
         KittyStates::HuggingWall(firstframe) => {
-            if firstframe {
-                if character.is_facing_right {
-                    character.x_pos += character.sprite.frames[3].width as f32
-                        - character.sprite.frames[4].width as f32;
-                }
+            if firstframe && character.is_facing_right {
+                character.x_pos += character.sprite.frames[3].width as f32
+                    - character.sprite.frames[4].width as f32;
             }
             character.state = KittyStates::HuggingWall(false);
             let ret = handle_horizontal_input(character, input);
@@ -538,11 +505,8 @@ pub fn update_pos(
         }
         KittyStates::Sleeping => {
             let ret = handle_horizontal_input(character, input);
-            match ret {
-                HorizontalMovementOutcome::StartedMoving => {
-                    character.state = KittyStates::Walking(0);
-                }
-                _ => {}
+            if let HorizontalMovementOutcome::StartedMoving = ret {
+                character.state = KittyStates::Walking(0);
             }
             handle_jumping(character, input, clouds);
         }
@@ -653,7 +617,7 @@ pub fn update_pos(
         // look at each chunk, and see if the player is inside it
         character.current_sprite_i =
             get_sprite_i_from_anim_state(&character.state, discretized_y_displacement_this_frame);
-        let char_bound = get_bound_of_character(&character);
+        let char_bound = get_bound_of_character(character);
         let mut inside_at_least_one_chunk = false;
         for chunk in map.chunks.iter() {
             // trace("checking chn");
@@ -685,36 +649,26 @@ pub fn update_pos(
 
                 // }
 
-                let h_col_res_lower;
-                let h_col_res_upper;
-                let v_col_res_left;
-                let v_col_res_right;
-
                 let upper_y = char_bound.y + char_bound.height as i32 - 2;
                 let lower_y = char_bound.y + 1;
                 let left_x: i32 = char_bound.x + 1;
                 let right_x: i32 = char_bound.x + char_bound.width as i32 - 2;
 
-                let vert_y;
-                let positive_y;
-
                 // VERTICAL RAYCAST
-                if discretized_y_displacement_this_frame > 0 {
+                let (positive_y, vert_y) = if discretized_y_displacement_this_frame > 0 {
                     // GOING DOWNWARD
-                    positive_y = true;
-                    vert_y = upper_y;
+                    (true, upper_y)
                 } else {
-                    positive_y = false;
-                    vert_y = lower_y;
-                }
-                v_col_res_left = raycast_axis_aligned(
+                    (false, lower_y)
+                };
+                let v_col_res_left = raycast_axis_aligned(
                     false,
                     positive_y,
                     (left_x, vert_y),
                     discretized_y_displacement_this_frame,
                     chunk,
                 );
-                v_col_res_right = raycast_axis_aligned(
+                let v_col_res_right = raycast_axis_aligned(
                     false,
                     positive_y,
                     (right_x, vert_y),
@@ -722,26 +676,21 @@ pub fn update_pos(
                     chunk,
                 );
 
-                let horizontal_x;
-                let positive_x;
-
                 // HORIZONTAL RAYCAST
-                if discretized_x_displacement_this_frame > 0 {
+                let (positive_x, horizontal_x) = if discretized_x_displacement_this_frame > 0 {
                     // GOING DOWNWARD
-                    positive_x = true;
-                    horizontal_x = right_x;
+                    (true, right_x)
                 } else {
-                    positive_x = false;
-                    horizontal_x = left_x;
-                }
-                h_col_res_lower = raycast_axis_aligned(
+                    (false, left_x)
+                };
+                let h_col_res_lower = raycast_axis_aligned(
                     true,
                     positive_x,
                     (horizontal_x, lower_y),
                     discretized_x_displacement_this_frame,
                     chunk,
                 );
-                h_col_res_upper = raycast_axis_aligned(
+                let h_col_res_upper = raycast_axis_aligned(
                     true,
                     positive_x,
                     (horizontal_x, upper_y),
@@ -752,7 +701,7 @@ pub fn update_pos(
                 if v_col_res_left.collided || v_col_res_right.collided {
                     touching_some_ground = true;
                     // if we collided against the top, automatically hang
-                    if positive_y == false {
+                    if !positive_y {
                         character.state = match character.state {
                             KittyStates::OnCeiling(t) => KittyStates::OnCeiling(t + 1),
                             KittyStates::HuggingWall(t) => KittyStates::HuggingWall(t),
@@ -944,16 +893,15 @@ pub fn update_pos(
         }
     } else {
         // if we hit the floor, stop jumping
-        match character.state {
-            KittyStates::JumpingUp(t) => match t {
+        if let KittyStates::JumpingUp(t) = character.state {
+            match t {
                 0..=15 => {
                     // Cloud::try_push_cloud(clouds, 0.0, 0.0, 5.0, 0.0);
                 }
                 _ => {
                     character.state = KittyStates::Walking(0);
                 }
-            },
-            _ => {}
+            }
         }
     }
 
@@ -976,11 +924,8 @@ pub fn update_pos(
             },
         }
     } else {
-        match character.warp_ability {
-            WarpAbility::CanWarp(_) => {
-                character.warp_ability = WarpAbility::CanWarp(WarpState::Charging(0));
-            }
-            _ => {}
+        if let WarpAbility::CanWarp(_) = character.warp_ability {
+            character.warp_ability = WarpAbility::CanWarp(WarpState::Charging(0));
         }
     }
 

@@ -1,7 +1,6 @@
 use crate::wasm4::*;
 
 pub struct Song {
-    pub name: &'static str,
     pub scale: [u16; 8],
     pub f1_pitchchange_timer: u8,
     pub f2_pitchchange_timer: u8,
@@ -14,7 +13,6 @@ pub struct Song {
 pub const SONGS: [Song; 10] = [
     Song {
         // happy cat
-        name: "happy",
         scale: [294, 330, 370, 392, 440, 494, 554, 587],
         f1_pitchchange_timer: 5,
         f2_pitchchange_timer: 3,
@@ -25,7 +23,6 @@ pub const SONGS: [Song; 10] = [
     },
     Song {
         // it works but how
-        name: "ptdyl",
         scale: [330, 370, 415, 440, 494, 554, 622, 659],
         f1_pitchchange_timer: 3,
         f2_pitchchange_timer: 8,
@@ -36,7 +33,6 @@ pub const SONGS: [Song; 10] = [
     },
     Song {
         // sneak cat
-        name: "sneak",
         scale: [196, 220, 247, 262, 294, 330, 370, 392],
         f1_pitchchange_timer: 17,
         f2_pitchchange_timer: 5,
@@ -47,7 +43,6 @@ pub const SONGS: [Song; 10] = [
     },
     Song {
         // rando_cat
-        name: "boop!",
         scale: [247, 277, 311, 330, 370, 415, 466, 494],
         // scale: [196, 220, 247, 262, 294, 330, 370, 392],
         f1_pitchchange_timer: 19,
@@ -59,7 +54,6 @@ pub const SONGS: [Song; 10] = [
     },
     Song {
         // explore cat
-        name: "explr",
         scale: [196, 220, 247, 262, 294, 330, 370, 392],
         // scale: [196, 220, 247, 262, 294, 330, 370, 392],
         f1_pitchchange_timer: 7,
@@ -71,7 +65,6 @@ pub const SONGS: [Song; 10] = [
     },
     Song {
         // c6 minor
-        name: "ionos",
         scale: [523, 587, 622, 698, 784, 831, 932, 1047],
         f1_pitchchange_timer: 10,
         f2_pitchchange_timer: 13,
@@ -82,7 +75,6 @@ pub const SONGS: [Song; 10] = [
     },
     Song {
         // a flat
-        name: "crpkt",
         scale: [415, 466, 523, 554, 622, 698, 784, 831],
         f1_pitchchange_timer: 11,
         f2_pitchchange_timer: 17,
@@ -93,7 +85,6 @@ pub const SONGS: [Song; 10] = [
     },
     Song {
         // g sharp
-        name: "blopy",
         scale: [415, 466, 523, 554, 622, 698, 784, 831],
         f1_pitchchange_timer: 2,
         f2_pitchchange_timer: 7,
@@ -104,7 +95,6 @@ pub const SONGS: [Song; 10] = [
     },
     Song {
         // f
-        name: "Yumbo",
         scale: [175, 196, 220, 233, 262, 293, 330, 349],
         f1_pitchchange_timer: 5,
         f2_pitchchange_timer: 7,
@@ -114,8 +104,7 @@ pub const SONGS: [Song; 10] = [
         time_signature: (4, 16),
     },
     Song {
-        // f
-        name: "Underworld",
+        // f underworld
         scale: [523, 587, 622, 698, 784, 831, 932, 1047],
         f1_pitchchange_timer: 7,
         f2_pitchchange_timer: 17,
@@ -132,7 +121,7 @@ pub fn play_bgm(timer: u32, song: &Song) {
 
     let time_signature_numerator: u32 = song.time_signature.0 as u32 * song.measure_length as u32;
     let time_signature_denominator: u32 = song.time_signature.1 as u32 * song.measure_length as u32;
-    if timer % time_signature_numerator == 0 {
+    if timer.is_multiple_of(time_signature_numerator) {
         tone(
             song.scale[freq1] as u32,
             song.f1_note_duration as u32,
@@ -140,7 +129,8 @@ pub fn play_bgm(timer: u32, song: &Song) {
             TONE_PULSE1,
         );
     }
-    if timer % time_signature_denominator == 0 && (freq2 as i32).abs_diff(freq1 as i32) > 1 {
+    if timer.is_multiple_of(time_signature_denominator) && (freq2 as i32).abs_diff(freq1 as i32) > 1
+    {
         tone(
             song.scale[freq2] as u32,
             song.f2_note_duration as u32,

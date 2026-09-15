@@ -16,8 +16,8 @@ pub enum OptionallyEnabledPlayer {
 }
 
 pub enum MovingEntity<'a> {
-    OptionalPlayer(&'a mut OptionallyEnabledPlayer),
-    NPC(&'a mut Character),
+    OptionalPlayer(&'a OptionallyEnabledPlayer),
+    Npc(&'a Character),
 }
 
 // If a player can warp, they need to hold the button long enough.
@@ -76,7 +76,7 @@ impl Character {
             is_facing_right: true,
             state: KittyStates::JumpingUp(200),
             current_sprite_i: 0,
-            sprite: &spritesheet::Sprite::from_preset(&sprite_type),
+            sprite: spritesheet::Sprite::from_preset(&sprite_type),
             following_i: None,
             can_fly: false,
             sprite_type,

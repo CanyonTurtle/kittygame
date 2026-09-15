@@ -9,7 +9,7 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub fn slew(self: &mut Self) {
+    pub fn slew(&mut self) {
         // #TODO project across center so it leads target
         let x_err = self.current_viewing_x_target - self.current_viewing_x_offset;
         let y_err = self.current_viewing_y_target - self.current_viewing_y_offset;
@@ -19,7 +19,7 @@ impl Camera {
         self.current_viewing_y_offset += KP * y_err;
     }
 
-    pub fn cvt_world_to_screen_coords(self: &Self, x_pos: f32, y_pos: f32) -> (f32, f32) {
+    pub fn cvt_world_to_screen_coords(&self, x_pos: f32, y_pos: f32) -> (f32, f32) {
         (
             x_pos - self.current_viewing_x_offset,
             y_pos - self.current_viewing_y_offset,

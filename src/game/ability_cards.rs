@@ -51,26 +51,21 @@ pub enum AbilityCardUsageResult {
 }
 
 impl AbilityCardStack {
-    pub fn try_push_card(self: &mut Self, card: AbilityCardTypes, x_pos: f32, y_pos: f32) {
+    pub fn try_push_card(&mut self, card: AbilityCardTypes, x_pos: f32, y_pos: f32) {
         if self.cards.len() < N_CARDS {
             self.cards.push(Some(AbilityCard::new(card, x_pos, y_pos)));
         }
     }
 
-    pub fn move_cards(self: &mut Self) {
-        for card in &mut self.cards.iter_mut() {
-            match card {
-                Some(c) => {
-                    const CARD_PID_P: f32 = 0.125;
-                    c.x_pos += CARD_PID_P * (c.target_x - c.x_pos);
-                    c.y_pos += CARD_PID_P * (c.target_y - c.y_pos);
-                }
-                None => {}
-            }
+    pub fn move_cards(&mut self) {
+        for c in (&mut self.cards.iter_mut()).flatten() {
+            const CARD_PID_P: f32 = 0.125;
+            c.x_pos += CARD_PID_P * (c.target_x - c.x_pos);
+            c.y_pos += CARD_PID_P * (c.target_y - c.y_pos);
         }
     }
 
-    pub fn try_use_cards(self: &mut Self) -> AbilityCardUsageResult {
+    pub fn try_use_cards(&mut self) -> AbilityCardUsageResult {
         // if there is a first card, that's the use type.
         if self.cards.is_empty() {
             return AbilityCardUsageResult::NothingHappened;
@@ -85,16 +80,13 @@ impl AbilityCardStack {
                 // consume all adjacent cards of same type
                 for (i, other_card) in self.cards[0..self.cards.len() - 1].iter().enumerate().rev()
                 {
-                    match other_card {
-                        Some(oc) => {
-                            if oc.card_type == card.card_type {
-                                cards_to_consume[i] = true;
-                                n_consumed += 1;
-                            } else {
-                                break;
-                            }
+                    if let Some(oc) = other_card {
+                        if oc.card_type == card.card_type {
+                            cards_to_consume[i] = true;
+                            n_consumed += 1;
+                        } else {
+                            break;
                         }
-                        None => {}
                     }
                 }
 

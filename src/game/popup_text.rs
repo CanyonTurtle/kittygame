@@ -21,7 +21,7 @@ pub struct PopTextRingbuffer {
 }
 
 impl PopTextRingbuffer {
-    pub fn add_new_popup(self: &mut Self, x: f32, y: f32, s: String, icon: PopupIcon) {
+    pub fn add_new_popup(&mut self, x: f32, y: f32, s: String, icon: PopupIcon) {
         const POPUP_RISE_DIST: f32 = 15.0;
         const POPUP_Y_OFFSET: f32 = -8.0;
         self.texts[self.next_avail_idx as usize] = Some(PopupText {
@@ -37,24 +37,21 @@ impl PopTextRingbuffer {
         self.next_avail_idx %= self.texts.len() as u8;
     }
 
-    pub fn update_popup_positions(self: &mut Self) {
+    pub fn update_popup_positions(&mut self) {
         for popup in self.texts.iter_mut() {
-            match popup {
-                Some(p) => {
-                    const POPUP_TEXT_DURATION: u32 = 100;
-                    p.update_position();
-                    if p.duration_timer > POPUP_TEXT_DURATION {
-                        *popup = None;
-                    }
+            if let Some(p) = popup {
+                const POPUP_TEXT_DURATION: u32 = 100;
+                p.update_position();
+                if p.duration_timer > POPUP_TEXT_DURATION {
+                    *popup = None;
                 }
-                None => {}
             }
         }
     }
 }
 
 impl PopupText {
-    pub fn update_position(self: &mut Self) {
+    pub fn update_position(&mut self) {
         const PID_P: f32 = 0.1;
 
         self.x_pos += PID_P * (self.target_x_pos - self.x_pos);
