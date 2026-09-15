@@ -16,7 +16,6 @@ use game::{
     collision::{check_entity_collisions, update_pos},
     entities::{WarpAbility, WarpState},
     game_constants::{MAX_N_NPCS, SCREEN_HEIGHT_PX},
-    menus::GameMode,
     music::{play_bgm, SONGS},
 };
 
@@ -32,8 +31,8 @@ use crate::{
         collision::{get_bound_of_character, AbsoluteBoundingBox},
         entities::{MovingEntityMut, OptionallyEnabledPlayer},
         game_constants::{COUNTDOWN_TIMER_START, FINAL_LEVEL, START_DIFFICULTY_LEVEL},
-        game_state::{GameState, RunType},
-        menus::{MenuTypes, Modal, NormalPlayModes, SelectMenuFocuses, SelectSetup},
+        game_state::{GameMode, GameState, RunType},
+        menus::{MenuTypes, Modal},
         popup_text::PopupIcon,
         rng::{GameRng, Rng},
     },
@@ -117,19 +116,10 @@ fn update() {
     let [btns_pressed_this_frame, gamepads] = get_inputs_this_frame();
 
     // CHECK IF WE NEED TO FREEZE CHARACTERS / GAMEPLAY ON SCREEN
-    let mut showing_modal = false;
-    if let GameMode::NormalPlay(play_mode) = &game_state.game_mode {
-        match play_mode {
-            NormalPlayModes::MainGameplay => {
-                // handle player inputs here
-                game_state.countdown_paused = false;
-            }
-            NormalPlayModes::HoverModal(_) => {
-                showing_modal = true;
-                game_state.countdown_paused = true;
-            }
-        }
-    }
+
+    let showing_modal = game_state.menu.is_some();
+    game_state.countdown_paused = showing_modal;
+
     // ON TITLE SCREEN, MOVE PLAYER 1 BASED ON TIME
 
     // CHECK IF CHARACTERS / CATS ARE COLLIDING
@@ -281,7 +271,7 @@ fn update() {
     // Depending on what gamemode we're in, we do different update steps.
     {
         match &mut game_state.game_mode {
-            GameMode::NormalPlay(play_mode) => {
+            GameMode::NormalPlay => {
                 // COUNT THE NUMBER OF NPCS THAT ARE FOLLOWING PLAYERS
                 let current_found_npcs: u32 = game_state.npcs.iter().fold(0, |acc, e| {
                     acc + match e.following_i {
@@ -395,73 +385,65 @@ fn update() {
                 }
 
                 // ADVANCE MODAL DIALOGS
-                if showing_modal {
-                    match play_mode {
-                        NormalPlayModes::MainGameplay => {
-                            unreachable!()
+                if let Some(m) = &mut game_state.menu {
+                    m.update(game_state.song_timer as f32 * 0.05f32);
+
+                    if m.options_ready_to_select() {
+                        // let cursor_opt: u8;
+                        let mut btn_pressed: bool = false;
+                        // cursor_opt = *option;
+                        if btns_pressed_this_frame[0] & (BUTTON_1 | BUTTON_2) != 0 {
+                            btn_pressed = true
                         }
-                        NormalPlayModes::HoverModal(m) => {
-                            m.update(game_state.song_timer as f32 * 0.05f32);
-
-                            if m.options_ready_to_select() {
-                                // let cursor_opt: u8;
-                                let mut btn_pressed: bool = false;
-                                // cursor_opt = *option;
-                                if btns_pressed_this_frame[0] & (BUTTON_1 | BUTTON_2) != 0 {
-                                    btn_pressed = true
+                        match m.menu_type {
+                            MenuTypes::WonLevel => {
+                                if btn_pressed {
+                                    game_state.difficulty_level += 1;
+                                    // game_state.game_mode =
+                                    //     GameMode::NormalPlay(NormalPlayModes::MainGameplay);
+                                    game_state.game_mode = GameMode::NormalPlay;
+                                    game_state.menu = Some(Modal::new(
+                                        AbsoluteBoundingBox {
+                                            x: 45,
+                                            y: 40,
+                                            width: 70,
+                                            height: 50,
+                                        },
+                                        MenuTypes::StartLevel,
+                                    ));
+                                    game_state.regenerate_map();
                                 }
-                                match m.menu_type {
-                                    MenuTypes::WonLevel => {
-                                        if btn_pressed {
-                                            game_state.difficulty_level += 1;
-                                            // game_state.game_mode =
-                                            //     GameMode::NormalPlay(NormalPlayModes::MainGameplay);
-                                            game_state.game_mode = GameMode::NormalPlay(
-                                                NormalPlayModes::HoverModal(Modal::new(
-                                                    AbsoluteBoundingBox {
-                                                        x: 45,
-                                                        y: 40,
-                                                        width: 70,
-                                                        height: 50,
-                                                    },
-                                                    MenuTypes::StartLevel,
-                                                )),
-                                            );
-                                            game_state.regenerate_map();
-                                        }
-                                    }
-                                    MenuTypes::StartLevel => {
-                                        let mut start_normal_play = false;
-                                        if m.text_timer() > 100 {
-                                            start_normal_play = true;
-                                        }
+                            }
+                            MenuTypes::StartLevel => {
+                                let mut start_normal_play = false;
+                                if m.text_timer() > 100 {
+                                    start_normal_play = true;
+                                }
 
-                                        if btn_pressed {
-                                            start_normal_play = true;
-                                        }
-                                        if start_normal_play {
-                                            game_state.game_mode =
-                                                GameMode::NormalPlay(NormalPlayModes::MainGameplay);
-                                        }
-                                    }
-                                    MenuTypes::Done => {
-                                        if btn_pressed {
-                                            game_state.difficulty_level = START_DIFFICULTY_LEVEL;
-                                            game_state.game_mode = GameMode::StartScreen;
-                                        }
-                                    }
-                                    MenuTypes::WonGame => {
-                                        if btn_pressed {
-                                            game_state.difficulty_level = START_DIFFICULTY_LEVEL;
-                                            game_state.game_mode = GameMode::StartScreen;
-                                        }
-                                    }
-                                    MenuTypes::StartGameMessage => {
-                                        if btn_pressed {
-                                            game_state.game_mode =
-                                                GameMode::NormalPlay(NormalPlayModes::MainGameplay);
-                                        }
-                                    }
+                                if btn_pressed {
+                                    start_normal_play = true;
+                                }
+                                if start_normal_play {
+                                    game_state.game_mode = GameMode::NormalPlay;
+                                    game_state.menu = None;
+                                }
+                            }
+                            MenuTypes::Done => {
+                                if btn_pressed {
+                                    game_state.difficulty_level = START_DIFFICULTY_LEVEL;
+                                    game_state.game_mode = GameMode::StartScreen;
+                                }
+                            }
+                            MenuTypes::WonGame => {
+                                if btn_pressed {
+                                    game_state.difficulty_level = START_DIFFICULTY_LEVEL;
+                                    game_state.game_mode = GameMode::StartScreen;
+                                }
+                            }
+                            MenuTypes::StartGameMessage => {
+                                if btn_pressed {
+                                    game_state.game_mode = GameMode::NormalPlay;
+                                    game_state.menu = None;
                                 }
                             }
                         }
@@ -473,43 +455,43 @@ fn update() {
                         && game_state.tutorial_text_counter == 0
                     {
                         game_state.tutorial_text_counter += 1;
-                        game_state.game_mode =
-                            GameMode::NormalPlay(NormalPlayModes::HoverModal(Modal::new(
-                                AbsoluteBoundingBox {
-                                    x: 10,
-                                    y: 10,
-                                    width: 140,
-                                    height: 140,
-                                },
-                                MenuTypes::StartGameMessage,
-                            )));
+                        game_state.game_mode = GameMode::NormalPlay;
+                        game_state.menu = Some(Modal::new(
+                            AbsoluteBoundingBox {
+                                x: 10,
+                                y: 10,
+                                width: 140,
+                                height: 140,
+                            },
+                            MenuTypes::StartGameMessage,
+                        ));
                     }
 
                     // ------- LEVEL WIN CONDITION -----------
                     if game_state.total_npcs_to_find == current_found_npcs {
                         if game_state.difficulty_level == FINAL_LEVEL {
-                            game_state.game_mode =
-                                GameMode::NormalPlay(NormalPlayModes::HoverModal(Modal::new(
-                                    AbsoluteBoundingBox {
-                                        x: 25,
-                                        y: 35,
-                                        width: 110,
-                                        height: 65,
-                                    },
-                                    MenuTypes::WonGame,
-                                )));
+                            game_state.game_mode = GameMode::NormalPlay;
+                            game_state.menu = Some(Modal::new(
+                                AbsoluteBoundingBox {
+                                    x: 25,
+                                    y: 35,
+                                    width: 110,
+                                    height: 65,
+                                },
+                                MenuTypes::WonGame,
+                            ));
                             game_state.song_idx = 0;
                         } else {
-                            game_state.game_mode =
-                                GameMode::NormalPlay(NormalPlayModes::HoverModal(Modal::new(
-                                    AbsoluteBoundingBox {
-                                        x: 40,
-                                        y: 40,
-                                        width: 80,
-                                        height: 40,
-                                    },
-                                    MenuTypes::WonLevel,
-                                )));
+                            game_state.game_mode = GameMode::NormalPlay;
+                            game_state.menu = Some(Modal::new(
+                                AbsoluteBoundingBox {
+                                    x: 40,
+                                    y: 40,
+                                    width: 80,
+                                    height: 40,
+                                },
+                                MenuTypes::WonLevel,
+                            ));
                             game_state.song_idx = 0;
                         }
 
@@ -526,16 +508,16 @@ fn update() {
                             if game_state.countdown_timer_msec == 0 {
                                 game_state.song_idx = 0;
 
-                                game_state.game_mode =
-                                    GameMode::NormalPlay(NormalPlayModes::HoverModal(Modal::new(
-                                        AbsoluteBoundingBox {
-                                            x: 15,
-                                            y: 50,
-                                            width: 130,
-                                            height: 60,
-                                        },
-                                        MenuTypes::Done,
-                                    )));
+                                game_state.game_mode = GameMode::NormalPlay;
+                                game_state.menu = Some(Modal::new(
+                                    AbsoluteBoundingBox {
+                                        x: 15,
+                                        y: 50,
+                                        width: 130,
+                                        height: 60,
+                                    },
+                                    MenuTypes::Done,
+                                ));
                             }
                         }
                     }
@@ -545,53 +527,39 @@ fn update() {
                 // SETUP TITLE MUSIC AND COLORS
                 game_state.song_idx = 1;
 
+                if btns_pressed_this_frame[0] & (BUTTON_UP) != 0 {
+                    game_state.menu_idx -= 1;
+                }
+                if btns_pressed_this_frame[0] & (BUTTON_DOWN) != 0 {
+                    game_state.menu_idx += 1;
+                }
+                game_state.menu_idx %= 4;
+
+                if btns_pressed_this_frame[0] & (BUTTON_RIGHT | BUTTON_LEFT) != 0 {
+                    game_state.settings.run_type = match game_state.menu_idx {
+                        0 => RunType::Casual,
+                        1 => RunType::TimedMode,
+                        2 => RunType::Speedrun(0),
+                        _ => RunType::Casual,
+                    }
+                }
+
+                if btns_pressed_this_frame[0] & (BUTTON_2) != 0 {
+                    if let game::game_state::RunType::Speedrun(n) = game_state.settings.run_type {
+                        game_state.settings.run_type = game::game_state::RunType::Speedrun(n + 1);
+                    }
+                }
+
+                if btns_pressed_this_frame[0] & BUTTON_1 != 0 {
+                    game_state.game_mode = GameMode::NormalPlay;
+                    if let game::game_state::RunType::Speedrun(n) = game_state.settings.run_type {
+                        game_state.rng =
+                            GameRng::FixedSeed(Rng::new_from_seed(n), Rng::new_from_seed(n));
+                    }
+                    game_state.regenerate_map();
+                }
                 game_state.rng.next_for_input();
-                if btns_pressed_this_frame[0] != 0 {
-                    // game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::MainGameplay);
-                    game_state.game_mode = GameMode::SelectScreen(SelectSetup {
-                        current_selection: SelectMenuFocuses::RunType,
-                    });
-                    // game_state.regenerate_map();
-                }
             }
-            GameMode::SelectScreen(select_setup) => match select_setup.current_selection {
-                SelectMenuFocuses::RunType => {
-                    if btns_pressed_this_frame[0] & (BUTTON_UP) != 0 {
-                        game_state.menu_idx -= 1;
-                    }
-                    if btns_pressed_this_frame[0] & (BUTTON_DOWN) != 0 {
-                        game_state.menu_idx += 1;
-                    }
-                    game_state.menu_idx %= 4;
-
-                    if btns_pressed_this_frame[0] & (BUTTON_RIGHT | BUTTON_LEFT) != 0 {
-                        game_state.settings.run_type = match game_state.menu_idx {
-                            0 => RunType::Casual,
-                            1 => RunType::TimedMode,
-                            2 => RunType::Speedrun(0),
-                            _ => RunType::Casual,
-                        }
-                    }
-
-                    if btns_pressed_this_frame[0] & (BUTTON_2) != 0 {
-                        if let game::game_state::RunType::Speedrun(n) = game_state.settings.run_type
-                        {
-                            game_state.settings.run_type =
-                                game::game_state::RunType::Speedrun(n + 1);
-                        }
-                    }
-
-                    if btns_pressed_this_frame[0] & BUTTON_1 != 0 {
-                        game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::MainGameplay);
-                        if let game::game_state::RunType::Speedrun(n) = game_state.settings.run_type
-                        {
-                            game_state.rng =
-                                GameRng::FixedSeed(Rng::new_from_seed(n), Rng::new_from_seed(n));
-                        }
-                        game_state.regenerate_map();
-                    }
-                }
-            },
         }
     }
     draw_game(game_state, player_idx);

@@ -6,7 +6,7 @@ use crate::game::game_constants::{
     TILE_WIDTH_PX,
 };
 use crate::game::game_map::MAP_TILESETS;
-use crate::game::menus::{GameMode, MenuTypes, Modal, NormalPlayModes, SelectMenuFocuses};
+use crate::game::menus::{MenuTypes, Modal};
 use crate::game::popup_text::{PopTextRingbuffer, PopupIcon};
 use crate::title_ss::{
     OUTPUT_ONLINEPNGTOOLS, OUTPUT_ONLINEPNGTOOLS_FLAGS, OUTPUT_ONLINEPNGTOOLS_HEIGHT,
@@ -14,7 +14,7 @@ use crate::title_ss::{
 };
 use crate::{spritesheet, wasm4::*};
 
-use crate::game::game_state::{GameState, GameStateText, RunType};
+use crate::game::game_state::{GameMode, GameState, GameStateText, RunType};
 
 /// draw the tiles in the map, relative to the camera.
 pub fn draw_map(game_state: &GameState) {
@@ -274,7 +274,7 @@ fn draw_modal_text(m: &Modal, st: &str, x: i32, y: i32) {
 }
 
 pub fn draw_maingame_status_shadows(game_state: &GameState) {
-    let GameMode::NormalPlay(_play_mode) = &game_state.game_mode else {
+    let GameMode::NormalPlay = &game_state.game_mode else {
         return;
     };
 
@@ -351,10 +351,8 @@ pub fn draw_modals(game_state: &GameState) {
         speedrun_seed_text,
         ..
     } = &game_state.get_texts();
-    let GameMode::NormalPlay(play_mode) = &game_state.game_mode else {
-        return;
-    };
-    let NormalPlayModes::HoverModal(m) = play_mode else {
+
+    let Some(m) = &game_state.menu else {
         return;
     };
 
@@ -595,15 +593,15 @@ pub fn draw_game(game_state: &GameState, player_idx: u8) {
 
     draw_maingame_status_shadows(game_state);
 
+    draw_modals(game_state);
     // Depending on what gamemode we're in, we do different update steps.
     match &game_state.game_mode {
-        GameMode::NormalPlay(_play_mode) => {
+        GameMode::NormalPlay => {
             // DRAW POPUPS
             draw_popup_text(game_state);
 
             draw_ability_cards(game_state, player_idx);
 
-            draw_modals(game_state);
             draw_statuses(game_state);
         }
         GameMode::StartScreen => {
@@ -640,184 +638,6 @@ pub fn draw_game(game_state: &GameState, player_idx: u8) {
 
             // trace("updated positions");
             unsafe { *DRAW_COLORS = 0x1112 }
-        }
-        GameMode::SelectScreen(select_setup) => {
-            const BOX_LEFT_MARGIN: i32 = 15;
-            const BOX_RIGHT_MARGIN: i32 = BOX_LEFT_MARGIN;
-            const BOX_WIDTH: i32 = SCREEN_WIDTH_PX as i32 - BOX_LEFT_MARGIN - BOX_RIGHT_MARGIN;
-            const BOX_HEIGHT: i32 = 60;
-
-            const RUN_TYPE_Y: i32 = 66;
-            // const DIFFICULTY_Y: i32 = 33;
-            // const CHARACTER_Y: i32 = 46;
-            const START_Y: i32 = 130;
-            const START_X: i32 = 48;
-
-            // const START_WIDTH: i32 = 60;
-            // const START_HEIGHT: i32 = 19;
-
-            const SETTING_GROUP_INLAY_DIST: i32 = 5;
-
-            // let mut selected_box_dims = (0, 0, 0, 0);
-
-            fn draw_selected_box(dims: (i32, i32, i32, i32), style: u8, color: u16) {
-                draw_modal_bg(
-                    &AbsoluteBoundingBox {
-                        x: dims.0 as f32,
-                        y: dims.1 as f32,
-                        width: dims.2 as f32,
-                        height: dims.3 as f32,
-                    },
-                    style,
-                    color,
-                );
-            }
-
-            // draw background for menus
-            draw_modal_bg(
-                &AbsoluteBoundingBox {
-                    x: 0f32,
-                    y: 0f32,
-                    width: 159f32,
-                    height: 159f32,
-                },
-                0,
-                0x0001,
-            );
-            draw_selected_box(
-                (BOX_LEFT_MARGIN, RUN_TYPE_Y, BOX_WIDTH, BOX_HEIGHT),
-                0,
-                0x0001,
-            );
-
-            match select_setup.current_selection {
-                SelectMenuFocuses::RunType => {
-                    // draw box around run type
-                    draw_selected_box(
-                        (BOX_LEFT_MARGIN, RUN_TYPE_Y, BOX_WIDTH, BOX_HEIGHT),
-                        1,
-                        0x0004,
-                    );
-                    // layertext("Run Type", BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST, RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST);
-
-                    if game_state.song_timer % 30 >= 15 {
-                        unsafe { *DRAW_COLORS = 0x0004 }
-                        text(*b"\x85", 132, 72);
-                        text(*b"\x80", 45, 136);
-                    }
-
-                    layertext(
-                        "Start!",
-                        START_X + SETTING_GROUP_INLAY_DIST + 3,
-                        START_Y + SETTING_GROUP_INLAY_DIST + 1,
-                    );
-                }
-            }
-
-            match game_state.settings.run_type {
-                RunType::Casual => {
-                    layertext(
-                        "Casual Mode",
-                        BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST + 20,
-                        RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST,
-                    );
-                    layertext(
-                        "Random levels.",
-                        BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST,
-                        RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST + 15,
-                    );
-                    layertext(
-                        "Find all the",
-                        BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST,
-                        RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST + 25,
-                    );
-                    layertext(
-                        "kitties!",
-                        BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST,
-                        RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST + 35,
-                    );
-                }
-                RunType::TimedMode => {
-                    layertext(
-                        "Timed Mode",
-                        BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST + 20,
-                        RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST,
-                    );
-                    layertext(
-                        "Random levels.",
-                        BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST,
-                        RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST + 15,
-                    );
-                    layertext(
-                        "Find kitties",
-                        BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST,
-                        RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST + 25,
-                    );
-                    layertext(
-                        "in time!",
-                        BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST,
-                        RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST + 35,
-                    );
-                }
-                RunType::Speedrun(n) => {
-                    layertext(
-                        "Seed Mode",
-                        BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST + 25,
-                        RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST,
-                    );
-                    layertext(
-                        "Fixed maps",
-                        BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST,
-                        RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST + 15,
-                    );
-                    layertext(
-                        "For speedruns!",
-                        BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST,
-                        RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST + 25,
-                    );
-                    layertext(
-                        &format![" for seed: {}", n],
-                        BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST + 1,
-                        RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST + 35,
-                    );
-                    if game_state.song_timer % 30 >= 15 {
-                        unsafe { *DRAW_COLORS = 0x0004 }
-
-                        text(
-                            *b"\x81",
-                            BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST,
-                            RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST + 35,
-                        );
-                    }
-                }
-                RunType::Chaos => {
-                    layertext(
-                        "??? mode",
-                        BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST + 20,
-                        RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST,
-                    );
-                    layertext(
-                        "For the",
-                        BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST,
-                        RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST + 15,
-                    );
-                    layertext(
-                        "chaotic",
-                        BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST,
-                        RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST + 25,
-                    );
-                    layertext(
-                        "kittens...",
-                        BOX_LEFT_MARGIN + SETTING_GROUP_INLAY_DIST,
-                        RUN_TYPE_Y + SETTING_GROUP_INLAY_DIST + 35,
-                    );
-                }
-            }
-
-            // Draw box around selection
-            // draw_modal_bg(&AbsoluteBoundingBox{x: selected_box_dims.0 as f32, y: selected_box_dims.1 as f32, width: selected_box_dims.2 as f32, height: selected_box_dims.3 as f32}, 1);
-
-            render_title(game_state, TITLE_Y - 8);
         }
     }
 }

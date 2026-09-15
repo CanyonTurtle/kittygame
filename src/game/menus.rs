@@ -70,26 +70,3 @@ impl Modal {
         self.timer += 1;
     }
 }
-
-pub enum NormalPlayModes {
-    MainGameplay,
-    // hover modal is a text,
-    HoverModal(Modal),
-}
-
-pub enum SelectMenuFocuses {
-    // Difficulty,
-    RunType,
-    // CharacterSelect,
-    // StartGameBtn
-}
-
-pub struct SelectSetup {
-    pub current_selection: SelectMenuFocuses,
-}
-
-pub enum GameMode {
-    StartScreen,
-    NormalPlay(NormalPlayModes),
-    SelectScreen(SelectSetup),
-}

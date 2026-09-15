@@ -3,7 +3,6 @@ use super::entities::{Player, WarpAbility};
 use super::game_constants::{
     MapGenSetting, COUNTDOWN_TIMER_START, LEVELS_PER_MOOD, MAP_GEN_SETTINGS, START_DIFFICULTY_LEVEL,
 };
-use super::menus::GameMode;
 use super::popup_text::PopTextRingbuffer;
 use super::rng::GameRng;
 use super::{
@@ -22,6 +21,7 @@ use super::{
 use crate::game::ability_cards::AbilityCardStack;
 use crate::game::game_constants::{TILE_ORIGIN_X, TILE_ORIGIN_Y};
 use crate::game::game_map::MAP_TILESETS;
+use crate::game::menus::Modal;
 use crate::game::music::SONGS;
 use crate::kitty_ss;
 use crate::spritesheet::{self, KITTY_SPRITESHEET_PALETTES};
@@ -40,6 +40,13 @@ pub enum RunType {
 //     Medium,
 //     Hard
 // }
+
+pub type GameMenuMode = Option<Modal>;
+
+pub enum GameMode {
+    StartScreen,
+    NormalPlay,
+}
 
 pub struct GameSettings {
     pub run_type: RunType,
@@ -74,6 +81,7 @@ pub struct GameState<'a> {
     pub settings: GameSettings,
     pub speedrun_timer_msec: u32,
     pub menu_idx: u8,
+    pub menu: GameMenuMode,
 }
 
 pub struct GameStateText {
@@ -138,6 +146,7 @@ impl GameState<'static> {
             },
             speedrun_timer_msec: 0,
             menu_idx: 0,
+            menu: None,
         }
     }
     pub fn regenerate_map(&mut self) {
