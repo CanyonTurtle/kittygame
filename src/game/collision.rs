@@ -1,7 +1,7 @@
 use crate::{
     game::{
         ability_cards::{AbilityCardStack, AbilityCardTypes},
-        entities::{Player, WarpAbility, WarpState},
+        entities::{MovingEntityMut, Player, WarpAbility, WarpState},
         game_constants::{TILE_ORIGIN_X, TILE_ORIGIN_Y},
         popup_text::{PopTextRingbuffer, PopupIcon},
     },
@@ -10,7 +10,7 @@ use crate::{
 
 use super::{
     cloud::Cloud,
-    entities::{Character, KittyStates, MovingEntity, OptionallyEnabledPlayer},
+    entities::{Character, KittyStates, OptionallyEnabledPlayer},
     game_constants::{TILE_HEIGHT_PX, TILE_WIDTH_PX},
     game_map::GameMap,
     game_state::GameState,
@@ -334,7 +334,7 @@ pub fn raycast_axis_aligned(
 // handle inputs of players and other characters.
 pub fn update_pos(
     map: &GameMap,
-    moving_entity: MovingEntity,
+    moving_entity: MovingEntityMut,
     input: u8,
     godmode: bool,
     clouds: &mut Vec<Cloud>,
@@ -342,7 +342,7 @@ pub fn update_pos(
     let character: &mut Character;
 
     match moving_entity {
-        MovingEntity::OptionalPlayer(optionally_enabled_player) => {
+        MovingEntityMut::OptionalPlayer(optionally_enabled_player) => {
             match optionally_enabled_player {
                 OptionallyEnabledPlayer::Enabled(ch) => {
                     character = &mut ch.character;
@@ -365,7 +365,7 @@ pub fn update_pos(
                 }
             }
         }
-        MovingEntity::Npc(npc) => {
+        MovingEntityMut::Npc(npc) => {
             character = npc;
         }
     }

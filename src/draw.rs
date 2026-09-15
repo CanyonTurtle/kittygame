@@ -17,7 +17,7 @@ use crate::{spritesheet, wasm4::*};
 use crate::game::game_state::{GameState, GameStateText, RunType};
 
 /// draw the tiles in the map, relative to the camera.
-pub fn drawmap(game_state: &GameState) {
+pub fn draw_map(game_state: &GameState) {
     let map = &game_state.map;
     let camera = &game_state.camera;
 
@@ -361,7 +361,6 @@ pub fn draw_modals(game_state: &GameState) {
     draw_modal_bg(&m.actual_position, 1, 0x0002);
 
     let text_timer = m.text_timer();
-    const INTERACTIVE_DELAY: u32 = 60;
 
     let modal_offs = |x: i32, y: i32| {
         (
@@ -479,7 +478,7 @@ pub fn draw_modals(game_state: &GameState) {
 }
 
 /// Draw a character on-screen, relative to the camera.
-fn drawcharacter(
+fn draw_character(
     spritesheet: &[u8],
     spritesheet_stride: &usize,
     camera: &Camera,
@@ -570,7 +569,7 @@ pub fn draw_game(game_state: &GameState, player_idx: u8) {
     {
         let optional_players: &[OptionallyEnabledPlayer; 4] = &game_state.players;
         for optional_player in optional_players.iter() {
-            drawcharacter(
+            draw_character(
                 game_state.spritesheet,
                 &game_state.spritesheet_stride,
                 &game_state.camera,
@@ -581,7 +580,7 @@ pub fn draw_game(game_state: &GameState, player_idx: u8) {
 
     // DRAW NPCS
     for npc in game_state.npcs.iter() {
-        drawcharacter(
+        draw_character(
             game_state.spritesheet,
             &game_state.spritesheet_stride,
             &game_state.camera,
@@ -590,7 +589,7 @@ pub fn draw_game(game_state: &GameState, player_idx: u8) {
     }
 
     // ------ RENDER THE MAP -----------
-    drawmap(game_state);
+    draw_map(game_state);
 
     draw_clouds(game_state);
 
@@ -605,6 +604,7 @@ pub fn draw_game(game_state: &GameState, player_idx: u8) {
             draw_ability_cards(game_state, player_idx);
 
             draw_modals(game_state);
+            draw_statuses(game_state);
         }
         GameMode::StartScreen => {
             // SETUP TITLE MUSIC AND COLORS

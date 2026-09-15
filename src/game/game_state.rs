@@ -73,6 +73,7 @@ pub struct GameState<'a> {
     pub countdown_and_score_bonus: u32,
     pub settings: GameSettings,
     pub speedrun_timer_msec: u32,
+    pub menu_idx: u8,
 }
 
 pub struct GameStateText {
@@ -136,6 +137,7 @@ impl GameState<'static> {
                 // difficulty: Difficulty::Medium
             },
             speedrun_timer_msec: 0,
+            menu_idx: 0,
         }
     }
     pub fn regenerate_map(&mut self) {
@@ -507,16 +509,17 @@ impl<'a> GameState<'a> {
     pub fn get_texts(&self) -> GameStateText {
         GameStateText {
             // COMPUTE SCORE, LEVEL, # KITTIES (used later either in modal or normal screen)
-            world_level_text: format![
-                "W{}-L{}",
-                ((self.difficulty_level - 1) / LEVELS_PER_MOOD as u32) + 1,
-                ((self.difficulty_level - 1) % LEVELS_PER_MOOD as u32) + 1
-            ]
-            .to_owned(),
-            score_text: format!["Sc: {}p", self.score].to_owned(),
+            // world_level_text: format![
+            //     "W{}-L{}",
+            //     ((self.difficulty_level - 1) / LEVELS_PER_MOOD as u32) + 1,
+            //     ((self.difficulty_level - 1) % LEVELS_PER_MOOD as u32) + 1
+            // ]
+            // .to_owned(),
+            world_level_text: format!["L{}", self.difficulty_level],
+            score_text: format!["Sc: {}p", self.score],
             speedrun_seed_text: {
                 if let RunType::Speedrun(n) = self.settings.run_type {
-                    format!["Sd.{}: {}s", n, self.speedrun_timer_msec / 60].to_owned()
+                    format!["Sd.{}: {}s", n, self.speedrun_timer_msec / 60]
                 } else {
                     "".to_owned()
                 }
@@ -525,9 +528,8 @@ impl<'a> GameState<'a> {
                 "{:.2}/{:.2}",
                 self.current_found_npcs(),
                 self.total_npcs_to_find
-            ]
-            .to_owned(),
-            time_left_text: format!["{:<3}", self.countdown_timer_msec / 60].to_owned(),
+            ],
+            time_left_text: format!["{:<3}", self.countdown_timer_msec / 60],
         }
     }
 }

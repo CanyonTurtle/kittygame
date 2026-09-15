@@ -15,11 +15,27 @@ pub enum OptionallyEnabledPlayer {
     Disabled,
 }
 
-pub enum MovingEntity<'a> {
-    OptionalPlayer(&'a OptionallyEnabledPlayer),
-    Npc(&'a Character),
+macro_rules! define_moving_entity {
+    (
+        // We capture the name we want for the immutable and mutable enums
+        $immut_name:ident, $mut_name:ident
+    ) => {
+        // 1. Generate the Immutable Enum
+        pub enum $immut_name<'a> {
+            OptionalPlayer(&'a OptionallyEnabledPlayer),
+            Npc(&'a Character),
+        }
+
+        // 2. Generate the Mutable Enum
+        pub enum $mut_name<'a> {
+            OptionalPlayer(&'a mut OptionallyEnabledPlayer),
+            Npc(&'a mut Character),
+        }
+    };
 }
 
+// Invoke the macro to declare both enums in one go!
+define_moving_entity!(MovingEntity, MovingEntityMut);
 // If a player can warp, they need to hold the button long enough.
 type WarpInputTimer = u8;
 

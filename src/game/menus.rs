@@ -35,7 +35,7 @@ impl Modal {
 
     pub fn ready_to_show_text(&self) -> bool {
         const TOL: f32 = 10.0;
-        return (self.actual_position.width - self.target_position.width as f32).abs() < TOL;
+        (self.actual_position.width - self.target_position.width as f32).abs() < TOL
     }
 
     pub fn text_timer(&self) -> u32 {

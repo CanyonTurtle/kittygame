@@ -14,7 +14,7 @@ mod wasm4;
 use game::{
     cloud::Cloud,
     collision::{check_entity_collisions, update_pos},
-    entities::{MovingEntity, WarpAbility, WarpState},
+    entities::{WarpAbility, WarpState},
     game_constants::{MAX_N_NPCS, SCREEN_HEIGHT_PX},
     menus::GameMode,
     music::{play_bgm, SONGS},
@@ -30,10 +30,10 @@ use crate::{
     draw::draw_game,
     game::{
         collision::{get_bound_of_character, AbsoluteBoundingBox},
-        entities::OptionallyEnabledPlayer,
+        entities::{MovingEntityMut, OptionallyEnabledPlayer},
         game_constants::{COUNTDOWN_TIMER_START, FINAL_LEVEL, START_DIFFICULTY_LEVEL},
         game_state::{GameState, RunType},
-        menus::{MenuTypes, Modal, NormalPlayModes, SelectMenuFocuses},
+        menus::{MenuTypes, Modal, NormalPlayModes, SelectMenuFocuses, SelectSetup},
         popup_text::PopupIcon,
         rng::{GameRng, Rng},
     },
@@ -166,7 +166,7 @@ fn update() {
 
             update_pos(
                 &game_state.map,
-                MovingEntity::OptionalPlayer(optional_player),
+                MovingEntityMut::OptionalPlayer(optional_player),
                 input,
                 game_state.godmode,
                 &mut game_state.clouds,
@@ -267,7 +267,7 @@ fn update() {
         for (i, npc) in game_state.npcs.iter_mut().enumerate() {
             update_pos(
                 &game_state.map,
-                MovingEntity::Npc(npc),
+                MovingEntityMut::Npc(npc),
                 inputs[i],
                 game_state.godmode,
                 &mut game_state.clouds,
@@ -546,19 +546,30 @@ fn update() {
                 game_state.song_idx = 1;
 
                 game_state.rng.next_for_input();
+                if btns_pressed_this_frame[0] != 0 {
+                    // game_state.game_mode = GameMode::NormalPlay(NormalPlayModes::MainGameplay);
+                    game_state.game_mode = GameMode::SelectScreen(SelectSetup {
+                        current_selection: SelectMenuFocuses::RunType,
+                    });
+                    // game_state.regenerate_map();
+                }
             }
             GameMode::SelectScreen(select_setup) => match select_setup.current_selection {
                 SelectMenuFocuses::RunType => {
+                    if btns_pressed_this_frame[0] & (BUTTON_UP) != 0 {
+                        game_state.menu_idx -= 1;
+                    }
+                    if btns_pressed_this_frame[0] & (BUTTON_DOWN) != 0 {
+                        game_state.menu_idx += 1;
+                    }
+                    game_state.menu_idx %= 4;
+
                     if btns_pressed_this_frame[0] & (BUTTON_RIGHT | BUTTON_LEFT) != 0 {
-                        game_state.settings.run_type = match game_state.settings.run_type {
-                            RunType::Casual => RunType::TimedMode,
-                            game::game_state::RunType::TimedMode => {
-                                game::game_state::RunType::Speedrun(0)
-                            }
-                            game::game_state::RunType::Speedrun(_) => {
-                                game::game_state::RunType::Chaos
-                            }
-                            RunType::Chaos => RunType::Casual,
+                        game_state.settings.run_type = match game_state.menu_idx {
+                            0 => RunType::Casual,
+                            1 => RunType::TimedMode,
+                            2 => RunType::Speedrun(0),
+                            _ => RunType::Casual,
                         }
                     }
 
