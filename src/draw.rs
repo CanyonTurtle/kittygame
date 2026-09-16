@@ -264,8 +264,18 @@ fn draw_modal_bg(pf: &AbsoluteBoundingBox<f32, f32>, style: u8, color: u16) {
     }
 }
 
-fn draw_modal_text(m: &Modal, st: &str, x: i32, y: i32) {
-    unsafe { *DRAW_COLORS = 0x0002 }
+enum ModalTextStyling {
+    Normal,
+    Bold,
+}
+
+fn draw_modal_text(m: &Modal, st: &str, x: i32, y: i32, styling: Option<ModalTextStyling>) {
+    let style_to_apply = styling.unwrap_or(ModalTextStyling::Normal);
+    let color = match style_to_apply {
+        ModalTextStyling::Normal => 0x0002,
+        ModalTextStyling::Bold => 0x0004,
+    };
+    unsafe { *DRAW_COLORS = color }
     text(
         st,
         m.actual_position.x as i32 + x,
@@ -374,19 +384,20 @@ pub fn draw_modals(game_state: &GameState) {
                 const BLINK_START: u32 = 50;
                 const BLINK_TITLE_PERIOD: u32 = 17;
                 if text_timer < BLINK_START || (text_timer / BLINK_TITLE_PERIOD).is_multiple_of(2) {
-                    // draw_modal_text("Found!!", 12, 15);
-                    draw_modal_text(m, &world_level_text, 16, 12);
-                    draw_modal_text(m, "Clear!", 16, 22);
+                    // draw_modal_text("Found!!", 12, 15, None);
+                    draw_modal_text(m, &world_level_text, 16, 12, None);
+                    draw_modal_text(m, "Clear!", 16, 22, None);
                 }
             }
             MenuTypes::StartLevel => {
-                draw_modal_text(m, &world_level_text, 16, 12);
-                draw_modal_text(m, "Start!", 16, 22);
+                draw_modal_text(m, &world_level_text, 16, 12, None);
+                draw_modal_text(m, "Start!", 16, 22, None);
                 draw_modal_text(
                     m,
                     &format!["+{}", game_state.countdown_and_score_bonus],
                     33,
                     35,
+                    None,
                 );
                 let (xx, yy) = modal_offs(25, 34);
 
@@ -402,7 +413,7 @@ pub fn draw_modals(game_state: &GameState) {
                         );
                     }
                     _ => {
-                        draw_modal_text(m, "Sc", 33 - 2 * 8, 35);
+                        draw_modal_text(m, "Sc", 33 - 2 * 8, 35, None);
                     }
                 }
             }
@@ -410,34 +421,34 @@ pub fn draw_modals(game_state: &GameState) {
                 const BLINK_START: u32 = 50;
                 const BLINK_TITLE_PERIOD: u32 = 17;
                 if text_timer < BLINK_START || (text_timer / BLINK_TITLE_PERIOD).is_multiple_of(2) {
-                    draw_modal_text(m, "Time's Up!", 20, 14);
+                    draw_modal_text(m, "Time's Up!", 20, 14, None);
                 }
 
-                draw_modal_text(m, &format!["End: {}", &world_level_text], 8, 30);
-                draw_modal_text(m, &score_text, 8, 40);
+                draw_modal_text(m, &format!["End: {}", &world_level_text], 8, 30, None);
+                draw_modal_text(m, &score_text, 8, 40, None);
             }
             MenuTypes::WonGame => {
                 const BLINK_START: u32 = 50;
                 const BLINK_TITLE_PERIOD: u32 = 17;
                 if text_timer < BLINK_START || (text_timer / BLINK_TITLE_PERIOD).is_multiple_of(2) {
-                    draw_modal_text(m, "YOU WON!!!", 20, 14);
+                    draw_modal_text(m, "YOU WON!!!", 20, 14, None);
                 }
 
-                draw_modal_text(m, &format!["End: {}", world_level_text], 8, 30);
-                draw_modal_text(m, &score_text, 8, 40);
+                draw_modal_text(m, &format!["End: {}", world_level_text], 8, 30, None);
+                draw_modal_text(m, &score_text, 8, 40, None);
 
                 if let RunType::Speedrun(_) = game_state.settings.run_type {
-                    draw_modal_text(m, &speedrun_seed_text, 8, 50);
+                    draw_modal_text(m, &speedrun_seed_text, 8, 50, None);
                 }
             }
             MenuTypes::StartGameMessage => {
-                draw_modal_text(m, "-- GOAL --", 30, 10);
-                draw_modal_text(m, "Find all the", 20, 25);
-                draw_modal_text(m, "kitties in time!", 10, 40);
-                draw_modal_text(m, "-- CONTROLS --", 14, 100);
+                draw_modal_text(m, "-- GOAL --", 30, 10, Some(ModalTextStyling::Bold));
+                draw_modal_text(m, "Find all the", 20, 25, None);
+                draw_modal_text(m, "kitties in time!", 10, 40, None);
+                draw_modal_text(m, "-- CONTROLS --", 14, 100, Some(ModalTextStyling::Bold));
 
-                draw_modal_text(m, "     to move,", 24, 114);
-                draw_modal_text(m, " =jump,  =card", 16, 126);
+                draw_modal_text(m, "     to move,", 24, 114, None);
+                draw_modal_text(m, " =jump,  =card", 16, 126, None);
                 let (xx, yy) = modal_offs(0, 0);
 
                 if game_state.song_timer % 30 >= 15 {
@@ -457,7 +468,7 @@ pub fn draw_modals(game_state: &GameState) {
                     yy + 62,
                 );
 
-                draw_modal_text(m, " = # kittes", 28, 62);
+                draw_modal_text(m, " = # kittes", 28, 62, None);
 
                 if let RunType::TimedMode = game_state.settings.run_type {
                     draw_spriteframe(
@@ -468,8 +479,63 @@ pub fn draw_modals(game_state: &GameState) {
                         xx + 20,
                         yy + 78,
                     );
-                    draw_modal_text(m, " = time left", 28, 78);
+                    draw_modal_text(m, " = time left", 28, 78, None);
                 }
+            }
+            MenuTypes::Setup => {
+                fn get_run_type_text(run_type: RunType) -> String {
+                    match run_type {
+                        RunType::Casual => "casual".to_owned(),
+                        RunType::TimedMode => "Timed".to_owned(),
+                        RunType::Speedrun(_) => "Seeded".to_owned(),
+                        RunType::Chaos => "???".to_owned(),
+                    }
+                }
+                let style_for_run_type = |rt: &RunType| {
+                    if std::mem::discriminant(rt)
+                        == std::mem::discriminant(&game_state.settings.run_type)
+                    {
+                        Some(ModalTextStyling::Bold)
+                    } else {
+                        None
+                    }
+                };
+                draw_spriteframe(
+                    game_state.spritesheet,
+                    &spritesheet::Sprite::from_preset(&spritesheet::PresetSprites::CatHead).frames
+                        [0],
+                    game_state.spritesheet_stride as u32,
+                    20,
+                    62,
+                );
+                draw_modal_text(
+                    m,
+                    &get_run_type_text(RunType::Casual),
+                    24,
+                    10,
+                    style_for_run_type(&RunType::Casual),
+                );
+                draw_modal_text(
+                    m,
+                    &get_run_type_text(RunType::TimedMode),
+                    24,
+                    25,
+                    style_for_run_type(&RunType::TimedMode),
+                );
+                draw_modal_text(
+                    m,
+                    &get_run_type_text(RunType::Speedrun(0)),
+                    24,
+                    40,
+                    style_for_run_type(&RunType::Speedrun(0)),
+                );
+                draw_modal_text(
+                    m,
+                    &get_run_type_text(RunType::Chaos),
+                    24,
+                    55,
+                    style_for_run_type(&RunType::Chaos),
+                );
             }
         }
     }
@@ -609,35 +675,35 @@ pub fn draw_game(game_state: &GameState, player_idx: u8) {
             unsafe { *DRAW_COLORS = 0x0002 }
 
             // SHOW TITLE-SCREEN SUBTEXT
-            if game_state.song_timer >= TIMER_INTERACTIVE_START {
-                draw_modal_bg(
-                    &AbsoluteBoundingBox {
-                        x: 15.0,
-                        y: 105.0,
-                        width: 130.0,
-                        height: 40.0,
-                    },
-                    0,
-                    0x0001,
-                );
-                unsafe { *DRAW_COLORS = 0x0002 };
-                if game_state.song_timer % 30 >= 15 {
-                    text("Any key: play", 24, 110);
+            if game_state.menu.is_none() {
+                if game_state.song_timer >= TIMER_INTERACTIVE_START {
+                    draw_modal_bg(
+                        &AbsoluteBoundingBox {
+                            x: 15.0,
+                            y: 105.0,
+                            width: 130.0,
+                            height: 40.0,
+                        },
+                        0,
+                        0x0001,
+                    );
+                    unsafe { *DRAW_COLORS = 0x0004 };
+                    if game_state.song_timer % 30 >= 15 {
+                        text("Any key: play", 24, 110);
+                    }
+
+                    unsafe { *DRAW_COLORS = 0x0002 };
+                    text("by CanyonTurtle", 20, 125);
+                    text(" & BurntSugar  ", 20, 135);
+                    text(
+                        format!["ver. {}.{}.{}", MAJOR_VERSION, MINOR_VERSION, INCR_VERSION],
+                        40,
+                        150,
+                    );
                 }
 
-                text("by CanyonTurtle", 20, 125);
-                text(" & BurntSugar  ", 20, 135);
-                text(
-                    format!["ver. {}.{}.{}", MAJOR_VERSION, MINOR_VERSION, INCR_VERSION],
-                    40,
-                    150,
-                );
+                render_title(game_state, TITLE_Y);
             }
-
-            render_title(game_state, TITLE_Y);
-
-            // trace("updated positions");
-            unsafe { *DRAW_COLORS = 0x1112 }
         }
     }
 }

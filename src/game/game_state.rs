@@ -28,6 +28,7 @@ use crate::spritesheet::{self, KITTY_SPRITESHEET_PALETTES};
 
 // Games can either be fixed-seed and timed for speedrunning, or random.
 type RunSeed = u32;
+
 pub enum RunType {
     Casual,
     TimedMode,
